@@ -499,9 +499,12 @@ a {
 }
 
 @media (max-width: 640px) {
-  /* Featured grid stays single-column on phones so winner/loser keep
-     their drama. The regular grid uses auto-fill minmax(260px, 1fr)
-     and naturally falls to one column below ~540px. */
+  /* Phones: 2 cards per row in the regular grid (cards scale down via
+     container queries on .stock-card itself, see below). The featured
+     grid stays single-column so winner/loser keep their drama. */
+  .stock-grid {
+    grid-template-columns: 1fr 1fr;
+  }
   .stock-grid-featured {
     grid-template-columns: 1fr;
   }
@@ -519,6 +522,49 @@ a {
   transition:
     border-color 180ms ease,
     transform 180ms ease;
+  /* Lets descendants respond to the card's own width via @container queries.
+     Used to scale fonts/padding down when the card sits in a narrow
+     2-up mobile layout. */
+  container-type: inline-size;
+}
+
+/* Narrow cards (typically 2-up on phones around 165–220px wide) — scale
+   everything down so content actually fits. */
+@container (max-width: 240px) {
+  .stock-card {
+    padding: 0.6rem 0.65rem 0.7rem;
+  }
+  .stock-card .ticker {
+    font-size: 1.15rem;
+  }
+  .stock-card .name {
+    font-size: 0.62rem;
+  }
+  .stock-card .price {
+    font-size: 1.05rem;
+  }
+  .stock-card .currency {
+    font-size: 0.62rem;
+    margin-left: 0.25rem;
+  }
+  .stock-card .change-up,
+  .stock-card .change-down,
+  .stock-card .change-neutral {
+    font-size: 0.7rem;
+  }
+  .stock-card .rating {
+    font-size: 0.55rem;
+    padding: 0.12rem 0.3rem;
+    letter-spacing: 0.04em;
+  }
+  .stock-card .comment {
+    font-size: 0.7rem;
+    line-height: 1.35;
+    padding-left: 0.45rem;
+  }
+  .stock-card .meta {
+    font-size: 0.6rem;
+  }
 }
 
 .stock-card:hover {
