@@ -1,10 +1,13 @@
-export type Person = "chris" | "eric" | "oskar";
-
-export const PERSON_NAMES: Record<Person, string> = {
+// Single source of truth for the friend group. Add a new friend by adding
+// one entry here; the Person type, owner lookups, and the analyzer prompt
+// list all derive from this map.
+export const PEOPLE = {
   chris: "Chris",
   eric: "Eric",
   oskar: "Oskar",
-};
+} as const;
+
+export type Person = keyof typeof PEOPLE;
 
 /**
  * Stockholm tickers carry a `.ST` suffix and a hyphen for the share class
@@ -31,7 +34,7 @@ export type Ticker = {
 
 export const TICKERS: Ticker[] = [
   // Swedish stocks — fetched via Avanza unofficial API by orderbookId
-  { symbol: "INVE-B.ST", name: "Investor B", market: "SE", avanzaId: 5247 },
+  { symbol: "INVE-B.ST", name: "Investor B", market: "SE", avanzaId: 5247, owners: ["chris", "eric", "oskar"] },
   { symbol: "VOLV-B.ST", name: "Volvo B", market: "SE", avanzaId: 5269, owners: ["eric"] },
   { symbol: "SWED-A.ST", name: "Swedbank A", market: "SE", avanzaId: 5241, owners: ["oskar"] },
   { symbol: "SHB-B.ST", name: "Handelsbanken B", market: "SE", avanzaId: 5265, owners: ["chris"] },

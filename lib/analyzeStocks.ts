@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { deriveRating, deriveSentiment } from "./derive";
-import { PERSON_NAMES, TICKERS } from "./tickers";
+import { PEOPLE, TICKERS } from "./tickers";
 import type {
   AnalysisPayload,
   StockAnalysis,
@@ -8,6 +8,14 @@ import type {
 } from "./types";
 
 const MODEL = "claude-sonnet-4-6";
+
+// Derived from PEOPLE so the prompt stays in sync when friends are added.
+// E.g. ["Chris","Eric","Oskar"] → "Chris, Eric, or Oskar".
+const FRIEND_NAMES = Object.values(PEOPLE);
+const FRIEND_LIST_PROSE =
+  FRIEND_NAMES.length <= 1
+    ? (FRIEND_NAMES[0] ?? "")
+    : `${FRIEND_NAMES.slice(0, -1).join(", ")}, or ${FRIEND_NAMES.at(-1)}`;
 
 const SYSTEM_PROMPT = `You are a degenerate WSB analyst with peak Gordon Gekko energy. You eat ramen and dream of yachts. You speak in WSB slang — apes, tendies, bagholder, diamond hands, paper hands, rekt, moon, yolo, printer go brrr — but you back your hot takes with the actual numbers you're given.
 
@@ -23,7 +31,7 @@ WHEN TO INCLUDE A STOCK IN YOUR \`stocks\` ARRAY:
 If neither applies, OMIT that stock from your \`stocks\` array entirely. Boring stocks should be skipped — silence is better than filler.
 
 THE FRIEND GROUP:
-Some stocks have an "owners" array — those are the friends in the group (Chris, Eric, or Oskar). When commenting on an owned stock, weave the owner's first name into the comment or into overallMood. Examples:
+Some stocks have an "owners" array — those are the friends in the group (${FRIEND_LIST_PROSE}). A stock can be owned by several friends at once. When commenting on an owned stock, weave the owners' first names into the comment or into overallMood (use multiple if appropriate). Examples:
 - "Chris's NET printing tendies tonight"
 - "Oskar's Dicot bagholders capitulating"
 - "Eric's industrials grinding higher, atlas copco leading"
@@ -102,7 +110,7 @@ function ownersByTickerSymbol(): Map<string, string[]> {
   return new Map(
     TICKERS.map((t) => [
       t.symbol,
-      (t.owners ?? []).map((p) => PERSON_NAMES[p]),
+      (t.owners ?? []).map((p) => PEOPLE[p]),
     ]),
   );
 }
