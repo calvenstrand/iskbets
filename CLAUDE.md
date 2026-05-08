@@ -88,8 +88,10 @@ Documented in `.env.example`:
 ## WSB voice (for the analyzer prompt)
 
 - Persona: WSB analyst with Gordon Gekko energy.
-- `comment` is **optional** per stock — only the worthy stocks get a one-liner. The analyzer prompt rules: comment only if (a) move >±3%, (b) rating is MOON/REKT/YOLO, OR (c) owned + move >±1.5%. Otherwise omit. Boring stocks just show rating + price + change.
-- `comment` is ≤ 10 words when present. Punchy, slang-heavy.
-- `rating` is one of a fixed set of emoji-prefixed strings — never invent new ones (see `lib/analyzeStocks.ts`).
-- `sentiment` ∈ `"moon" | "up" | "neutral" | "down" | "rekt"` — keep consistent with `rating`.
-- **Owners**: each ticker may have an `owners` array (Chris/Eric/Oskar) in `lib/tickers.ts`. Owner names are passed to Claude in the price payload. When commenting on an owned stock with a dramatic move, Claude weaves the friend's first name into the comment or `overallMood`.
+- **Claude only generates two things**: optional per-stock `comment`s, and the `overallMood`. Everything else is computed in code:
+  - `rating` and `sentiment` are derived from `regularMarketChangePercent` via `lib/derive.ts`. Pure rule-based, no LLM judgment needed for magnitude-based labels.
+  - `biggestWinner` / `biggestLoser` are picked by `Math.max`/`Math.min` over the price data.
+- `comment` is **optional** per stock — Claude only includes one when (a) move >±3%, OR (b) owned + move >±1.5%. Otherwise omit. ≤ 10 words, punchy, slang-heavy.
+- `rating` is one of `🚀 TO THE MOON | 💎 DIAMOND HANDS | 📈 BULLISH AF | ⚠️ TURBULENCE | 📉 GET REKT` (see `lib/types.ts` RATINGS). YOLO CALL was dropped — re-add as a per-ticker static flag if a "high conviction high risk" badge is wanted.
+- `sentiment` ∈ `"moon" | "up" | "neutral" | "down" | "rekt"` — derived alongside rating; sentiment is decoupled from rating so a TURBULENCE card can still glow "down" if the move is mildly negative.
+- **Owners**: each ticker may have an `owners` array (Chris/Eric/Oskar) in `lib/tickers.ts`. Owner names are passed to Claude in the enriched price payload. When commenting on an owned stock, Claude weaves the friend's first name in.

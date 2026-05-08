@@ -1,3 +1,4 @@
+import { deriveRating, deriveSentiment } from "./derive";
 import type { StockAnalysis, StockPrice, StoredData } from "./types";
 
 const STOCKS: StockPrice[] = [
@@ -304,146 +305,71 @@ const STOCKS: StockPrice[] = [
   },
 ];
 
-const ANALYSIS: StockAnalysis[] = [
-  {
-    ticker: "NVDA",
-    rating: "🚀 TO THE MOON",
-    sentiment: "moon",
-    comment: "Jensen printing tendies, AI apes feast tonight",
-  },
-  {
-    ticker: "TSLA",
-    rating: "🔥 YOLO CALL",
-    sentiment: "moon",
-    comment: "Elon tweeted, robotaxis loaded, full port long",
-  },
-  {
-    ticker: "GME",
-    rating: "📉 GET REKT",
-    sentiment: "rekt",
-    comment: "Pump dumped, paper hands fleeing, bagholders crying",
-  },
-  {
-    ticker: "PLTR",
-    rating: "📈 BULLISH AF",
-    sentiment: "up",
-    comment: "Karp's army marching, government tendies incoming",
-  },
-  {
-    ticker: "AMD",
-    rating: "📈 BULLISH AF",
-    sentiment: "up",
-  },
-  {
-    ticker: "COIN",
-    rating: "⚠️ TURBULENCE",
-    sentiment: "down",
-  },
-  {
-    ticker: "MSTR",
-    rating: "💎 DIAMOND HANDS",
-    sentiment: "up",
-  },
-  {
-    ticker: "SHOP",
-    rating: "📈 BULLISH AF",
-    sentiment: "up",
-    comment: "Merchants printing tendies, all-time high incoming",
-  },
-  {
-    ticker: "NET",
-    rating: "🚀 TO THE MOON",
-    sentiment: "moon",
-    comment: "Chris's Cloudflare ripping faces, AI infra moon",
-  },
-  {
-    ticker: "KLAR",
-    rating: "📈 BULLISH AF",
-    sentiment: "up",
-  },
-  {
-    ticker: "INVE-B.ST",
-    rating: "💎 DIAMOND HANDS",
-    sentiment: "up",
-  },
-  {
-    ticker: "VOLV-B.ST",
-    rating: "📈 BULLISH AF",
-    sentiment: "up",
-  },
-  {
-    ticker: "SWED-A.ST",
-    rating: "⚠️ TURBULENCE",
-    sentiment: "down",
-  },
-  {
-    ticker: "SHB-B.ST",
-    rating: "💎 DIAMOND HANDS",
-    sentiment: "up",
-  },
-  {
-    ticker: "ATCO-B.ST",
-    rating: "💎 DIAMOND HANDS",
-    sentiment: "up",
-  },
-  {
-    ticker: "HM-B.ST",
-    rating: "📉 GET REKT",
-    sentiment: "down",
-    comment: "Fast fashion fading, paper bag holders eternal",
-  },
-  {
-    ticker: "DOM.ST",
-    rating: "📈 BULLISH AF",
-    sentiment: "up",
-  },
-  {
-    ticker: "BINV.ST",
-    rating: "⚠️ TURBULENCE",
-    sentiment: "down",
-    comment: "Biotech rollercoaster, FDA gods unhappy today",
-  },
-  {
-    ticker: "THULE.ST",
-    rating: "💎 DIAMOND HANDS",
-    sentiment: "up",
-    comment: "Roof boxes printing tendies, Volvo dad approves",
-  },
-  {
-    ticker: "CAST.ST",
-    rating: "⚠️ TURBULENCE",
-    sentiment: "down",
-  },
-  {
-    ticker: "NIBE-B.ST",
-    rating: "📈 BULLISH AF",
-    sentiment: "up",
-    comment: "Heat pumps go brrr, Swedish winter saviour",
-  },
-  {
-    ticker: "DICOT.ST",
-    rating: "🔥 YOLO CALL",
-    sentiment: "rekt",
-    comment: "Oskar's Dicot apes vaporized at 25 öre",
-  },
-  {
-    ticker: "VPLAY-B.ST",
-    rating: "📉 GET REKT",
-    sentiment: "down",
-    comment: "Eric's Viaplay sinking, paper hands fleeing",
-  },
-];
+// Hand-written WSB comments for the tickers worth talking about. Tickers
+// not in this map get no comment (mirrors what Claude does in production).
+const COMMENTS: Record<string, string> = {
+  NVDA: "Jensen printing tendies, AI apes feast tonight",
+  TSLA: "Elon tweeted, robotaxis loaded, full port long",
+  GME: "Pump dumped, paper hands fleeing, bagholders crying",
+  PLTR: "Karp's army marching, government tendies incoming",
+  "HM-B.ST": "Fast fashion fading, paper bag holders eternal",
+  "BINV.ST": "Biotech rollercoaster, FDA gods unhappy today",
+  NET: "Chris's Cloudflare ripping faces, AI infra moon",
+  SHOP: "Chris's Shopify printing tendies, ATH in sight",
+  "THULE.ST": "Eric's roof boxes printing, Volvo dad approves",
+  "NIBE-B.ST": "Eric's heat pumps go brrr, Swedish saviour",
+  "DICOT.ST": "Oskar's Dicot apes vaporized at 25 öre",
+  "VPLAY-B.ST": "Eric's Viaplay sinking, paper hands fleeing",
+};
+
+const OVERALL_MOOD =
+  "Chris's Cloudflare moons while Eric's Viaplay tanks and Oskar's Dicot apes get fully vaporized — typical Tuesday in the trenches.";
+
+function pickWinnerLoser(stocks: StockPrice[]): {
+  winner: string;
+  loser: string;
+} {
+  let winner = stocks[0];
+  let loser = stocks[0];
+  for (const s of stocks) {
+    if (
+      !winner ||
+      s.regularMarketChangePercent > winner.regularMarketChangePercent
+    ) {
+      winner = s;
+    }
+    if (
+      !loser ||
+      s.regularMarketChangePercent < loser.regularMarketChangePercent
+    ) {
+      loser = s;
+    }
+  }
+  return { winner: winner?.ticker ?? "", loser: loser?.ticker ?? "" };
+}
 
 export function getMockData(): StoredData {
   const now = Date.now();
+
+  const analysis: StockAnalysis[] = STOCKS.map((s) => {
+    const comment = COMMENTS[s.ticker];
+    return {
+      ticker: s.ticker,
+      rating: deriveRating(s.regularMarketChangePercent),
+      sentiment: deriveSentiment(s.regularMarketChangePercent),
+      ...(comment ? { comment } : {}),
+    };
+  });
+
+  const { winner, loser } = pickWinnerLoser(STOCKS);
+
   return {
     stocks: STOCKS,
     analysis: {
-      stocks: ANALYSIS,
-      overallMood:
-        "Chris's Cloudflare moons while Eric's Viaplay tanks and Oskar's Dicot apes get fully vaporized — typical Tuesday in the trenches.",
-      biggestWinner: "NVDA",
-      biggestLoser: "DICOT.ST",
+      stocks: analysis,
+      overallMood: OVERALL_MOOD,
+      biggestWinner: winner,
+      biggestLoser: loser,
     },
     updatedAt: new Date(now).toISOString(),
     lastFetch: now,

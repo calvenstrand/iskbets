@@ -20,7 +20,6 @@ export const RATINGS = [
   "📈 BULLISH AF",
   "⚠️ TURBULENCE",
   "📉 GET REKT",
-  "🔥 YOLO CALL",
 ] as const;
 
 export type Rating = (typeof RATINGS)[number];
