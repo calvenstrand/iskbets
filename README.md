@@ -1,6 +1,6 @@
 # ISKBets
 
-A WSB-flavored stock tracker — Wall Street meets WallStreetBets. Fetches a curated list of Swedish + US tickers from Yahoo Finance, runs the snapshot through Claude for a Gordon-Gekko-energy take, stores the result in Vercel KV, and renders it as a dark Bloomberg-terminal-built-by-apes dashboard.
+A WSB-flavored stock tracker — Wall Street meets WallStreetBets. Fetches a curated list of Swedish + US tickers (Finnhub for US, Avanza's unofficial JSON for Stockholm), runs the snapshot through Claude for a Gordon-Gekko-energy take, stores the result in Vercel KV, and renders it as a dark Bloomberg-terminal-built-by-apes dashboard.
 
 ## Local setup
 
@@ -35,7 +35,7 @@ GET https://<your-domain>/api/trigger?key=<TRIGGER_SECRET>
 - `401` if the key is wrong
 - `429 { error, nextAllowed, minutesRemaining }` during the 30-minute cooldown
 - `200` with the saved snapshot on success
-- `500` if Yahoo or Claude blew up
+- `500` if Finnhub/Avanza or Claude blew up
 
 Read the latest snapshot at `/api/data` (no auth):
 
@@ -65,17 +65,22 @@ app/
   page.tsx                 server component, fetches /api/data
   globals.css              CSS variables + animations + component styles
 components/
+  BootSequence.tsx         CRT-style boot log shown once per session
   Dashboard.tsx            'use client' orchestrator
   TickerTape.tsx           scrolling marquee
-  Header.tsx               WALL$TREET BETS + rotating Gekko quotes
-  MarketStatus.tsx         Stockholm + NYC open/closed pips
+  Header.tsx               I$KBETS masthead + date/issue dateline
+  MarketStatus.tsx         5-market open/closed bar (TYO/HKG/STO/LON/NYC)
   MoodBanner.tsx           overall portfolio sentiment
+  PullToRefresh.tsx        mobile pull-to-refresh gesture
   StockCard.tsx            one stock per card
   UpdatedFooter.tsx        last-updated + ape disclaimer
 lib/
   tickers.ts               hardcoded ticker list
-  fetchPrices.ts           per-ticker error-isolated yahoo fetch
+  fetchPrices.ts           per-ticker error-isolated Finnhub/Avanza fetch
   analyzeStocks.ts         Claude call + JSON validation
+  derive.ts                rating/sentiment from price-change % (no LLM)
+  marketHours.ts           per-exchange open/closed math via Intl
+  mockData.ts              demo snapshot for non-prod (no Redis creds)
   storage.ts               Redis wrapper
   types.ts                 shared types
 ```
@@ -91,4 +96,4 @@ Per-ticker errors are caught in [`lib/fetchPrices.ts`](lib/fetchPrices.ts) so an
 
 ## Disclaimer
 
-This is a toy. The "analysis" is a language model riffing on numbers. Tickers may render `N/A` if Yahoo flakes out. Cards may render without analysis if Claude misses one. Nothing here is **financial advice 🦍** — apes do their own due diligence.
+This is a toy. The "analysis" is a language model riffing on numbers. Tickers may render `N/A` if Finnhub or Avanza flakes out. Cards may render without analysis if Claude misses one. Nothing here is **financial advice 🦍** — apes do their own due diligence.

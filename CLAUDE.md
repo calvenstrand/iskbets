@@ -11,7 +11,7 @@ Backend and frontend are both complete; build + lint pass clean.
 - `/api/trigger` (auth via `?key=`, 30-minute KV-backed cooldown) → `fetchPrices` → `analyzeStocks` → `saveStockData`
 - `/api/data` (public) reads the latest snapshot from KV
 - `/` server component fetches `/api/data` on the server with `revalidate: 60`, then hands the data to a `'use client'` Dashboard
-- Dashboard sub-components: ticker tape, header (rotating Gekko quotes), market-status bar (Stockholm + NYC, real timezones via `Intl`), mood banner, winner/loser featured cards, responsive grid, last-updated footer
+- Dashboard sub-components: one-time boot-sequence splash (CRT-style boot log, gated by sessionStorage so it plays once per browser session), ticker tape, masthead header (I$KBETS wordmark + date/issue dateline), market-status bar (5 markets — Tokyo, Hong Kong, Stockholm, London, NYC — real timezones via `Intl`; collapses to pill+code on mobile), mood banner, winner/loser featured cards, responsive grid, last-updated footer
 - Bebas Neue + Share Tech Mono via `next/font/google`; design system in `app/globals.css`
 - `vercel.json` sets `maxDuration: 60` on `/api/trigger` for the AI call
 - Cards render gracefully when AI analysis is missing for a ticker; prices render `N/A` for non-finite values; `/` falls through to a `NO DATA YET` empty state if KV is empty or unreachable
