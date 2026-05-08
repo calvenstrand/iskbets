@@ -4,5 +4,6 @@
     "app/api/trigger/route.ts": {
       "maxDuration": 60
     }
-  }
+  },
+  "regions": ["arn1"]
 }
