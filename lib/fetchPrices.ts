@@ -115,15 +115,16 @@ async function fetchOneFromTwelveData(
   now: Date,
 ): Promise<StockPrice | null> {
   try {
-    // Twelve Data wants the bare symbol + an explicit exchange filter,
-    // and uses dots instead of hyphens for share classes (Yahoo-style
-    // INVE-B.ST → INVE.B). Strip the ".ST" suffix and swap "-" for ".".
-    // The MIC code XSTO uniquely identifies the Stockholm Stock Exchange
-    // (Twelve Data's exchange name for it is "OMX", not "Stockholm").
+    // Twelve Data uses dots instead of hyphens for share classes
+    // (Yahoo-style INVE-B.ST → TD INVE.B). The dotted symbols are
+    // unique globally so no exchange filter is needed — adding
+    // mic_code=XSTO or exchange=OMX actually 404s the lookup on the
+    // free tier even though those are the canonical values returned
+    // by symbol_search.
     const symbol = ticker.symbol.replace(/\.ST$/, "").replace(/-/g, ".");
     const url = `https://api.twelvedata.com/quote?symbol=${encodeURIComponent(
       symbol,
-    )}&mic_code=XSTO&apikey=${apiKey}`;
+    )}&apikey=${apiKey}`;
 
     const res = await fetch(url, { cache: "no-store" });
 
