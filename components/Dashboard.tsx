@@ -1,5 +1,6 @@
 "use client";
 
+import { TICKERS } from "@/lib/tickers";
 import type { StockAnalysis, StockPrice, StoredData } from "@/lib/types";
 import { Header } from "./Header";
 import { MarketStatus } from "./MarketStatus";
@@ -12,6 +13,22 @@ import { UpdatedFooter } from "./UpdatedFooter";
 type DashboardProps = {
   data: StoredData;
 };
+
+// Pre-built lookup so the grid sort doesn't scan TICKERS for every card.
+const OWNED_TICKERS = new Set(
+  TICKERS.filter((t) => (t.owners?.length ?? 0) > 0).map((t) => t.symbol),
+);
+
+// Owners' picks bubble to the top (Chris/Eric/Oskar), then everyone else.
+// Within each group, biggest gainers first.
+function sortGridStocks(stocks: StockPrice[]): StockPrice[] {
+  return [...stocks].sort((a, b) => {
+    const aOwned = OWNED_TICKERS.has(a.ticker);
+    const bOwned = OWNED_TICKERS.has(b.ticker);
+    if (aOwned !== bOwned) return aOwned ? -1 : 1;
+    return b.regularMarketChangePercent - a.regularMarketChangePercent;
+  });
+}
 
 export function Dashboard({ data }: DashboardProps) {
   const analysisByTicker = new Map<string, StockAnalysis>(
@@ -28,8 +45,8 @@ export function Dashboard({ data }: DashboardProps) {
   if (winner) featuredTickers.add(winner.ticker);
   if (loser) featuredTickers.add(loser.ticker);
 
-  const gridStocks: StockPrice[] = data.stocks.filter(
-    (s) => !featuredTickers.has(s.ticker),
+  const gridStocks: StockPrice[] = sortGridStocks(
+    data.stocks.filter((s) => !featuredTickers.has(s.ticker)),
   );
 
   const totalChangePct = data.stocks.reduce(
@@ -48,7 +65,7 @@ export function Dashboard({ data }: DashboardProps) {
       <MarketStatus />
       <MoodBanner mood={data.analysis.overallMood} avgChangePct={avgChangePct} />
 
-      <section className="px-4 md:px-8 lg:px-12 mt-8">
+      <section className="px-4 md:px-8 lg:px-12 mt-8 mb-12">
         {(winner || loser) && (
           <div className="stock-grid-featured gap-3 mb-6">
             {winner && (
