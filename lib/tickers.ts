@@ -2,16 +2,19 @@ export type Ticker = {
   symbol: string;
   name: string;
   market: "SE" | "US";
+  /** Avanza orderbookId — required for SE tickers (used by Avanza fetch). */
+  avanzaId?: number;
 };
 
 export const TICKERS: Ticker[] = [
-  // Swedish blue chips — ISK-account staples
-  { symbol: "INVE-B.ST", name: "Investor B", market: "SE" },
-  { symbol: "VOLV-B.ST", name: "Volvo B", market: "SE" },
-  { symbol: "SEB-A.ST", name: "SEB A", market: "SE" },
-  { symbol: "ATCO-A.ST", name: "Atlas Copco A", market: "SE" },
-  { symbol: "HM-B.ST", name: "H&M B", market: "SE" },
-  // WSB darlings
+  // Swedish blue chips — fetched via Avanza unofficial API by orderbookId
+  { symbol: "INVE-B.ST", name: "Investor B", market: "SE", avanzaId: 5247 },
+  { symbol: "VOLV-B.ST", name: "Volvo B", market: "SE", avanzaId: 5269 },
+  { symbol: "SWED-A.ST", name: "Swedbank A", market: "SE", avanzaId: 5241 },
+  { symbol: "SHB-B.ST", name: "Handelsbanken B", market: "SE", avanzaId: 5265 },
+  { symbol: "ATCO-B.ST", name: "Atlas Copco B", market: "SE", avanzaId: 5235 },
+  { symbol: "HM-B.ST", name: "H&M B", market: "SE", avanzaId: 5364 },
+  // WSB darlings — fetched via Finnhub
   { symbol: "NVDA", name: "Nvidia", market: "US" },
   { symbol: "TSLA", name: "Tesla", market: "US" },
   { symbol: "GME", name: "GameStop", market: "US" },

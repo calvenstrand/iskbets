@@ -18,7 +18,6 @@ The four env vars (see [`.env.example`](.env.example)):
 | --- | --- |
 | `ANTHROPIC_API_KEY` | Claude SDK — the WSB-analyst pass |
 | `FINNHUB_API_KEY` | Finnhub quote endpoint for US tickers — sign up at [finnhub.io](https://finnhub.io/) |
-| `TWELVEDATA_API_KEY` | Twelve Data quote endpoint for Stockholm tickers — sign up at [twelvedata.com](https://twelvedata.com/) |
 | `TRIGGER_SECRET` | Shared secret guarding `/api/trigger` |
 | `UPSTASH_REDIS_REST_URL` | Upstash Redis REST endpoint |
 | `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis REST token |
@@ -49,7 +48,7 @@ The dashboard at `/` reads `/api/data` server-side and revalidates every 60 seco
 ## Stack
 
 - Next.js 15 (App Router) + TypeScript (strict, `noUncheckedIndexedAccess`)
-- Quote data via plain `fetch` to two providers: Finnhub (US tickers) + Twelve Data (Stockholm tickers)
+- Quote data via plain `fetch` — Finnhub for US tickers, Avanza's unofficial JSON API for Stockholm tickers (no auth, hardcoded orderbookIds)
 - [`@anthropic-ai/sdk`](https://www.npmjs.com/package/@anthropic-ai/sdk) — Claude analysis
 - [`@upstash/redis`](https://www.npmjs.com/package/@upstash/redis) — snapshot storage (Upstash Redis via Vercel Marketplace)
 - Tailwind CSS 4 (layout utilities only) + a hand-rolled CSS design system
@@ -83,7 +82,12 @@ lib/
 
 ## A word on the data source
 
-We started on Yahoo Finance (via `yahoo-finance2` and then the public `/v8/finance/chart` endpoint), but Yahoo aggressively rate-limits Vercel's serverless IP pool — both endpoints 429'd on every request. We then went to Finnhub for everything, but Finnhub's free tier doesn't cover international markets (403 on `.ST` symbols), so Stockholm tickers couldn't resolve. The code now uses **Finnhub for US tickers** and **Twelve Data for Stockholm tickers**, both via plain `fetch`. Per-ticker errors are caught in [`lib/fetchPrices.ts`](lib/fetchPrices.ts) so a single bad ticker never crashes the batch.
+Stock quotes were a battle. We tried Yahoo (`yahoo-finance2` and the public `/v8/finance/chart` endpoint) — both 429'd from Vercel's IP pool. Finnhub free tier doesn't cover international (403 on `.ST`). Twelve Data free tier silently 404s on Stockholm despite their docs claiming coverage. The shipping configuration:
+
+- **US tickers** → Finnhub `/quote` (free tier, real-time, 60 req/min)
+- **Stockholm tickers** → [Avanza](https://www.avanza.se)'s unofficial public JSON API at `/_api/market-guide/stock/{orderbookId}` — no auth, no key, no signup. Stable for years but technically unofficial; could change. Each Swedish ticker has a hardcoded `avanzaId` in [`lib/tickers.ts`](lib/tickers.ts).
+
+Per-ticker errors are caught in [`lib/fetchPrices.ts`](lib/fetchPrices.ts) so any one bad ticker never crashes the batch.
 
 ## Disclaimer
 

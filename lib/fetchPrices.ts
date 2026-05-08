@@ -2,37 +2,32 @@ import { newYorkStatus, stockholmStatus } from "./marketHours";
 import { TICKERS, type Ticker } from "./tickers";
 import type { MarketState, StockPrice } from "./types";
 
+const REAL_BROWSER_UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " +
+  "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
 type FinnhubQuote = {
   c: number; // current price
   d: number; // change
   dp: number; // change percent
-  h: number; // day high
-  l: number; // day low
-  o: number; // open
-  pc: number; // previous close
-  t: number; // timestamp (epoch s)
+  h: number;
+  l: number;
+  o: number;
+  pc: number;
+  t: number;
 };
 
-type TwelveDataResponse = {
-  // Quote fields
-  symbol?: string;
-  name?: string;
+type AvanzaStock = {
+  lastPrice?: number;
+  change?: number;
+  changePercent?: number;
+  highestPrice52Weeks?: number;
+  lowestPrice52Weeks?: number;
+  totalVolumeTraded?: number;
   currency?: string;
-  open?: string;
-  close?: string;
-  change?: string;
-  percent_change?: string;
-  volume?: string;
-  average_volume?: string;
-  is_market_open?: boolean;
-  fifty_two_week?: {
-    high?: string;
-    low?: string;
+  marketState?: {
+    isOpen?: boolean;
   };
-  // Error fields (only set on error responses)
-  status?: string;
-  code?: number;
-  message?: string;
 };
 
 function deriveMarketState(market: Ticker["market"], now: Date): MarketState {
@@ -41,20 +36,6 @@ function deriveMarketState(market: Ticker["market"], now: Date): MarketState {
   if (status === "OPEN") return "REGULAR";
   if (status === "PRE-MARKET") return "PRE";
   return "CLOSED";
-}
-
-function safeParseFloat(v: unknown): number {
-  if (typeof v === "number") return Number.isFinite(v) ? v : NaN;
-  if (typeof v !== "string") return NaN;
-  const n = parseFloat(v);
-  return Number.isFinite(n) ? n : NaN;
-}
-
-function safeParseInt(v: unknown): number {
-  if (typeof v === "number") return Number.isFinite(v) ? Math.floor(v) : 0;
-  if (typeof v !== "string") return 0;
-  const n = parseInt(v, 10);
-  return Number.isFinite(n) ? n : 0;
 }
 
 // ============== Finnhub (US) ==============
@@ -107,65 +88,60 @@ async function fetchOneFromFinnhub(
   }
 }
 
-// ============== Twelve Data (Stockholm) ==============
+// ============== Avanza (Stockholm) ==============
 
-async function fetchOneFromTwelveData(
+async function fetchOneFromAvanza(
   ticker: Ticker,
-  apiKey: string,
   now: Date,
 ): Promise<StockPrice | null> {
+  if (!ticker.avanzaId) {
+    console.log(`[fetchPrices] ${ticker.symbol}: no avanzaId configured`);
+    return null;
+  }
   try {
-    // Twelve Data uses dots instead of hyphens for share classes
-    // (Yahoo-style INVE-B.ST → TD INVE.B). The dotted symbols are
-    // unique globally so no exchange filter is needed — adding
-    // mic_code=XSTO or exchange=OMX actually 404s the lookup on the
-    // free tier even though those are the canonical values returned
-    // by symbol_search.
-    const symbol = ticker.symbol.replace(/\.ST$/, "").replace(/-/g, ".");
-    const url = `https://api.twelvedata.com/quote?symbol=${encodeURIComponent(
-      symbol,
-    )}&apikey=${apiKey}`;
-
-    const res = await fetch(url, { cache: "no-store" });
+    const url = `https://www.avanza.se/_api/market-guide/stock/${ticker.avanzaId}`;
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": REAL_BROWSER_UA,
+        Accept: "application/json",
+      },
+      cache: "no-store",
+    });
 
     if (!res.ok) {
       console.log(`[fetchPrices] ${ticker.symbol}: HTTP ${res.status}`);
       return null;
     }
 
-    const q = (await res.json()) as TwelveDataResponse;
-
-    if (q.status === "error" || typeof q.code === "number") {
-      console.log(
-        `[fetchPrices] ${ticker.symbol}: TD ${q.code ?? "?"} — ${q.message ?? "unknown"}`,
-      );
-      return null;
-    }
-
-    const close = safeParseFloat(q.close);
-    const change = safeParseFloat(q.change);
-    const percentChange = safeParseFloat(q.percent_change);
+    const q = (await res.json()) as AvanzaStock;
     if (
-      !Number.isFinite(close) ||
-      !Number.isFinite(change) ||
-      !Number.isFinite(percentChange)
+      typeof q.lastPrice !== "number" ||
+      typeof q.change !== "number" ||
+      typeof q.changePercent !== "number"
     ) {
       console.log(`[fetchPrices] ${ticker.symbol}: missing price fields`);
       return null;
     }
 
+    // Avanza tells us if the market is open right now; otherwise fall back
+    // to time-based derivation.
+    let marketState: MarketState;
+    if (q.marketState?.isOpen === true) marketState = "REGULAR";
+    else if (q.marketState?.isOpen === false) marketState = "CLOSED";
+    else marketState = deriveMarketState(ticker.market, now);
+
     return {
       ticker: ticker.symbol,
       name: ticker.name,
       currency: q.currency ?? "SEK",
-      regularMarketPrice: close,
-      regularMarketChange: change,
-      regularMarketChangePercent: percentChange,
-      regularMarketVolume: safeParseInt(q.volume),
-      averageDailyVolume3Month: safeParseInt(q.average_volume),
-      fiftyTwoWeekHigh: safeParseFloat(q.fifty_two_week?.high) || 0,
-      fiftyTwoWeekLow: safeParseFloat(q.fifty_two_week?.low) || 0,
-      marketState: deriveMarketState(ticker.market, now),
+      regularMarketPrice: q.lastPrice,
+      regularMarketChange: q.change,
+      regularMarketChangePercent: q.changePercent,
+      regularMarketVolume: q.totalVolumeTraded ?? 0,
+      averageDailyVolume3Month: 0,
+      fiftyTwoWeekHigh: q.highestPrice52Weeks ?? 0,
+      fiftyTwoWeekLow: q.lowestPrice52Weeks ?? 0,
+      marketState,
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -180,15 +156,13 @@ export async function fetchPrices(): Promise<StockPrice[]> {
   console.log(`[fetchPrices] fetching ${TICKERS.length} tickers`);
 
   const finnhubKey = process.env.FINNHUB_API_KEY;
-  const twelvedataKey = process.env.TWELVEDATA_API_KEY;
   if (!finnhubKey) throw new Error("FINNHUB_API_KEY env var not set");
-  if (!twelvedataKey) throw new Error("TWELVEDATA_API_KEY env var not set");
 
   const now = new Date();
   const results = await Promise.all(
     TICKERS.map((t) =>
       t.market === "SE"
-        ? fetchOneFromTwelveData(t, twelvedataKey, now)
+        ? fetchOneFromAvanza(t, now)
         : fetchOneFromFinnhub(t, finnhubKey, now),
     ),
   );

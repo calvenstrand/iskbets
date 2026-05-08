@@ -20,7 +20,8 @@ Backend and frontend are both complete; build + lint pass clean.
 
 - Market-hours logic doesn't account for exchange holidays — only weekdays + regular session windows
 - Redis layout is two keys (`iskbets:snapshot` for the data, `iskbets:lastAttempt` for the cooldown gate). No history — switching to a list/sorted-set would be a schema change.
-- Finnhub `/quote` doesn't return 52-week high/low or volume on the free tier, so the "X% FROM GLORY" line is hidden on US cards (the StockCard guards on `fiftyTwoWeekHigh > 0`). Stockholm cards (Twelve Data) DO have it. Asymmetric but fine.
+- Finnhub `/quote` doesn't return 52-week high/low or volume on the free tier, so the "X% FROM GLORY" line is hidden on US cards (the StockCard guards on `fiftyTwoWeekHigh > 0`). Stockholm cards (Avanza) DO have it. Asymmetric but fine.
+- Avanza is unofficial — could change/break at any time. Per-ticker error handling in `fetchPrices` means a broken Avanza endpoint just silently drops the SE cards rather than crashing the batch. Switch to a paid provider if SE coverage becomes critical.
 - Per-card market badge is derived from the current time + ticker market (Stockholm/NY hours via `lib/marketHours.ts`) rather than from the data source — so there's no `POST` state, only `OPEN`/`PRE`/`CLOSED`.
 
 
@@ -30,8 +31,8 @@ Backend and frontend are both complete; build + lint pass clean.
 - Next.js 15 (App Router) + TypeScript (strict, `noUncheckedIndexedAccess`, no `any`)
 - Hybrid quote source via plain `fetch`:
   - **Finnhub** `/api/v1/quote` for US tickers (free tier, 60 req/min, US-only)
-  - **Twelve Data** `/quote` for Stockholm tickers (free tier, 8 req/min, international supported)
-  - Yahoo was tried first (both `yahoo-finance2` and the public `/v8/finance/chart` endpoint); both 429 hard from Vercel's IP pool. Finnhub alone doesn't cover Stockholm on the free tier (403). The hybrid keeps the brand intact.
+  - **Avanza** `/_api/market-guide/stock/{orderbookId}` for Stockholm tickers — unofficial public JSON, no auth, no key. Each SE ticker has a hardcoded `avanzaId` in `lib/tickers.ts`.
+  - Path we burned: Yahoo (429 from Vercel IPs on both `yahoo-finance2` and `/v8/finance/chart`); Twelve Data (free tier silently 404s on Stockholm despite docs claiming coverage). Avanza was the unblock.
 - `@anthropic-ai/sdk` — analysis (model: `claude-sonnet-4-6`, no web search; data is passed in; uses native structured outputs via `output_config.format`)
 - `@upstash/redis` — storage (Upstash Redis via Vercel Marketplace; keys `iskbets:snapshot` for the data, `iskbets:lastAttempt` for the cooldown gate)
 - Tailwind CSS 4 (layout utilities only — colors and typography live in `globals.css` via CSS variables)
@@ -70,8 +71,8 @@ Documented in `.env.example`:
 
 - `ANTHROPIC_API_KEY` — Claude SDK
 - `FINNHUB_API_KEY` — Finnhub quote endpoint (US)
-- `TWELVEDATA_API_KEY` — Twelve Data quote endpoint (Stockholm)
 - `TRIGGER_SECRET` — query-param auth for `/api/trigger`
+- (Avanza needs no key — orderbookIds are hardcoded in `lib/tickers.ts`)
 - `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` — Upstash Redis; auto-injected in production via the Vercel Marketplace integration, manual for local dev. Legacy `KV_REST_API_URL` / `KV_REST_API_TOKEN` names are also supported as a fallback.
 
 ## Conventions
