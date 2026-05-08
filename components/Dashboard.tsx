@@ -44,7 +44,7 @@ export function Dashboard({ data }: DashboardProps) {
     <main>
       <PullToRefresh />
       <TickerTape stocks={data.stocks} />
-      <Header stocks={data.stocks} />
+      <Header />
       <MarketStatus />
       <MoodBanner mood={data.analysis.overallMood} avgChangePct={avgChangePct} />
 

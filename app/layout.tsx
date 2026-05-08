@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Bebas_Neue, Share_Tech_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { BootSequence } from "@/components/BootSequence";
 import "./globals.css";
 
 const bebas = Bebas_Neue({
@@ -90,6 +91,10 @@ export default function RootLayout({
     <html lang="en" className={`${bebas.variable} ${shareTechMono.variable}`}>
       <body>
         {children}
+        <BootSequence />
+        <noscript>
+          <style>{`.boot-overlay{display:none!important}`}</style>
+        </noscript>
         <Analytics />
         <SpeedInsights />
       </body>
