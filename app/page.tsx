@@ -1,33 +1,27 @@
 import { Dashboard } from "@/components/Dashboard";
+import { getStockData } from "@/lib/storage";
 import type { StoredData } from "@/lib/types";
 
-function getBaseUrl(): string {
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  return "http://localhost:3000";
-}
+// Re-render the page at most once per minute. Inside that window the
+// HTML is served from the static cache; on first request after 60s
+// passes, Next.js regenerates server-side.
+export const revalidate = 60;
 
-async function getData(): Promise<StoredData | null> {
+async function safeGetStockData(): Promise<StoredData | null> {
   try {
-    const res = await fetch(`${getBaseUrl()}/api/data`, {
-      next: { revalidate: 60 },
-    });
-    if (res.status === 404) return null;
-    if (!res.ok) {
-      console.error(`[page] /api/data returned ${res.status}`);
-      return null;
-    }
-    return (await res.json()) as StoredData;
+    return await getStockData();
   } catch (err) {
-    // During `next build` there's no server running, so the fetch fails.
-    // Treat as "no data" — ISR will fetch real data on the first runtime request.
+    // At build time there are no Redis creds, so getStockData throws.
+    // Treat as "no data" — ISR will replace this with real data on the
+    // first runtime request once the deployment is live.
     const msg = err instanceof Error ? err.message : String(err);
-    console.error(`[page] failed to fetch /api/data: ${msg}`);
+    console.error(`[page] getStockData failed: ${msg}`);
     return null;
   }
 }
 
 export default async function Home() {
-  const data = await getData();
+  const data = await safeGetStockData();
 
   if (!data) {
     return (
