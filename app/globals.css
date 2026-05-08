@@ -78,8 +78,14 @@ body::after {
 }
 
 /* Tone down the CRT theatrics on small screens — vignette eats too much
-   real estate on a phone, and the scanlines feel heavy at this density. */
+   real estate on a phone, and the scanlines feel heavy at this density.
+   Also bump the rem base by 1px so all rem-sized text scales up ~7%,
+   which trades dense for breathing-room without retuning every component. */
 @media (max-width: 640px) {
+  html,
+  body {
+    font-size: 15px;
+  }
   body::before {
     background: repeating-linear-gradient(
       0deg,
@@ -91,6 +97,12 @@ body::after {
   }
   body::after {
     display: none;
+  }
+  .stock-card {
+    padding: 0.8rem 0.9rem 0.9rem;
+  }
+  .stock-card.featured {
+    padding: 1.1rem 1.1rem 1.2rem;
   }
 }
 
@@ -605,6 +617,42 @@ a {
 
 .terminal-footer .ape {
   font-size: 1rem;
+}
+
+.live-pip {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 0.55rem;
+  vertical-align: middle;
+}
+
+.live-pip.fresh {
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  animation: live-pulse 2.2s ease-in-out infinite;
+}
+
+.live-pip.stale {
+  background: var(--gold);
+  box-shadow: 0 0 4px rgba(245, 200, 66, 0.4);
+}
+
+.live-pip.dead {
+  background: var(--red-dim);
+}
+
+@keyframes live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.82);
+  }
 }
 
 /* ============= Empty state ============= */
