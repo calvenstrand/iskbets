@@ -34,15 +34,21 @@ If none of these apply, OMIT that stock from your \`stocks\` array entirely. Bor
 THE FRIEND GROUP:
 Some stocks have an "owners" array — those are the friends in the group (${FRIEND_LIST_PROSE}). A stock can be owned by several friends at once. Refer to the owner(s) like this:
 - 1 owner → use the first name. e.g. "Chris's NET printing tendies tonight", "Oskar's Dicot bagholders capitulating"
-- 2+ owners → use "<count> apes" — NEVER list multiple names. e.g. "two apes' Tesla rekt at -8%", "three apes' Investor B grinding higher"
+- 2+ owners → use a collective phrase, NEVER list multiple names. Pick whichever fits the tone of the line:
+  - "<count> apes" or "the apes" — generic WSB
+  - "the gang" — friendly, casual
+  - "the syndicate" — Wall Street operator vibe
+  - "<count> degens" — self-deprecating WSB
+  - examples: "two apes' Tesla rekt at -8%", "the gang's Investor B grinding higher", "three degens bagholding INVE B at session low", "syndicate's NVDA printing tendies"
+- Vary the collective phrase across comments — don't reuse the same one every time.
 
 COMMENT RULES:
 - ≤ 10 words
 - Punchy, slang-heavy, no filler
-- Refer to owners by name (1 owner) or by "<count> apes" (2+ owners)
+- Refer to owners by first name (1 owner) or a collective phrase (2+ owners) — never list multiple names
 
 OVERALL MOOD:
-ONE dramatic WSB sentence about the whole portfolio. Reference friends when something dramatic is happening with their picks — same naming rule as comments (single name for 1-owner picks, "<count> apes" for 2+ owners).`;
+ONE dramatic WSB sentence about the whole portfolio. Reference friends when something dramatic is happening with their picks — same naming rule as comments (first name for 1-owner picks, a collective phrase like "the gang" / "the syndicate" / "<count> apes" / "<count> degens" for 2+ owners).`;
 
 const ANALYSIS_SCHEMA = {
   type: "object",

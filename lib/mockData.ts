@@ -320,7 +320,7 @@ const COMMENTS: Record<string, string> = {
   "NIBE-B.ST": "Eric's heat pumps go brrr, Swedish saviour",
   "DICOT.ST": "Oskar's Dicot apes vaporized at 25 öre",
   "VPLAY-B.ST": "Eric's Viaplay sinking, paper hands fleeing",
-  "INVE-B.ST": "three apes' Investor B grinding +1.4%, Wallenberg blessing",
+  "INVE-B.ST": "the gang's Investor B grinding +1.4%, Wallenberg blessing",
 };
 
 const OVERALL_MOOD =
