@@ -74,6 +74,23 @@ body::after {
   );
 }
 
+/* Tone down the CRT theatrics on small screens — vignette eats too much
+   real estate on a phone, and the scanlines feel heavy at this density. */
+@media (max-width: 640px) {
+  body::before {
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.1) 0,
+      rgba(0, 0, 0, 0.1) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+  }
+  body::after {
+    display: none;
+  }
+}
+
 a {
   color: inherit;
 }
@@ -223,9 +240,17 @@ a {
   text-shadow: 0 0 6px rgba(245, 200, 66, 0.25);
   font-size: 0.95rem;
   font-style: italic;
-  text-align: right;
-  max-width: 28ch;
+  text-align: left;
+  max-width: 100%;
   animation: quote-fade 0.6s ease-out;
+}
+
+/* Right-align only when the header sits side-by-side with the brand */
+@media (min-width: 768px) {
+  .gekko-quote {
+    text-align: right;
+    max-width: 28ch;
+  }
 }
 
 /* ============= Market status bar ============= */

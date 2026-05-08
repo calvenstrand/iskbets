@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Bebas_Neue, Share_Tech_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -70,6 +70,13 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // Tints the iOS Safari URL bar / Chrome address bar to match the bg.
+  themeColor: "#080b0a",
 };
 
 export default function RootLayout({
