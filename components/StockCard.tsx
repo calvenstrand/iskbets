@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import type { MarketState, Sentiment, StockAnalysis, StockPrice } from "@/lib/types";
+import type { Sentiment, StockAnalysis, StockPrice } from "@/lib/types";
 
 type Featured = "winner" | "loser";
 
@@ -41,20 +41,6 @@ function changeArrow(value: number): string {
   if (value > 0) return "▲";
   if (value < 0) return "▼";
   return "·";
-}
-
-function marketStateLabel(s: MarketState): string {
-  if (s === "REGULAR") return "OPEN";
-  if (s === "PRE") return "PRE";
-  if (s === "POST") return "POST";
-  return "CLOSED";
-}
-
-function marketStateBadgeClass(s: MarketState): string {
-  if (s === "REGULAR") return "badge badge-open";
-  if (s === "PRE") return "badge badge-pre";
-  if (s === "POST") return "badge badge-post";
-  return "badge badge-closed";
 }
 
 function sentimentGlow(sentiment: Sentiment | undefined): string {
@@ -124,12 +110,7 @@ export function StockCard({
         <p className="comment mt-3">&ldquo;{analysis.comment}&rdquo;</p>
       )}
 
-      <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
-        <span className={marketStateBadgeClass(stock.marketState)}>
-          {marketStateLabel(stock.marketState)}
-        </span>
-        {glory && <span className="meta">{glory}</span>}
-      </div>
+      {glory && <p className="meta mt-3">{glory}</p>}
     </article>
   );
 }

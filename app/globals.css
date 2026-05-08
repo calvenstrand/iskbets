@@ -499,11 +499,9 @@ a {
 }
 
 @media (max-width: 640px) {
-  /* Phones get 2 cards per row in the regular grid; the featured grid
-     stays single-column so the winner/loser stay big and dramatic. */
-  .stock-grid {
-    grid-template-columns: 1fr 1fr;
-  }
+  /* Featured grid stays single-column on phones so winner/loser keep
+     their drama. The regular grid uses auto-fill minmax(260px, 1fr)
+     and naturally falls to one column below ~540px. */
   .stock-grid-featured {
     grid-template-columns: 1fr;
   }
@@ -601,30 +599,6 @@ a {
   color: var(--text-dim);
   letter-spacing: 0.06em;
   text-transform: uppercase;
-}
-
-.stock-card .badge {
-  display: inline-block;
-  padding: 0.12rem 0.4rem;
-  border: 1px solid var(--border-bright);
-  font-size: 0.66rem;
-  letter-spacing: 0.08em;
-}
-
-
-.badge-open {
-  color: var(--green);
-  border-color: rgba(0, 255, 65, 0.3);
-}
-
-.badge-closed {
-  color: var(--text-dim);
-}
-
-.badge-pre,
-.badge-post {
-  color: var(--gold);
-  border-color: rgba(245, 200, 66, 0.3);
 }
 
 /* Sentiment glow */
