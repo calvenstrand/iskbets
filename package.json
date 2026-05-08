@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.40.0",
+    "@anthropic-ai/sdk": "^0.95.1",
     "@vercel/kv": "^3.0.0",
     "next": "^15.1.0",
     "react": "^19.0.0",

@@ -9,27 +9,11 @@ import {
   type StockPrice,
 } from "./types";
 
-const MODEL = "claude-sonnet-4-20250514";
+const MODEL = "claude-sonnet-4-6";
 
 const SYSTEM_PROMPT = `You are a degenerate WSB analyst with peak Gordon Gekko energy. You eat ramen and dream of yachts. You speak in WSB slang — apes, tendies, bagholder, diamond hands, paper hands, rekt, moon, yolo, printer go brrr — but you back your hot takes with the actual numbers you're given.
 
 You will receive structured price data for a small portfolio of stocks. Your job: judge each one with a punchy rating, a normalized sentiment, and a one-line WSB comment. Then judge the portfolio as a whole.
-
-Return ONLY raw JSON. No markdown fences, no preamble, no explanations outside the JSON. The JSON must match this shape exactly:
-
-{
-  "stocks": [
-    {
-      "ticker": "string (must match input ticker exactly)",
-      "rating": "one of: 🚀 TO THE MOON | 💎 DIAMOND HANDS | 📈 BULLISH AF | ⚠️ TURBULENCE | 📉 GET REKT | 🔥 YOLO CALL",
-      "sentiment": "one of: moon | up | neutral | down | rekt",
-      "comment": "≤10 words, WSB slang, punchy"
-    }
-  ],
-  "overallMood": "ONE dramatic WSB sentence about the whole portfolio",
-  "biggestWinner": "ticker symbol of best performer today",
-  "biggestLoser": "ticker symbol of worst performer today"
-}
 
 Rating ↔ sentiment alignment:
 - 🚀 TO THE MOON → moon
@@ -39,7 +23,34 @@ Rating ↔ sentiment alignment:
 - 📉 GET REKT → rekt (or down for milder pain)
 - 🔥 YOLO CALL → moon (high conviction, high risk)
 
-Pick biggestWinner / biggestLoser by today's regularMarketChangePercent.`;
+Pick biggestWinner / biggestLoser by today's regularMarketChangePercent.
+
+Per-stock comments must be ≤ 10 words, punchy, slang-heavy. The overallMood is ONE dramatic WSB sentence about the whole portfolio.`;
+
+const ANALYSIS_SCHEMA = {
+  type: "object",
+  properties: {
+    stocks: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          ticker: { type: "string" },
+          rating: { type: "string", enum: [...RATINGS] },
+          sentiment: { type: "string", enum: [...SENTIMENTS] },
+          comment: { type: "string" },
+        },
+        required: ["ticker", "rating", "sentiment", "comment"],
+        additionalProperties: false,
+      },
+    },
+    overallMood: { type: "string" },
+    biggestWinner: { type: "string" },
+    biggestLoser: { type: "string" },
+  },
+  required: ["stocks", "overallMood", "biggestWinner", "biggestLoser"],
+  additionalProperties: false,
+} as const;
 
 function isRating(v: unknown): v is Rating {
   return typeof v === "string" && (RATINGS as readonly string[]).includes(v);
@@ -47,13 +58,6 @@ function isRating(v: unknown): v is Rating {
 
 function isSentiment(v: unknown): v is Sentiment {
   return typeof v === "string" && (SENTIMENTS as readonly string[]).includes(v);
-}
-
-function parseJSONResponse(raw: string): unknown {
-  // Strip ```json ... ``` fences in case the model wraps despite instructions.
-  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-  const body = fenced && fenced[1] ? fenced[1] : raw;
-  return JSON.parse(body.trim());
 }
 
 function validatePayload(data: unknown, inputTickers: string[]): AnalysisPayload {
@@ -114,29 +118,35 @@ export async function analyzeStocks(prices: StockPrice[]): Promise<AnalysisPaylo
 
   const client = new Anthropic();
 
-  const userMessage = `Here is today's price data for ${prices.length} stocks. Analyze each one and the portfolio as a whole. Return JSON only.\n\n${JSON.stringify(prices, null, 2)}`;
+  const userMessage = `Here is today's price data for ${prices.length} stocks. Analyze each one and the portfolio as a whole.\n\n${JSON.stringify(prices, null, 2)}`;
 
   const response = await client.messages.create({
     model: MODEL,
     max_tokens: 2048,
     system: SYSTEM_PROMPT,
-    messages: [
-      { role: "user", content: userMessage },
-      { role: "assistant", content: "{" }, // prefill: force JSON start
-    ],
+    messages: [{ role: "user", content: userMessage }],
+    output_config: {
+      format: { type: "json_schema", schema: ANALYSIS_SCHEMA },
+    },
   });
+
+  if (response.stop_reason === "refusal") {
+    const explanation = response.stop_details && "explanation" in response.stop_details
+      ? response.stop_details.explanation
+      : "no explanation";
+    throw new Error(`anthropic refused: ${explanation}`);
+  }
 
   const textBlock = response.content.find((b) => b.type === "text");
   if (!textBlock || textBlock.type !== "text") {
     throw new Error("anthropic response has no text block");
   }
-  const rawText = "{" + textBlock.text;
 
   console.log(
     `[analyzeStocks] tokens in=${response.usage.input_tokens} out=${response.usage.output_tokens}`,
   );
 
-  const parsed = parseJSONResponse(rawText);
+  const parsed: unknown = JSON.parse(textBlock.text);
   const inputTickers = prices.map((p) => p.ticker);
   return validatePayload(parsed, inputTickers);
 }
