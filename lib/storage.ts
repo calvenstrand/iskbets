@@ -20,6 +20,11 @@ export async function saveStockData(args: {
 }
 
 export async function getStockData(): Promise<StoredData | null> {
+  if (process.env.USE_MOCK_DATA === "true") {
+    console.log("[storage] returning mock data (USE_MOCK_DATA=true)");
+    const { getMockData } = await import("./mockData");
+    return getMockData();
+  }
   const data = await kv.get<StoredData>(KV_KEY);
   return data ?? null;
 }
