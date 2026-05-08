@@ -357,7 +357,7 @@ const ANALYSIS: StockAnalysis[] = [
     ticker: "NET",
     rating: "🚀 TO THE MOON",
     sentiment: "moon",
-    comment: "Cloudflare ripping faces, AI infra play printing",
+    comment: "Chris's Cloudflare ripping faces, AI infra moon",
   },
   {
     ticker: "KLAR",
@@ -435,13 +435,13 @@ const ANALYSIS: StockAnalysis[] = [
     ticker: "DICOT.ST",
     rating: "🔥 YOLO CALL",
     sentiment: "rekt",
-    comment: "Penny stock pharma, full degen apes only",
+    comment: "Oskar's Dicot apes vaporized at 25 öre",
   },
   {
     ticker: "VPLAY-B.ST",
     rating: "📉 GET REKT",
     sentiment: "down",
-    comment: "Streaming saga continues, capitulation arc forever",
+    comment: "Eric's Viaplay sinking, paper hands fleeing",
   },
 ];
 
@@ -452,7 +452,7 @@ export function getMockData(): StoredData {
     analysis: {
       stocks: ANALYSIS,
       overallMood:
-        "Wall Street apes ripping faces off — Jensen prints, Elon yolos. Stockholm steady, but Dicot apes getting absolutely vaporized at 25 öre.",
+        "Chris's Cloudflare moons while Eric's Viaplay tanks and Oskar's Dicot apes get fully vaporized — typical Tuesday in the trenches.",
       biggestWinner: "NVDA",
       biggestLoser: "DICOT.ST",
     },
