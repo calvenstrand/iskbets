@@ -20,7 +20,7 @@ Backend and frontend are both complete; build + lint pass clean.
 
 - Market-hours logic doesn't account for exchange holidays — only weekdays + regular session windows
 - Redis layout is two keys (`iskbets:snapshot` for the data, `iskbets:lastAttempt` for the cooldown gate). No history — switching to a list/sorted-set would be a schema change.
-- Finnhub `/quote` doesn't return 52-week high/low or volume on the free tier, so the "X% FROM GLORY" line on each card is hidden (the StockCard guards on `fiftyTwoWeekHigh > 0`). Restoring it would mean adding a second call per ticker to a different endpoint, and on the free tier 52w metrics aren't available for international stocks.
+- Finnhub `/quote` doesn't return 52-week high/low or volume on the free tier, so the "X% FROM GLORY" line is hidden on US cards (the StockCard guards on `fiftyTwoWeekHigh > 0`). Stockholm cards (Twelve Data) DO have it. Asymmetric but fine.
 - Per-card market badge is derived from the current time + ticker market (Stockholm/NY hours via `lib/marketHours.ts`) rather than from the data source — so there's no `POST` state, only `OPEN`/`PRE`/`CLOSED`.
 
 
@@ -28,7 +28,10 @@ Backend and frontend are both complete; build + lint pass clean.
 ## Stack
 
 - Next.js 15 (App Router) + TypeScript (strict, `noUncheckedIndexedAccess`, no `any`)
-- Finnhub `/api/v1/quote` REST endpoint via plain `fetch` — quote data. Yahoo's API was tried first (both `yahoo-finance2` library and the public `/v8/finance/chart` endpoint); both 429 hard from Vercel's IP pool. Finnhub free tier covers 60 req/min which is plenty.
+- Hybrid quote source via plain `fetch`:
+  - **Finnhub** `/api/v1/quote` for US tickers (free tier, 60 req/min, US-only)
+  - **Twelve Data** `/quote` for Stockholm tickers (free tier, 8 req/min, international supported)
+  - Yahoo was tried first (both `yahoo-finance2` and the public `/v8/finance/chart` endpoint); both 429 hard from Vercel's IP pool. Finnhub alone doesn't cover Stockholm on the free tier (403). The hybrid keeps the brand intact.
 - `@anthropic-ai/sdk` — analysis (model: `claude-sonnet-4-6`, no web search; data is passed in; uses native structured outputs via `output_config.format`)
 - `@upstash/redis` — storage (Upstash Redis via Vercel Marketplace; keys `iskbets:snapshot` for the data, `iskbets:lastAttempt` for the cooldown gate)
 - Tailwind CSS 4 (layout utilities only — colors and typography live in `globals.css` via CSS variables)
@@ -66,7 +69,8 @@ The cooldown gate (`iskbets:lastAttempt`) is intentionally written **before** th
 Documented in `.env.example`:
 
 - `ANTHROPIC_API_KEY` — Claude SDK
-- `FINNHUB_API_KEY` — Finnhub quote endpoint
+- `FINNHUB_API_KEY` — Finnhub quote endpoint (US)
+- `TWELVEDATA_API_KEY` — Twelve Data quote endpoint (Stockholm)
 - `TRIGGER_SECRET` — query-param auth for `/api/trigger`
 - `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` — Upstash Redis; auto-injected in production via the Vercel Marketplace integration, manual for local dev. Legacy `KV_REST_API_URL` / `KV_REST_API_TOKEN` names are also supported as a fallback.
 

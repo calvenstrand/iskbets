@@ -13,6 +13,28 @@ type FinnhubQuote = {
   t: number; // timestamp (epoch s)
 };
 
+type TwelveDataResponse = {
+  // Quote fields
+  symbol?: string;
+  name?: string;
+  currency?: string;
+  open?: string;
+  close?: string;
+  change?: string;
+  percent_change?: string;
+  volume?: string;
+  average_volume?: string;
+  is_market_open?: boolean;
+  fifty_two_week?: {
+    high?: string;
+    low?: string;
+  };
+  // Error fields (only set on error responses)
+  status?: string;
+  code?: number;
+  message?: string;
+};
+
 function deriveMarketState(market: Ticker["market"], now: Date): MarketState {
   const status =
     market === "SE" ? stockholmStatus(now) : newYorkStatus(now);
@@ -21,7 +43,23 @@ function deriveMarketState(market: Ticker["market"], now: Date): MarketState {
   return "CLOSED";
 }
 
-async function fetchOne(
+function safeParseFloat(v: unknown): number {
+  if (typeof v === "number") return Number.isFinite(v) ? v : NaN;
+  if (typeof v !== "string") return NaN;
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+function safeParseInt(v: unknown): number {
+  if (typeof v === "number") return Number.isFinite(v) ? Math.floor(v) : 0;
+  if (typeof v !== "string") return 0;
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) ? n : 0;
+}
+
+// ============== Finnhub (US) ==============
+
+async function fetchOneFromFinnhub(
   ticker: Ticker,
   apiKey: string,
   now: Date,
@@ -39,7 +77,6 @@ async function fetchOne(
     }
 
     const q = (await res.json()) as Partial<FinnhubQuote>;
-    // Finnhub returns c=0 (and dp=0) for symbols it can't resolve
     if (
       typeof q.c !== "number" ||
       q.c === 0 ||
@@ -53,15 +90,12 @@ async function fetchOne(
     return {
       ticker: ticker.symbol,
       name: ticker.name,
-      currency: ticker.market === "SE" ? "SEK" : "USD",
+      currency: "USD",
       regularMarketPrice: q.c,
       regularMarketChange: q.d,
       regularMarketChangePercent: q.dp,
-      // /quote doesn't return volume; not surfaced in the UI anyway.
       regularMarketVolume: 0,
       averageDailyVolume3Month: 0,
-      // /quote doesn't return 52w; "X% from glory" will be hidden when
-      // fiftyTwoWeekHigh is 0 (the StockCard already guards on this).
       fiftyTwoWeekHigh: 0,
       fiftyTwoWeekLow: 0,
       marketState: deriveMarketState(ticker.market, now),
@@ -73,18 +107,88 @@ async function fetchOne(
   }
 }
 
+// ============== Twelve Data (Stockholm) ==============
+
+async function fetchOneFromTwelveData(
+  ticker: Ticker,
+  apiKey: string,
+  now: Date,
+): Promise<StockPrice | null> {
+  try {
+    // Twelve Data uses the bare symbol + an explicit exchange param.
+    // Strip the ".ST" suffix our TICKERS list uses (Yahoo-style).
+    const symbol = ticker.symbol.replace(/\.ST$/, "");
+    const url = `https://api.twelvedata.com/quote?symbol=${encodeURIComponent(
+      symbol,
+    )}&exchange=Stockholm&apikey=${apiKey}`;
+
+    const res = await fetch(url, { cache: "no-store" });
+
+    if (!res.ok) {
+      console.log(`[fetchPrices] ${ticker.symbol}: HTTP ${res.status}`);
+      return null;
+    }
+
+    const q = (await res.json()) as TwelveDataResponse;
+
+    if (q.status === "error" || typeof q.code === "number") {
+      console.log(
+        `[fetchPrices] ${ticker.symbol}: TD ${q.code ?? "?"} — ${q.message ?? "unknown"}`,
+      );
+      return null;
+    }
+
+    const close = safeParseFloat(q.close);
+    const change = safeParseFloat(q.change);
+    const percentChange = safeParseFloat(q.percent_change);
+    if (
+      !Number.isFinite(close) ||
+      !Number.isFinite(change) ||
+      !Number.isFinite(percentChange)
+    ) {
+      console.log(`[fetchPrices] ${ticker.symbol}: missing price fields`);
+      return null;
+    }
+
+    return {
+      ticker: ticker.symbol,
+      name: ticker.name,
+      currency: q.currency ?? "SEK",
+      regularMarketPrice: close,
+      regularMarketChange: change,
+      regularMarketChangePercent: percentChange,
+      regularMarketVolume: safeParseInt(q.volume),
+      averageDailyVolume3Month: safeParseInt(q.average_volume),
+      fiftyTwoWeekHigh: safeParseFloat(q.fifty_two_week?.high) || 0,
+      fiftyTwoWeekLow: safeParseFloat(q.fifty_two_week?.low) || 0,
+      marketState: deriveMarketState(ticker.market, now),
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.log(`[fetchPrices] ${ticker.symbol}: failed — ${msg}`);
+    return null;
+  }
+}
+
+// ============== Orchestrator ==============
+
 export async function fetchPrices(): Promise<StockPrice[]> {
   console.log(`[fetchPrices] fetching ${TICKERS.length} tickers`);
 
-  const apiKey = process.env.FINNHUB_API_KEY;
-  if (!apiKey) {
-    throw new Error("FINNHUB_API_KEY env var not set");
-  }
+  const finnhubKey = process.env.FINNHUB_API_KEY;
+  const twelvedataKey = process.env.TWELVEDATA_API_KEY;
+  if (!finnhubKey) throw new Error("FINNHUB_API_KEY env var not set");
+  if (!twelvedataKey) throw new Error("TWELVEDATA_API_KEY env var not set");
 
   const now = new Date();
   const results = await Promise.all(
-    TICKERS.map((t) => fetchOne(t, apiKey, now)),
+    TICKERS.map((t) =>
+      t.market === "SE"
+        ? fetchOneFromTwelveData(t, twelvedataKey, now)
+        : fetchOneFromFinnhub(t, finnhubKey, now),
+    ),
   );
+
   const stocks = results.filter((s): s is StockPrice => s !== null);
   console.log(`[fetchPrices] ${stocks.length}/${TICKERS.length} succeeded`);
   return stocks;
