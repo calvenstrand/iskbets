@@ -2,6 +2,7 @@ import { kv } from "@vercel/kv";
 import type { AnalysisPayload, StockPrice, StoredData } from "./types";
 
 const KV_KEY = "iskbets:snapshot";
+const ATTEMPT_KEY = "iskbets:lastAttempt";
 
 export async function saveStockData(args: {
   stocks: StockPrice[];
@@ -42,4 +43,23 @@ export async function getStockData(): Promise<StoredData | null> {
   }
   const data = await kv.get<StoredData>(KV_KEY);
   return data ?? null;
+}
+
+/**
+ * Returns the epoch ms of the most recent /api/trigger attempt — success
+ * OR failure. Used for cooldown gating so a failing pipeline can't be
+ * hammered. Returns 0 if no attempt has been recorded yet.
+ */
+export async function getLastAttempt(): Promise<number> {
+  const v = await kv.get<number>(ATTEMPT_KEY);
+  return v ?? 0;
+}
+
+/**
+ * Records "we tried at this moment". Called BEFORE the pipeline runs in
+ * the trigger route, so the cooldown applies even if fetchPrices or
+ * analyzeStocks throws midway.
+ */
+export async function markAttempt(): Promise<void> {
+  await kv.set(ATTEMPT_KEY, Date.now());
 }

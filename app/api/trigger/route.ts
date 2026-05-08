@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { analyzeStocks } from "@/lib/analyzeStocks";
 import { fetchPrices } from "@/lib/fetchPrices";
-import { getStockData, saveStockData } from "@/lib/storage";
+import {
+  getLastAttempt,
+  markAttempt,
+  saveStockData,
+} from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -19,24 +23,27 @@ export async function GET(request: Request): Promise<NextResponse> {
   }
 
   try {
-    const existing = await getStockData();
-    if (existing) {
-      const elapsed = Date.now() - existing.lastFetch;
-      if (elapsed < COOLDOWN_MS) {
-        const remainingMs = COOLDOWN_MS - elapsed;
-        const minutesRemaining = Math.ceil(remainingMs / 60000);
-        const nextAllowed = new Date(existing.lastFetch + COOLDOWN_MS).toISOString();
-        console.log(`[trigger] cooldown active, ${minutesRemaining} min remaining`);
-        return NextResponse.json(
-          {
-            error: "Too soon, ape",
-            nextAllowed,
-            minutesRemaining,
-          },
-          { status: 429 },
-        );
-      }
+    const lastAttempt = await getLastAttempt();
+    const elapsed = Date.now() - lastAttempt;
+    if (elapsed < COOLDOWN_MS) {
+      const remainingMs = COOLDOWN_MS - elapsed;
+      const minutesRemaining = Math.ceil(remainingMs / 60000);
+      const nextAllowed = new Date(lastAttempt + COOLDOWN_MS).toISOString();
+      console.log(`[trigger] cooldown active, ${minutesRemaining} min remaining`);
+      return NextResponse.json(
+        {
+          error: "Too soon, ape",
+          nextAllowed,
+          minutesRemaining,
+        },
+        { status: 429 },
+      );
     }
+
+    // Mark the attempt BEFORE running the pipeline. The cooldown applies
+    // whether the pipeline succeeds or blows up midway, so a flaky Yahoo or
+    // a Claude rate-limit can't be hammered.
+    await markAttempt();
 
     console.log("[trigger] running pipeline");
     const stocks = await fetchPrices();
