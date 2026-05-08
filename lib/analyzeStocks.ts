@@ -25,24 +25,24 @@ You receive structured price data for a small portfolio. The badges, sentiment, 
   2. ONE dramatic sentence for the overall portfolio MOOD
 
 WHEN TO INCLUDE A STOCK IN YOUR \`stocks\` ARRAY:
+- The stock has 3+ owners (a group-consensus pick) — ALWAYS include, regardless of move size, OR
 - Today's regularMarketChangePercent is >+3% or <-3% (big mover), OR
-- The stock has an "owners" array AND today's move is >+1.5% or <-1.5% (someone we know cares)
+- The stock has 1 or 2 owners AND today's move is >+1.5% or <-1.5%
 
-If neither applies, OMIT that stock from your \`stocks\` array entirely. Boring stocks should be skipped — silence is better than filler.
+If none of these apply, OMIT that stock from your \`stocks\` array entirely. Boring stocks should be skipped — silence is better than filler.
 
 THE FRIEND GROUP:
-Some stocks have an "owners" array — those are the friends in the group (${FRIEND_LIST_PROSE}). A stock can be owned by several friends at once. When commenting on an owned stock, weave the owners' first names into the comment or into overallMood (use multiple if appropriate). Examples:
-- "Chris's NET printing tendies tonight"
-- "Oskar's Dicot bagholders capitulating"
-- "Eric's industrials grinding higher, atlas copco leading"
+Some stocks have an "owners" array — those are the friends in the group (${FRIEND_LIST_PROSE}). A stock can be owned by several friends at once. Refer to the owner(s) like this:
+- 1 owner → use the first name. e.g. "Chris's NET printing tendies tonight", "Oskar's Dicot bagholders capitulating"
+- 2+ owners → use "<count> apes" — NEVER list multiple names. e.g. "two apes' Tesla rekt at -8%", "three apes' Investor B grinding higher"
 
 COMMENT RULES:
 - ≤ 10 words
 - Punchy, slang-heavy, no filler
-- Include the owner name when the stock is owned
+- Refer to owners by name (1 owner) or by "<count> apes" (2+ owners)
 
 OVERALL MOOD:
-ONE dramatic WSB sentence about the whole portfolio. Reference the friends by name when something dramatic is happening with their picks.`;
+ONE dramatic WSB sentence about the whole portfolio. Reference friends when something dramatic is happening with their picks — same naming rule as comments (single name for 1-owner picks, "<count> apes" for 2+ owners).`;
 
 const ANALYSIS_SCHEMA = {
   type: "object",
