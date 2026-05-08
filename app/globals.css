@@ -565,6 +565,12 @@ a {
   .stock-card .meta {
     font-size: 0.6rem;
   }
+  /* Stack rating under ticker/name instead of competing for the same row */
+  .stock-card .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
 }
 
 .stock-card:hover {

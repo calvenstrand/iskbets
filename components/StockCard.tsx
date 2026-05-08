@@ -83,7 +83,7 @@ export function StockCard({
         <div className="featured-label lose">▼ BIGGEST LOSER 📉</div>
       )}
 
-      <div className="flex items-start justify-between gap-3">
+      <div className="card-header flex items-start justify-between gap-3">
         <div>
           <div className="ticker">{stock.ticker}</div>
           <div className="name">{stock.name}</div>
