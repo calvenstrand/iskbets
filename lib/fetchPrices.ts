@@ -115,9 +115,10 @@ async function fetchOneFromTwelveData(
   now: Date,
 ): Promise<StockPrice | null> {
   try {
-    // Twelve Data uses the bare symbol + an explicit exchange param.
-    // Strip the ".ST" suffix our TICKERS list uses (Yahoo-style).
-    const symbol = ticker.symbol.replace(/\.ST$/, "");
+    // Twelve Data wants the bare symbol + an explicit exchange param,
+    // and uses dots instead of hyphens for share classes (so Yahoo-style
+    // INVE-B.ST → INVE.B). Strip the ".ST" suffix and swap "-" for ".".
+    const symbol = ticker.symbol.replace(/\.ST$/, "").replace(/-/g, ".");
     const url = `https://api.twelvedata.com/quote?symbol=${encodeURIComponent(
       symbol,
     )}&exchange=Stockholm&apikey=${apiKey}`;
