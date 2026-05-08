@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { PERSON_NAMES, TICKERS } from "./tickers";
 import {
   RATINGS,
   SENTIMENTS,
@@ -24,6 +25,14 @@ Rating ↔ sentiment alignment:
 - 🔥 YOLO CALL → moon (high conviction, high risk)
 
 Pick biggestWinner / biggestLoser by today's regularMarketChangePercent.
+
+THE FRIEND GROUP:
+Some stocks have an "owners" array — these are the friends in the group who own or care about that ticker (Chris, Eric, or Oskar). When something dramatic is happening with a stock that has owners — a big move (>±4%), a 🚀 TO THE MOON or 📉 GET REKT rating, a fresh 52-week high or low — weave the owner's first name into either that stock's comment or into overallMood. Examples:
+- "Chris's NET printing tendies tonight"
+- "Oskar's Dicot bagholders capitulating"
+- "Eric's industrials grinding higher, atlas copco leading"
+
+Don't force it. Boring stocks (tiny moves, neutral sentiment) don't get name-drops even if owned. Comments are STILL ≤ 10 words; the name-drop must fit inside that budget.
 
 Per-stock comments must be ≤ 10 words, punchy, slang-heavy. The overallMood is ONE dramatic WSB sentence about the whole portfolio.`;
 
@@ -113,12 +122,29 @@ function validatePayload(data: unknown, inputTickers: string[]): AnalysisPayload
   };
 }
 
+function ownersByTickerSymbol(): Map<string, string[]> {
+  return new Map(
+    TICKERS.map((t) => [
+      t.symbol,
+      (t.owners ?? []).map((p) => PERSON_NAMES[p]),
+    ]),
+  );
+}
+
 export async function analyzeStocks(prices: StockPrice[]): Promise<AnalysisPayload> {
   console.log(`[analyzeStocks] analyzing ${prices.length} stocks with ${MODEL}`);
 
   const client = new Anthropic();
 
-  const userMessage = `Here is today's price data for ${prices.length} stocks. Analyze each one and the portfolio as a whole.\n\n${JSON.stringify(prices, null, 2)}`;
+  // Enrich prices with owner names so Claude can reference the friend
+  // when something dramatic happens with their pick.
+  const ownersMap = ownersByTickerSymbol();
+  const enriched = prices.map((p) => {
+    const owners = ownersMap.get(p.ticker) ?? [];
+    return owners.length > 0 ? { ...p, owners } : p;
+  });
+
+  const userMessage = `Here is today's price data for ${prices.length} stocks. Analyze each one and the portfolio as a whole.\n\n${JSON.stringify(enriched, null, 2)}`;
 
   const response = await client.messages.create({
     model: MODEL,

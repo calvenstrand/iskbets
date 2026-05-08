@@ -1,5 +1,4 @@
 import type { CSSProperties } from "react";
-import { PERSON_NAMES, type Person } from "@/lib/tickers";
 import type { MarketState, Sentiment, StockAnalysis, StockPrice } from "@/lib/types";
 
 type Featured = "winner" | "loser";
@@ -9,20 +8,7 @@ type StockCardProps = {
   analysis: StockAnalysis | undefined;
   index: number;
   featured?: Featured;
-  owners?: Person[];
 };
-
-function OwnerChip({ person }: { person: Person }) {
-  return (
-    <span
-      className={`owner-chip owner-${person}`}
-      title={`Owned by ${PERSON_NAMES[person]}`}
-      aria-label={`Owned by ${PERSON_NAMES[person]}`}
-    >
-      {PERSON_NAMES[person].charAt(0)}
-    </span>
-  );
-}
 
 function formatPrice(value: number, currency: string): string {
   if (!Number.isFinite(value)) return "N/A";
@@ -88,9 +74,7 @@ export function StockCard({
   analysis,
   index,
   featured,
-  owners,
 }: StockCardProps) {
-  const ownerList = owners ?? [];
   const glow = sentimentGlow(analysis?.sentiment);
   const featuredClass = featured ? `featured ${featured}` : "";
   const cardClass = ["stock-card", featuredClass, glow]
@@ -118,16 +102,7 @@ export function StockCard({
           <div className="ticker">{stock.ticker}</div>
           <div className="name">{stock.name}</div>
         </div>
-        <div className="flex flex-col items-end gap-1.5">
-          {analysis && <div className="rating">{analysis.rating}</div>}
-          {ownerList.length > 0 && (
-            <div className="owner-chips">
-              {ownerList.map((p) => (
-                <OwnerChip key={p} person={p} />
-              ))}
-            </div>
-          )}
-        </div>
+        {analysis && <div className="rating">{analysis.rating}</div>}
       </div>
 
       <div className="mt-3 flex items-baseline gap-2 flex-wrap">

@@ -1,6 +1,5 @@
 "use client";
 
-import { TICKERS, type Person } from "@/lib/tickers";
 import type { StockAnalysis, StockPrice, StoredData } from "@/lib/types";
 import { Header } from "./Header";
 import { MarketStatus } from "./MarketStatus";
@@ -13,10 +12,6 @@ import { UpdatedFooter } from "./UpdatedFooter";
 type DashboardProps = {
   data: StoredData;
 };
-
-const OWNERS_BY_TICKER = new Map<string, Person[]>(
-  TICKERS.map((t) => [t.symbol, t.owners ?? []]),
-);
 
 export function Dashboard({ data }: DashboardProps) {
   const analysisByTicker = new Map<string, StockAnalysis>(
@@ -60,7 +55,6 @@ export function Dashboard({ data }: DashboardProps) {
               <StockCard
                 stock={winner}
                 analysis={analysisByTicker.get(winner.ticker)}
-                owners={OWNERS_BY_TICKER.get(winner.ticker)}
                 featured="winner"
                 index={0}
               />
@@ -69,7 +63,6 @@ export function Dashboard({ data }: DashboardProps) {
               <StockCard
                 stock={loser}
                 analysis={analysisByTicker.get(loser.ticker)}
-                owners={OWNERS_BY_TICKER.get(loser.ticker)}
                 featured="loser"
                 index={1}
               />
@@ -83,7 +76,6 @@ export function Dashboard({ data }: DashboardProps) {
               key={stock.ticker}
               stock={stock}
               analysis={analysisByTicker.get(stock.ticker)}
-              owners={OWNERS_BY_TICKER.get(stock.ticker)}
               index={i + 2}
             />
           ))}

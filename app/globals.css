@@ -20,11 +20,6 @@
   --font-display: var(--font-bebas-neue), "Bebas Neue", sans-serif;
   --font-mono: var(--font-share-tech-mono), "Share Tech Mono", "Courier New",
     monospace;
-
-  /* Per-friend palette for owner chips */
-  --owner-chris: #4cc9ff;
-  --owner-eric: #ff8c42;
-  --owner-oskar: #c768ff;
 }
 
 * {
@@ -616,46 +611,6 @@ a {
   letter-spacing: 0.08em;
 }
 
-/* Owner chips — small circular initials marking which friend owns/picked the stock */
-.owner-chips {
-  display: inline-flex;
-  gap: 0.3rem;
-}
-
-.owner-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.35rem;
-  height: 1.35rem;
-  border-radius: 50%;
-  font-family: var(--font-display);
-  font-size: 0.85rem;
-  line-height: 1;
-  letter-spacing: 0;
-  background: rgba(0, 0, 0, 0.45);
-  cursor: default;
-  user-select: none;
-  border: 1px solid currentColor;
-}
-
-.owner-chip.owner-chris {
-  color: var(--owner-chris);
-  text-shadow: 0 0 6px rgba(76, 201, 255, 0.5);
-  box-shadow: inset 0 0 6px rgba(76, 201, 255, 0.15);
-}
-
-.owner-chip.owner-eric {
-  color: var(--owner-eric);
-  text-shadow: 0 0 6px rgba(255, 140, 66, 0.5);
-  box-shadow: inset 0 0 6px rgba(255, 140, 66, 0.15);
-}
-
-.owner-chip.owner-oskar {
-  color: var(--owner-oskar);
-  text-shadow: 0 0 6px rgba(199, 104, 255, 0.5);
-  box-shadow: inset 0 0 6px rgba(199, 104, 255, 0.15);
-}
 
 .badge-open {
   color: var(--green);
