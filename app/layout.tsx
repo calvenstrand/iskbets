@@ -29,9 +29,9 @@ function getMetadataBase(): URL {
   return new URL("http://localhost:3000");
 }
 
-const TITLE = "ISKBets — WSB-flavored stock tracker";
+const TITLE = "ISKBets — Stockholm meets WallStreetBets. Diamond hands.";
 const DESCRIPTION =
-  "Wall Street meets WallStreetBets. Greed is good. Diamond hands forever. Not financial advice.";
+  "Wall Street meets WallStreetBets. AI-rated Stockholm stocks with WSB-flavored commentary. Greed is good. Diamond hands. Not financial advice.";
 
 export const metadata: Metadata = {
   metadataBase: getMetadataBase(),
