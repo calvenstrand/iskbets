@@ -176,17 +176,6 @@ a {
   }
 }
 
-@keyframes quote-fade {
-  from {
-    opacity: 0;
-    transform: translateY(-2px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 /* ============= Typography ============= */
 
 .font-display {
@@ -306,99 +295,199 @@ a {
   }
 }
 
-/* ============= Header ============= */
+/* ============= Masthead ============= */
 
-.brand {
-  font-family: var(--font-display);
-  font-size: clamp(2.2rem, 4vw, 3.4rem);
-  line-height: 1;
-  color: var(--text);
-  letter-spacing: 0.03em;
-  text-shadow: 0 0 12px rgba(0, 255, 65, 0.18);
-  animation: flicker 4s infinite;
-}
-
-.brand .dollar {
-  color: var(--gold);
-  text-shadow: 0 0 10px rgba(245, 200, 66, 0.5);
-}
-
-.gekko-quote {
-  font-family: var(--font-mono);
-  color: var(--gold);
-  text-shadow: 0 0 6px rgba(245, 200, 66, 0.25);
-  font-size: 0.95rem;
-  font-style: italic;
-  text-align: left;
-  max-width: 60ch;
-  animation: quote-fade 0.6s ease-out;
-}
-
-/* Bloomberg-style portfolio stats — fills the right side of the header */
-.header-stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.65rem 1.4rem;
-  align-items: flex-end;
-}
-
-.stat-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  position: relative;
-  font-family: var(--font-mono);
-  line-height: 1;
-}
-
-/* Vertical divider between cells (except the last in each row).
-   Hidden on mobile where stats wrap and dividers would look messy. */
-.stat-cell::after {
-  content: "";
-  position: absolute;
-  right: -0.7rem;
-  top: 12%;
-  bottom: 12%;
-  width: 1px;
-  background: var(--border-bright);
-  opacity: 0;
+.masthead {
+  padding: 1.6rem 1rem 1.1rem;
+  text-align: center;
 }
 
 @media (min-width: 768px) {
-  .stat-cell::after {
+  .masthead {
+    padding: 2.2rem 2rem 1.4rem;
+  }
+}
+
+.masthead-brand {
+  font-family: var(--font-display);
+  font-size: clamp(3.8rem, 14vw, 9rem);
+  line-height: 0.9;
+  color: var(--text);
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 18px rgba(0, 255, 65, 0.18);
+  animation: flicker 4s infinite;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.masthead-brand .dollar {
+  color: var(--gold);
+  text-shadow: 0 0 14px rgba(245, 200, 66, 0.5);
+}
+
+.masthead-rule {
+  border: 0;
+  height: 1px;
+  margin: 0.9rem auto 0.8rem;
+  max-width: 92%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--gold-dim) 12%,
+    var(--gold) 50%,
+    var(--gold-dim) 88%,
+    transparent 100%
+  );
+  box-shadow: 0 0 6px rgba(245, 200, 66, 0.25);
+}
+
+.masthead-dateline {
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0 0.7rem;
+  line-height: 1.6;
+}
+
+.masthead-dateline .sep {
+  color: var(--gold-dim);
+}
+
+.masthead-dateline .motto {
+  color: var(--gold);
+  text-shadow: 0 0 6px rgba(245, 200, 66, 0.25);
+}
+
+.masthead-dateline-placeholder {
+  color: var(--text-faint);
+}
+
+@media (max-width: 480px) {
+  .masthead-dateline {
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    gap: 0 0.5rem;
+  }
+}
+
+/* ============= Boot sequence ============= */
+
+.boot-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.2rem;
+  font-family: var(--font-mono);
+  color: var(--green);
+  text-shadow: 0 0 6px rgba(0, 255, 65, 0.45);
+  animation: boot-flicker 1.4s linear;
+  cursor: pointer;
+}
+
+/* CRT scanline overlay sits at z-index 9999, so the boot screen needs
+   its own faint scanline pass to keep the vibe consistent. */
+.boot-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.22) 0,
+    rgba(0, 0, 0, 0.22) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+.boot-overlay.boot-fading {
+  opacity: 0;
+  transition: opacity 420ms ease-out;
+}
+
+.boot-log {
+  position: relative;
+  width: 100%;
+  max-width: 38rem;
+  font-size: clamp(0.85rem, 2.4vw, 1rem);
+  line-height: 1.85;
+  letter-spacing: 0.04em;
+}
+
+.boot-line {
+  white-space: pre-wrap;
+  animation: boot-line-in 220ms ease-out;
+}
+
+.boot-ok {
+  color: var(--gold);
+  text-shadow: 0 0 6px rgba(245, 200, 66, 0.4);
+}
+
+.boot-cursor {
+  display: inline-block;
+  margin-left: 0.15rem;
+  color: var(--green);
+  animation: boot-blink 0.85s steps(2, end) infinite;
+}
+
+@keyframes boot-line-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes boot-blink {
+  0%,
+  50% {
     opacity: 1;
   }
-  .stat-cell:last-child::after {
-    display: none;
+  50.01%,
+  100% {
+    opacity: 0;
   }
 }
 
-.stat-label {
-  font-size: 0.62rem;
-  letter-spacing: 0.18em;
-  color: var(--text-faint);
-  text-transform: uppercase;
+@keyframes boot-flicker {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  18% {
+    opacity: 0.85;
+  }
+  20% {
+    opacity: 1;
+  }
+  62% {
+    opacity: 0.92;
+  }
+  64% {
+    opacity: 1;
+  }
 }
 
-.stat-value {
-  font-family: var(--font-mono);
-  font-size: clamp(1.05rem, 2vw, 1.35rem);
-  font-variant-numeric: tabular-nums;
-  color: var(--text);
-}
-
-.stat-value.up {
-  color: var(--green);
-  text-shadow: 0 0 6px rgba(0, 255, 65, 0.35);
-}
-
-.stat-value.down {
-  color: var(--red);
-  text-shadow: 0 0 6px rgba(255, 34, 68, 0.35);
-}
-
-.stat-value.neutral {
-  color: var(--gold);
+@media (prefers-reduced-motion: reduce) {
+  .boot-overlay,
+  .boot-line,
+  .boot-cursor {
+    animation: none;
+  }
 }
 
 /* ============= Market status bar ============= */
