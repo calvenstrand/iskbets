@@ -93,6 +93,45 @@ const STOCKS: StockPrice[] = [
     fiftyTwoWeekLow: 184.0,
     marketState: "REGULAR",
   },
+  {
+    ticker: "SHOP",
+    name: "Shopify",
+    currency: "USD",
+    regularMarketPrice: 110.4,
+    regularMarketChange: 2.7,
+    regularMarketChangePercent: 2.5,
+    regularMarketVolume: 7_840_000,
+    averageDailyVolume3Month: 6_200_000,
+    fiftyTwoWeekHigh: 0,
+    fiftyTwoWeekLow: 0,
+    marketState: "REGULAR",
+  },
+  {
+    ticker: "NET",
+    name: "Cloudflare",
+    currency: "USD",
+    regularMarketPrice: 124.5,
+    regularMarketChange: 4.56,
+    regularMarketChangePercent: 3.8,
+    regularMarketVolume: 12_500_000,
+    averageDailyVolume3Month: 8_400_000,
+    fiftyTwoWeekHigh: 0,
+    fiftyTwoWeekLow: 0,
+    marketState: "REGULAR",
+  },
+  {
+    ticker: "KLAR",
+    name: "Klarna Group",
+    currency: "USD",
+    regularMarketPrice: 48.2,
+    regularMarketChange: 0.71,
+    regularMarketChangePercent: 1.5,
+    regularMarketVolume: 4_200_000,
+    averageDailyVolume3Month: 5_100_000,
+    fiftyTwoWeekHigh: 0,
+    fiftyTwoWeekLow: 0,
+    marketState: "REGULAR",
+  },
   // ============== Sweden — ISK staples ==============
   {
     ticker: "INVE-B.ST",
@@ -250,6 +289,19 @@ const STOCKS: StockPrice[] = [
     fiftyTwoWeekLow: 0,
     marketState: "REGULAR",
   },
+  {
+    ticker: "VPLAY-B.ST",
+    name: "Viaplay Group B",
+    currency: "SEK",
+    regularMarketPrice: 1.85,
+    regularMarketChange: -0.08,
+    regularMarketChangePercent: -4.2,
+    regularMarketVolume: 6_400_000,
+    averageDailyVolume3Month: 4_800_000,
+    fiftyTwoWeekHigh: 0,
+    fiftyTwoWeekLow: 0,
+    marketState: "REGULAR",
+  },
 ];
 
 const ANALYSIS: StockAnalysis[] = [
@@ -294,6 +346,24 @@ const ANALYSIS: StockAnalysis[] = [
     rating: "💎 DIAMOND HANDS",
     sentiment: "up",
     comment: "Saylor stacking sats, leveraged BTC printer",
+  },
+  {
+    ticker: "SHOP",
+    rating: "📈 BULLISH AF",
+    sentiment: "up",
+    comment: "Merchants printing tendies, all-time high incoming",
+  },
+  {
+    ticker: "NET",
+    rating: "🚀 TO THE MOON",
+    sentiment: "moon",
+    comment: "Cloudflare ripping faces, AI infra play printing",
+  },
+  {
+    ticker: "KLAR",
+    rating: "📈 BULLISH AF",
+    sentiment: "up",
+    comment: "Swedish fintech IPO'd, BNPL apes loaded long",
   },
   {
     ticker: "INVE-B.ST",
@@ -366,6 +436,12 @@ const ANALYSIS: StockAnalysis[] = [
     rating: "🔥 YOLO CALL",
     sentiment: "rekt",
     comment: "Penny stock pharma, full degen apes only",
+  },
+  {
+    ticker: "VPLAY-B.ST",
+    rating: "📉 GET REKT",
+    sentiment: "down",
+    comment: "Streaming saga continues, capitulation arc forever",
   },
 ];
 
