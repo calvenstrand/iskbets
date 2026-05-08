@@ -5,18 +5,18 @@ export type Ticker = {
 };
 
 export const TICKERS: Ticker[] = [
-  // Swedish
+  // Swedish blue chips — ISK-account staples
   { symbol: "INVE-B.ST", name: "Investor B", market: "SE" },
-  { symbol: "SWED-A.ST", name: "Swedbank A", market: "SE" },
-  { symbol: "ABB.ST", name: "ABB", market: "SE" },
-  { symbol: "SAND.ST", name: "Sandvik", market: "SE" },
-  { symbol: "ASSA-B.ST", name: "Assa Abloy B", market: "SE" },
-  { symbol: "HEICO.ST", name: "Heico", market: "SE" },
-  { symbol: "PARADOX.ST", name: "Paradox Interactive", market: "SE" },
-  // US
-  { symbol: "NET", name: "Cloudflare", market: "US" },
-  { symbol: "DDOG", name: "Datadog", market: "US" },
-  { symbol: "IONQ", name: "IonQ", market: "US" },
-  { symbol: "SHOP", name: "Shopify", market: "US" },
-  { symbol: "GOOGL", name: "Alphabet A", market: "US" },
+  { symbol: "VOLV-B.ST", name: "Volvo B", market: "SE" },
+  { symbol: "SEB-A.ST", name: "SEB A", market: "SE" },
+  { symbol: "ATCO-A.ST", name: "Atlas Copco A", market: "SE" },
+  { symbol: "HM-B.ST", name: "H&M B", market: "SE" },
+  // WSB darlings
+  { symbol: "NVDA", name: "Nvidia", market: "US" },
+  { symbol: "TSLA", name: "Tesla", market: "US" },
+  { symbol: "GME", name: "GameStop", market: "US" },
+  { symbol: "PLTR", name: "Palantir", market: "US" },
+  { symbol: "AMD", name: "AMD", market: "US" },
+  { symbol: "COIN", name: "Coinbase", market: "US" },
+  { symbol: "MSTR", name: "MicroStrategy", market: "US" },
 ];

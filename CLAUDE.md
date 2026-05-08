@@ -18,11 +18,8 @@ Backend and frontend are both complete; build + lint pass clean.
 
 **Known limitations:**
 
-- `claude-sonnet-4-20250514` retires **June 15, 2026** — drop-in replacement is `claude-sonnet-4-6` (also unlocks `output_config.format` and lets us drop the `{` prefill hack)
-- `HEICO.ST` and `PARADOX.ST` aren't standard Stockholm tickers (Heico is US-listed; Paradox trades as `PDX.ST`); they'll be silently skipped by per-ticker error handling — adjust `lib/tickers.ts` after first run if needed
 - Market-hours logic doesn't account for exchange holidays — only weekdays + regular session windows
-- No retry/backoff on `/api/trigger` errors — if Claude or Yahoo fails partway through, the cooldown timer is **not** set (since `lastFetch` only updates on success), so the user can retry immediately
-- Single-key KV layout (`iskbets:snapshot`) — if we ever want history, that's a schema change
+- KV layout is two keys (`iskbets:snapshot` for the data, `iskbets:lastAttempt` for the cooldown gate). No history — switching to a list/sorted-set would be a schema change.
 
 
 
@@ -30,7 +27,7 @@ Backend and frontend are both complete; build + lint pass clean.
 
 - Next.js 15 (App Router) + TypeScript (strict, `noUncheckedIndexedAccess`, no `any`)
 - `yahoo-finance2` — quote data (marked `serverExternalPackages` in `next.config.ts` to avoid webpack pulling its Deno-only test files)
-- `@anthropic-ai/sdk` — analysis (model: `claude-sonnet-4-20250514`, no web search; data is passed in; uses assistant-prefill `{` to force JSON)
+- `@anthropic-ai/sdk` — analysis (model: `claude-sonnet-4-6`, no web search; data is passed in; uses native structured outputs via `output_config.format`)
 - `@vercel/kv` — storage (single key `iskbets:snapshot`)
 - Tailwind CSS 4 (layout utilities only — colors and typography live in `globals.css` via CSS variables)
 - `next/font/google` — Bebas Neue (display) + Share Tech Mono (mono)
@@ -40,6 +37,7 @@ Backend and frontend are both complete; build + lint pass clean.
 
 ```
 /api/trigger (GET, ?key=TRIGGER_SECRET, 30 min cooldown)
+  → markAttempt()        lib/storage.ts (sets cooldown gate before pipeline)
   → fetchPrices()        lib/fetchPrices.ts
   → analyzeStocks()      lib/analyzeStocks.ts
   → saveStockData()      lib/storage.ts (KV)
@@ -47,6 +45,8 @@ Backend and frontend are both complete; build + lint pass clean.
 /api/data (GET, public)
   → getStockData()       lib/storage.ts → JSON
 ```
+
+The cooldown gate (`iskbets:lastAttempt`) is intentionally written **before** the pipeline runs — so a partial failure (Yahoo flake, Anthropic rate limit) still triggers the 30-minute cooldown.
 
 ## KV shape
 
