@@ -182,7 +182,9 @@ a {
 /* ============= Ticker tape ============= */
 
 .tape {
-  border-top: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 50;
   border-bottom: 1px solid var(--border);
   background: linear-gradient(180deg, #0a0e0c 0%, #060807 100%);
   overflow: hidden;
@@ -282,67 +284,6 @@ a {
   to {
     transform: rotate(360deg);
   }
-}
-
-/* ============= Sticky compact header ============= */
-
-.sticky-header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 50;
-  background: rgba(8, 11, 10, 0.92);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border-bottom: 1px solid var(--border);
-  transform: translateY(-100%);
-  transition:
-    transform 220ms ease-out,
-    opacity 220ms ease-out;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.sticky-header.visible {
-  transform: translateY(0);
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.sticky-header-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding-top: 0.65rem;
-  padding-bottom: 0.65rem;
-}
-
-.sticky-brand {
-  font-family: var(--font-display);
-  font-size: 1.4rem;
-  letter-spacing: 0.04em;
-  color: var(--text);
-  line-height: 1;
-}
-
-.sticky-brand .dollar {
-  color: var(--gold);
-  text-shadow: 0 0 8px rgba(245, 200, 66, 0.5);
-}
-
-.sticky-pips {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.9rem;
-  font-size: 0.78rem;
-  letter-spacing: 0.1em;
-  color: var(--text-dim);
-}
-
-.sticky-pip-label {
-  margin-left: 0.1rem;
 }
 
 /* ============= Header ============= */
