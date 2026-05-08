@@ -88,15 +88,27 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${bebas.variable} ${shareTechMono.variable}`}>
+    // `booting` is set server-side so the very first paint already hides
+    // the dashboard and shows the overlay — no flash of content. On
+    // hydration, BootSequence checks sessionStorage and either runs the
+    // animation (and removes the class when done) or removes it
+    // immediately (returning visitors). React 19 strips JSX-rendered
+    // <script> tags from SSR, so this className-on-html trick is the
+    // only reliable way to gate first paint without a build step.
+    <html
+      lang="en"
+      className={`${bebas.variable} ${shareTechMono.variable} booting`}
+    >
       <body>
-        {children}
         <BootSequence />
-        <noscript>
-          <style>{`.boot-overlay{display:none!important}`}</style>
-        </noscript>
+        {children}
         <Analytics />
         <SpeedInsights />
+        {/* No-JS fallback: BootSequence never gets to remove the
+            booting class, so override it in CSS for noscript clients. */}
+        <noscript>
+          <style>{`html.booting body > *:not(.boot-overlay){visibility:visible!important}html.booting .boot-overlay{display:none!important}`}</style>
+        </noscript>
       </body>
     </html>
   );

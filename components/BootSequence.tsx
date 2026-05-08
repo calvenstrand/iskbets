@@ -15,44 +15,55 @@ const LINES: Line[] = [
 ];
 
 const STORAGE_KEY = "iskbets:boot:v1";
-const LINE_DELAY_MS = 160;
-const FINAL_HOLD_MS = 550;
-const FADE_MS = 420;
+const BOOTING_CLASS = "booting";
+const LINE_DELAY_MS = 240;
+const FINAL_HOLD_MS = 700;
+const FADE_MS = 500;
 
-type Phase = "checking" | "running" | "fading" | "done";
+type Phase = "idle" | "running" | "fading" | "done";
+
+// Whether the boot animation should play for this visit. Returning
+// visitors (sessionStorage flag set) and reduced-motion users skip it.
+function shouldBoot(): boolean {
+  if (sessionStorage.getItem(STORAGE_KEY) === "1") return false;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+    return false;
+  return true;
+}
 
 export function BootSequence() {
-  // SSR-safe default: cover the screen until JS decides what to do. Returning
-  // visitors get a brief dark flash; first-time visitors see the boot log.
-  const [phase, setPhase] = useState<Phase>("checking");
+  // The `booting` class on <html> is set server-side in app/layout.tsx, so
+  // the dashboard is already hidden behind the overlay on first paint. We
+  // either keep it on and animate (first-time visitors) or remove it
+  // immediately (returning / reduced-motion).
+  const [phase, setPhase] = useState<Phase>("idle");
   const [shown, setShown] = useState(0);
 
-  // Decide whether to play, skip (already seen), or skip (reduced motion).
   useEffect(() => {
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)")
-      .matches;
-    const seen = sessionStorage.getItem(STORAGE_KEY) === "1";
-    if (reduced || seen) {
+    if (shouldBoot()) {
+      setPhase("running");
+    } else {
+      document.documentElement.classList.remove(BOOTING_CLASS);
       setPhase("done");
-      return;
     }
-    setPhase("running");
   }, []);
 
   // Stagger the lines while running.
   useEffect(() => {
     if (phase !== "running") return;
     if (shown >= LINES.length) {
-      const finishTimer = setTimeout(() => setPhase("fading"), FINAL_HOLD_MS);
-      return () => clearTimeout(finishTimer);
+      const t = setTimeout(() => setPhase("fading"), FINAL_HOLD_MS);
+      return () => clearTimeout(t);
     }
     const t = setTimeout(() => setShown((s) => s + 1), LINE_DELAY_MS);
     return () => clearTimeout(t);
   }, [phase, shown]);
 
-  // Finalize: persist the seen flag, unmount.
+  // Fading: drop the booting class so the dashboard becomes visible behind
+  // the still-opaque overlay, then fade the overlay out, then unmount.
   useEffect(() => {
     if (phase !== "fading") return;
+    document.documentElement.classList.remove(BOOTING_CLASS);
     const t = setTimeout(() => {
       sessionStorage.setItem(STORAGE_KEY, "1");
       setPhase("done");
@@ -60,7 +71,7 @@ export function BootSequence() {
     return () => clearTimeout(t);
   }, [phase]);
 
-  // Skip on any click / key while running.
+  // Skip to the end on click / key while running.
   useEffect(() => {
     if (phase !== "running") return;
     const skip = () => setShown(LINES.length);
