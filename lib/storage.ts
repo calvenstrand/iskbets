@@ -19,9 +19,24 @@ export async function saveStockData(args: {
   return data;
 }
 
-export async function getStockData(): Promise<StoredData | null> {
+function shouldUseMock(): { use: boolean; reason: string } {
   if (process.env.USE_MOCK_DATA === "true") {
-    console.log("[storage] returning mock data (USE_MOCK_DATA=true)");
+    return { use: true, reason: "USE_MOCK_DATA=true" };
+  }
+  // Zero-config dev: if KV creds are missing and we're not in production,
+  // fall back to mock so the dashboard renders without any setup.
+  const kvConfigured =
+    !!process.env.KV_REST_API_URL && !!process.env.KV_REST_API_TOKEN;
+  if (!kvConfigured && process.env.NODE_ENV !== "production") {
+    return { use: true, reason: "no KV creds in non-production env" };
+  }
+  return { use: false, reason: "" };
+}
+
+export async function getStockData(): Promise<StoredData | null> {
+  const mock = shouldUseMock();
+  if (mock.use) {
+    console.log(`[storage] returning mock data (${mock.reason})`);
     const { getMockData } = await import("./mockData");
     return getMockData();
   }
