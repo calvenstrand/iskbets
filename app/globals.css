@@ -330,15 +330,43 @@ a {
   font-size: 0.95rem;
   font-style: italic;
   text-align: left;
-  max-width: 100%;
+  max-width: 60ch;
   animation: quote-fade 0.6s ease-out;
 }
 
-/* Right-align only when the header sits side-by-side with the brand */
+/* Live terminal clock — fills the right side of the header */
+.terminal-time {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.45rem;
+  font-family: var(--font-mono);
+  line-height: 1;
+}
+
+.terminal-clock {
+  font-family: var(--font-mono);
+  font-size: clamp(2rem, 4.5vw, 3rem);
+  font-variant-numeric: tabular-nums;
+  color: var(--green);
+  text-shadow:
+    0 0 12px rgba(0, 255, 65, 0.55),
+    0 0 28px rgba(0, 255, 65, 0.18);
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+
+.terminal-date {
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  letter-spacing: 0.22em;
+  font-family: var(--font-mono);
+  line-height: 1;
+}
+
 @media (min-width: 768px) {
-  .gekko-quote {
-    text-align: right;
-    max-width: 28ch;
+  .terminal-time {
+    align-items: flex-end;
   }
 }
 
