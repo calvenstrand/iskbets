@@ -23,7 +23,7 @@ export function Header() {
   return (
     <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 px-4 md:px-8 lg:px-12 py-6">
       <h1 className="brand">
-        WALL<span className="dollar">$</span>TREET BETS
+        I<span className="dollar">$</span>KBETS
       </h1>
       <p key={idx} className="gekko-quote">
         — {QUOTES[idx] ?? QUOTES[0]}
