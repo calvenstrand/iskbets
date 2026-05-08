@@ -515,6 +515,51 @@ html.booting .boot-overlay,
   color: var(--text-dim);
   font-size: 0.85rem;
   letter-spacing: 0.08em;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  /* Desktop: dividers + breathing room. Mobile overrides below. */
+  gap: 1.4rem;
+}
+
+.market-cell {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  position: relative;
+}
+
+.market-code {
+  display: none;
+}
+
+.market-full {
+  display: inline;
+}
+
+@media (min-width: 768px) {
+  /* Faint divider centered in the gap between cells. */
+  .market-cell:not(:last-child)::after {
+    content: "│";
+    color: var(--text-faint);
+    position: absolute;
+    right: -0.85rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .market-bar {
+    /* Spread codes evenly across the row. */
+    justify-content: space-between;
+    gap: 0.4rem;
+  }
+  .market-code {
+    display: inline;
+    letter-spacing: 0.1em;
+  }
+  .market-full {
+    display: none;
+  }
 }
 
 .market-pip {
@@ -524,6 +569,7 @@ html.booting .boot-overlay,
   border-radius: 50%;
   margin-right: 0.5rem;
   vertical-align: middle;
+  flex-shrink: 0;
 }
 
 .market-pip.open {

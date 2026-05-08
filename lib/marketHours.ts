@@ -34,6 +34,32 @@ export function newYorkStatus(now: Date): Status {
   return "CLOSED";
 }
 
+export function londonStatus(now: Date): Status {
+  const { isWeekend, minutes } = partsFor(now, "Europe/London");
+  if (isWeekend) return "CLOSED";
+  // 08:00 - 16:30 local time
+  if (minutes >= 8 * 60 && minutes < 16 * 60 + 30) return "OPEN";
+  return "CLOSED";
+}
+
+export function tokyoStatus(now: Date): Status {
+  const { isWeekend, minutes } = partsFor(now, "Asia/Tokyo");
+  if (isWeekend) return "CLOSED";
+  // 09:00 - 11:30 morning, 12:30 - 15:00 afternoon (lunch break in between)
+  if (minutes >= 9 * 60 && minutes < 11 * 60 + 30) return "OPEN";
+  if (minutes >= 12 * 60 + 30 && minutes < 15 * 60) return "OPEN";
+  return "CLOSED";
+}
+
+export function hongKongStatus(now: Date): Status {
+  const { isWeekend, minutes } = partsFor(now, "Asia/Hong_Kong");
+  if (isWeekend) return "CLOSED";
+  // 09:30 - 12:00 morning, 13:00 - 16:00 afternoon (lunch break in between)
+  if (minutes >= 9 * 60 + 30 && minutes < 12 * 60) return "OPEN";
+  if (minutes >= 13 * 60 && minutes < 16 * 60) return "OPEN";
+  return "CLOSED";
+}
+
 export function pipClass(s: Status): string {
   if (s === "OPEN") return "market-pip open";
   if (s === "PRE-MARKET") return "market-pip pre";
