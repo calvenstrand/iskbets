@@ -151,20 +151,28 @@ a {
 @keyframes pulse-green {
   0%,
   100% {
-    box-shadow: 0 0 24px rgba(0, 255, 65, 0.35);
+    box-shadow:
+      0 0 28px rgba(0, 255, 65, 0.45),
+      0 0 60px rgba(0, 255, 65, 0.18);
   }
   50% {
-    box-shadow: 0 0 32px rgba(0, 255, 65, 0.55);
+    box-shadow:
+      0 0 42px rgba(0, 255, 65, 0.65),
+      0 0 90px rgba(0, 255, 65, 0.28);
   }
 }
 
 @keyframes pulse-red {
   0%,
   100% {
-    box-shadow: 0 0 24px rgba(255, 34, 68, 0.3);
+    box-shadow:
+      0 0 28px rgba(255, 34, 68, 0.4),
+      0 0 60px rgba(255, 34, 68, 0.16);
   }
   50% {
-    box-shadow: 0 0 32px rgba(255, 34, 68, 0.5);
+    box-shadow:
+      0 0 42px rgba(255, 34, 68, 0.6),
+      0 0 90px rgba(255, 34, 68, 0.26);
   }
 }
 
@@ -419,6 +427,29 @@ a {
   text-shadow: 0 0 8px rgba(245, 200, 66, 0.3);
 }
 
+/* ============= Grids ============= */
+
+.stock-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+
+.stock-grid-featured {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+@media (max-width: 640px) {
+  /* Phones get 2 cards per row in the regular grid; the featured grid
+     stays single-column so the winner/loser stay big and dramatic. */
+  .stock-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .stock-grid-featured {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ============= Cards ============= */
 
 .stock-card {
@@ -564,6 +595,7 @@ a {
 /* Featured (winner / loser) cards */
 .stock-card.featured {
   padding: 1.15rem 1.15rem 1.2rem;
+  border-top-width: 2px;
 }
 
 .stock-card.featured .ticker {
@@ -574,33 +606,73 @@ a {
   font-size: 1.7rem;
 }
 
+.stock-card.featured .change-up,
+.stock-card.featured .change-down,
+.stock-card.featured .change-neutral {
+  font-size: 1.05rem;
+}
+
 .stock-card.featured.winner {
   animation:
     card-in 0.45s ease-out backwards,
     pulse-green 3.2s ease-in-out infinite 0.45s;
-  border-color: rgba(0, 255, 65, 0.5);
+  background: linear-gradient(
+    180deg,
+    rgba(0, 255, 65, 0.1) 0%,
+    rgba(0, 255, 65, 0.025) 35%,
+    var(--bg-elev) 70%
+  );
+  border-color: rgba(0, 255, 65, 0.55);
+  border-top-color: var(--green);
+}
+
+.stock-card.featured.winner .ticker {
+  color: var(--green);
+  text-shadow: 0 0 14px rgba(0, 255, 65, 0.45);
+}
+
+.stock-card.featured.winner .price {
+  color: var(--green);
 }
 
 .stock-card.featured.loser {
   animation:
     card-in 0.45s ease-out backwards,
     pulse-red 3.2s ease-in-out infinite 0.45s;
-  border-color: rgba(255, 34, 68, 0.5);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 34, 68, 0.1) 0%,
+    rgba(255, 34, 68, 0.025) 35%,
+    var(--bg-elev) 70%
+  );
+  border-color: rgba(255, 34, 68, 0.55);
+  border-top-color: var(--red);
+}
+
+.stock-card.featured.loser .ticker {
+  color: var(--red);
+  text-shadow: 0 0 14px rgba(255, 34, 68, 0.45);
+}
+
+.stock-card.featured.loser .price {
+  color: var(--red);
 }
 
 .featured-label {
   font-family: var(--font-display);
-  font-size: 0.85rem;
+  font-size: 1rem;
   letter-spacing: 0.18em;
   color: var(--text-dim);
-  margin-bottom: 0.2rem;
+  margin-bottom: 0.25rem;
 }
 
 .featured-label.win {
   color: var(--green);
+  text-shadow: 0 0 8px rgba(0, 255, 65, 0.45);
 }
 .featured-label.lose {
   color: var(--red);
+  text-shadow: 0 0 8px rgba(255, 34, 68, 0.45);
 }
 
 /* ============= Footer ============= */
