@@ -133,6 +133,19 @@ const STOCKS: StockPrice[] = [
     fiftyTwoWeekLow: 0,
     marketState: "REGULAR",
   },
+  {
+    ticker: "QBTS",
+    name: "D-Wave Quantum",
+    currency: "USD",
+    regularMarketPrice: 12.85,
+    regularMarketChange: 1.62,
+    regularMarketChangePercent: 14.4,
+    regularMarketVolume: 28_400_000,
+    averageDailyVolume3Month: 14_800_000,
+    fiftyTwoWeekHigh: 14.2,
+    fiftyTwoWeekLow: 1.18,
+    marketState: "REGULAR",
+  },
   // ============== Sweden — ISK staples ==============
   {
     ticker: "INVE-B.ST",
@@ -303,6 +316,19 @@ const STOCKS: StockPrice[] = [
     fiftyTwoWeekLow: 0,
     marketState: "REGULAR",
   },
+  {
+    ticker: "INTRUM.ST",
+    name: "Intrum",
+    currency: "SEK",
+    regularMarketPrice: 32.4,
+    regularMarketChange: -0.83,
+    regularMarketChangePercent: -2.5,
+    regularMarketVolume: 980_000,
+    averageDailyVolume3Month: 1_300_000,
+    fiftyTwoWeekHigh: 0,
+    fiftyTwoWeekLow: 0,
+    marketState: "REGULAR",
+  },
 ];
 
 // Hand-written WSB comments for the tickers worth talking about. Tickers
@@ -311,7 +337,9 @@ const COMMENTS: Record<string, string> = {
   NVDA: "Jensen printing tendies, AI apes feast tonight",
   TSLA: "Elon tweeted, robotaxis loaded, full port long",
   GME: "Pump dumped, paper hands fleeing, bagholders crying",
-  PLTR: "Karp's army marching, government tendies incoming",
+  PLTR: "Johan's PLTR mooning, Karp's army marching",
+  QBTS: "Johan's QBTS qubits printing +14%, quantum chads",
+  "INTRUM.ST": "Johan's Intrum sliding, debt-collection bagholders rekt",
   "HM-B.ST": "Fast fashion fading, paper bag holders eternal",
   "BINV.ST": "Biotech rollercoaster, FDA gods unhappy today",
   NET: "Chris's Cloudflare ripping faces, AI infra moon",

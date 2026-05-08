@@ -4,6 +4,7 @@
 export const PEOPLE = {
   chris: "Chris",
   eric: "Eric",
+  johan: "Johan",
   oskar: "Oskar",
 } as const;
 
@@ -47,15 +48,17 @@ export const TICKERS: Ticker[] = [
   { symbol: "NIBE-B.ST", name: "Nibe Industrier B", market: "SE", avanzaId: 5325, owners: ["eric"] },
   { symbol: "DICOT.ST", name: "Dicot Pharma", market: "SE", avanzaId: 861798, owners: ["oskar"] },
   { symbol: "VPLAY-B.ST", name: "Viaplay Group B", market: "SE", avanzaId: 945460, owners: ["eric"] },
+  { symbol: "INTRUM.ST", name: "Intrum", market: "SE", avanzaId: 5583, owners: ["johan"] },
   // WSB darlings — fetched via Finnhub
   { symbol: "NVDA", name: "Nvidia", market: "US" },
   { symbol: "TSLA", name: "Tesla", market: "US" },
   { symbol: "GME", name: "GameStop", market: "US" },
-  { symbol: "PLTR", name: "Palantir", market: "US" },
+  { symbol: "PLTR", name: "Palantir", market: "US", owners: ["johan"] },
   { symbol: "AMD", name: "AMD", market: "US" },
   { symbol: "COIN", name: "Coinbase", market: "US" },
   { symbol: "MSTR", name: "MicroStrategy", market: "US" },
   { symbol: "SHOP", name: "Shopify", market: "US", owners: ["chris"] },
   { symbol: "NET", name: "Cloudflare", market: "US", owners: ["chris"] },
   { symbol: "KLAR", name: "Klarna Group", market: "US", owners: ["chris"] },
+  { symbol: "QBTS", name: "D-Wave Quantum", market: "US", owners: ["johan"] },
 ];
