@@ -4,6 +4,8 @@ import type { StockAnalysis, StockPrice, StoredData } from "@/lib/types";
 import { Header } from "./Header";
 import { MarketStatus } from "./MarketStatus";
 import { MoodBanner } from "./MoodBanner";
+import { PullToRefresh } from "./PullToRefresh";
+import { StickyHeader } from "./StickyHeader";
 import { StockCard } from "./StockCard";
 import { TickerTape } from "./TickerTape";
 import { UpdatedFooter } from "./UpdatedFooter";
@@ -41,6 +43,8 @@ export function Dashboard({ data }: DashboardProps) {
 
   return (
     <main>
+      <PullToRefresh />
+      <StickyHeader />
       <TickerTape stocks={data.stocks} />
       <Header />
       <MarketStatus />

@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import type { StockPrice } from "@/lib/types";
 
 const SLOGANS = [
@@ -67,10 +70,25 @@ function renderItem(item: TapeItem, key: string) {
 }
 
 export function TickerTape({ stocks }: { stocks: StockPrice[] }) {
+  const [paused, setPaused] = useState(false);
   const items = buildTape(stocks);
-  // Duplicate the items so the marquee loop is seamless
+
   return (
-    <div className="tape" aria-label="Ticker tape">
+    <div
+      className={`tape ${paused ? "paused" : ""}`}
+      role="button"
+      tabIndex={0}
+      aria-label={`Ticker tape (tap to ${paused ? "resume" : "pause"})`}
+      aria-pressed={paused}
+      onClick={() => setPaused((p) => !p)}
+      onKeyDown={(e) => {
+        if (e.key === " " || e.key === "Enter") {
+          e.preventDefault();
+          setPaused((p) => !p);
+        }
+      }}
+    >
+      {/* Duplicate the items so the marquee loop is seamless */}
       <div className="tape-track">
         {items.map((it, i) => renderItem(it, `a-${i}`))}
         {items.map((it, i) => renderItem(it, `b-${i}`))}
