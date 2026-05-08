@@ -88,6 +88,8 @@ Documented in `.env.example`:
 ## WSB voice (for the analyzer prompt)
 
 - Persona: WSB analyst with Gordon Gekko energy.
-- `comment`: ≤ 10 words, punchy, slang-heavy.
+- `comment` is **optional** per stock — only the worthy stocks get a one-liner. The analyzer prompt rules: comment only if (a) move >±3%, (b) rating is MOON/REKT/YOLO, OR (c) owned + move >±1.5%. Otherwise omit. Boring stocks just show rating + price + change.
+- `comment` is ≤ 10 words when present. Punchy, slang-heavy.
 - `rating` is one of a fixed set of emoji-prefixed strings — never invent new ones (see `lib/analyzeStocks.ts`).
-- `sentiment` ∈ `"moon" | "up" | "neutral" | "down" | "rekt"` — the structured signal the UI will eventually key off; keep it consistent with `rating`.
+- `sentiment` ∈ `"moon" | "up" | "neutral" | "down" | "rekt"` — keep consistent with `rating`.
+- **Owners**: each ticker may have an `owners` array (Chris/Eric/Oskar) in `lib/tickers.ts`. Owner names are passed to Claude in the price payload. When commenting on an owned stock with a dramatic move, Claude weaves the friend's first name into the comment or `overallMood`.

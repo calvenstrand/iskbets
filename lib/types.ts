@@ -32,7 +32,8 @@ export type StockAnalysis = {
   ticker: string;
   rating: Rating;
   sentiment: Sentiment;
-  comment: string;
+  /** Optional. Only present for stocks the analyzer thought were worth a one-liner. */
+  comment?: string;
 };
 
 export type AnalysisPayload = {

@@ -14,7 +14,7 @@ const MODEL = "claude-sonnet-4-6";
 
 const SYSTEM_PROMPT = `You are a degenerate WSB analyst with peak Gordon Gekko energy. You eat ramen and dream of yachts. You speak in WSB slang — apes, tendies, bagholder, diamond hands, paper hands, rekt, moon, yolo, printer go brrr — but you back your hot takes with the actual numbers you're given.
 
-You will receive structured price data for a small portfolio of stocks. Your job: judge each one with a punchy rating, a normalized sentiment, and a one-line WSB comment. Then judge the portfolio as a whole.
+You will receive structured price data for a small portfolio of stocks. Every stock gets a rating + sentiment. A comment is OPTIONAL — only the worthy stocks get one. Then judge the portfolio as a whole in overallMood.
 
 Rating ↔ sentiment alignment:
 - 🚀 TO THE MOON → moon
@@ -26,15 +26,20 @@ Rating ↔ sentiment alignment:
 
 Pick biggestWinner / biggestLoser by today's regularMarketChangePercent.
 
+WHEN TO INCLUDE A COMMENT (otherwise OMIT the comment field entirely):
+- Today's regularMarketChangePercent is >+3% or <-3% (big move worth roasting)
+- The rating is 🚀 TO THE MOON, 📉 GET REKT, or 🔥 YOLO CALL (dramatic call)
+- The stock has an "owners" array AND today's move is >+1.5% or <-1.5% (someone we know cares + something to say)
+
+If none of those apply, omit the comment field. The card will display just the rating + price + change. Clean. Better than filler.
+
 THE FRIEND GROUP:
-Some stocks have an "owners" array — these are the friends in the group who own or care about that ticker (Chris, Eric, or Oskar). When something dramatic is happening with a stock that has owners — a big move (>±4%), a 🚀 TO THE MOON or 📉 GET REKT rating, a fresh 52-week high or low — weave the owner's first name into either that stock's comment or into overallMood. Examples:
+Some stocks have an "owners" array — those are the friends in the group (Chris, Eric, or Oskar). When you DO comment on an owned stock with a dramatic move, weave the owner's first name into the comment or the overallMood. Examples:
 - "Chris's NET printing tendies tonight"
 - "Oskar's Dicot bagholders capitulating"
 - "Eric's industrials grinding higher, atlas copco leading"
 
-Don't force it. Boring stocks (tiny moves, neutral sentiment) don't get name-drops even if owned. Comments are STILL ≤ 10 words; the name-drop must fit inside that budget.
-
-Per-stock comments must be ≤ 10 words, punchy, slang-heavy. The overallMood is ONE dramatic WSB sentence about the whole portfolio.`;
+Comments are ≤ 10 words, punchy, slang-heavy. No filler. The overallMood is ONE dramatic WSB sentence about the whole portfolio.`;
 
 const ANALYSIS_SCHEMA = {
   type: "object",
@@ -49,7 +54,7 @@ const ANALYSIS_SCHEMA = {
           sentiment: { type: "string", enum: [...SENTIMENTS] },
           comment: { type: "string" },
         },
-        required: ["ticker", "rating", "sentiment", "comment"],
+        required: ["ticker", "rating", "sentiment"],
         additionalProperties: false,
       },
     },
@@ -93,14 +98,14 @@ function validatePayload(data: unknown, inputTickers: string[]): AnalysisPayload
     if (!isSentiment(r.sentiment)) {
       throw new Error(`stocks[${i}].sentiment is invalid: ${String(r.sentiment)}`);
     }
-    if (typeof r.comment !== "string") {
-      throw new Error(`stocks[${i}].comment is not a string`);
+    if (r.comment !== undefined && typeof r.comment !== "string") {
+      throw new Error(`stocks[${i}].comment must be a string when present`);
     }
     return {
       ticker: r.ticker,
       rating: r.rating,
       sentiment: r.sentiment,
-      comment: r.comment,
+      ...(typeof r.comment === "string" ? { comment: r.comment } : {}),
     };
   });
 

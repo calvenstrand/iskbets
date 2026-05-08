@@ -120,7 +120,7 @@ export function StockCard({
         ({formatChangePct(stock.regularMarketChangePercent)})
       </div>
 
-      {analysis && (
+      {analysis?.comment && (
         <p className="comment mt-3">&ldquo;{analysis.comment}&rdquo;</p>
       )}
 

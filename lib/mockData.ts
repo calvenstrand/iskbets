@@ -333,19 +333,16 @@ const ANALYSIS: StockAnalysis[] = [
     ticker: "AMD",
     rating: "📈 BULLISH AF",
     sentiment: "up",
-    comment: "Lisa Su grinding, MI300 narrative still hot",
   },
   {
     ticker: "COIN",
     rating: "⚠️ TURBULENCE",
     sentiment: "down",
-    comment: "BTC dipping, Coinbase apes nervous but holding",
   },
   {
     ticker: "MSTR",
     rating: "💎 DIAMOND HANDS",
     sentiment: "up",
-    comment: "Saylor stacking sats, leveraged BTC printer",
   },
   {
     ticker: "SHOP",
@@ -363,37 +360,31 @@ const ANALYSIS: StockAnalysis[] = [
     ticker: "KLAR",
     rating: "📈 BULLISH AF",
     sentiment: "up",
-    comment: "Swedish fintech IPO'd, BNPL apes loaded long",
   },
   {
     ticker: "INVE-B.ST",
     rating: "💎 DIAMOND HANDS",
     sentiment: "up",
-    comment: "Wallenberg flex, blue chip diamond hands",
   },
   {
     ticker: "VOLV-B.ST",
     rating: "📈 BULLISH AF",
     sentiment: "up",
-    comment: "Trucks rolling, industrial apes accumulating quietly",
   },
   {
     ticker: "SWED-A.ST",
     rating: "⚠️ TURBULENCE",
     sentiment: "down",
-    comment: "Banking sideways, mild bagholder vibes",
   },
   {
     ticker: "SHB-B.ST",
     rating: "💎 DIAMOND HANDS",
     sentiment: "up",
-    comment: "Stadshypotek printing, conservative apes win again",
   },
   {
     ticker: "ATCO-B.ST",
     rating: "💎 DIAMOND HANDS",
     sentiment: "up",
-    comment: "Compressors compressing, comfortable hold forever",
   },
   {
     ticker: "HM-B.ST",
@@ -405,7 +396,6 @@ const ANALYSIS: StockAnalysis[] = [
     ticker: "DOM.ST",
     rating: "📈 BULLISH AF",
     sentiment: "up",
-    comment: "RV summer incoming, leisure apes loading up",
   },
   {
     ticker: "BINV.ST",
@@ -423,7 +413,6 @@ const ANALYSIS: StockAnalysis[] = [
     ticker: "CAST.ST",
     rating: "⚠️ TURBULENCE",
     sentiment: "down",
-    comment: "Real estate apes praying for rate cuts",
   },
   {
     ticker: "NIBE-B.ST",
