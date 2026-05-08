@@ -18,15 +18,20 @@ type FinnhubQuote = {
 };
 
 type AvanzaStock = {
-  lastPrice?: number;
-  change?: number;
-  changePercent?: number;
-  highestPrice52Weeks?: number;
-  lowestPrice52Weeks?: number;
-  totalVolumeTraded?: number;
-  currency?: string;
-  marketState?: {
-    isOpen?: boolean;
+  name?: string;
+  listing?: {
+    currency?: string;
+  };
+  marketPlace?: {
+    marketOpen?: boolean;
+  };
+  quote?: {
+    last?: number;
+    change?: number;
+    changePercent?: number;
+    highest?: number; // intraday high
+    lowest?: number; // intraday low
+    totalVolumeTraded?: number;
   };
 };
 
@@ -114,10 +119,13 @@ async function fetchOneFromAvanza(
     }
 
     const q = (await res.json()) as AvanzaStock;
+    const last = q.quote?.last;
+    const change = q.quote?.change;
+    const changePercent = q.quote?.changePercent;
     if (
-      typeof q.lastPrice !== "number" ||
-      typeof q.change !== "number" ||
-      typeof q.changePercent !== "number"
+      typeof last !== "number" ||
+      typeof change !== "number" ||
+      typeof changePercent !== "number"
     ) {
       console.log(`[fetchPrices] ${ticker.symbol}: missing price fields`);
       return null;
@@ -126,21 +134,25 @@ async function fetchOneFromAvanza(
     // Avanza tells us if the market is open right now; otherwise fall back
     // to time-based derivation.
     let marketState: MarketState;
-    if (q.marketState?.isOpen === true) marketState = "REGULAR";
-    else if (q.marketState?.isOpen === false) marketState = "CLOSED";
+    if (q.marketPlace?.marketOpen === true) marketState = "REGULAR";
+    else if (q.marketPlace?.marketOpen === false) marketState = "CLOSED";
     else marketState = deriveMarketState(ticker.market, now);
 
     return {
       ticker: ticker.symbol,
       name: ticker.name,
-      currency: q.currency ?? "SEK",
-      regularMarketPrice: q.lastPrice,
-      regularMarketChange: q.change,
-      regularMarketChangePercent: q.changePercent,
-      regularMarketVolume: q.totalVolumeTraded ?? 0,
+      currency: q.listing?.currency ?? "SEK",
+      regularMarketPrice: last,
+      regularMarketChange: change,
+      regularMarketChangePercent: changePercent,
+      regularMarketVolume: q.quote?.totalVolumeTraded ?? 0,
       averageDailyVolume3Month: 0,
-      fiftyTwoWeekHigh: q.highestPrice52Weeks ?? 0,
-      fiftyTwoWeekLow: q.lowestPrice52Weeks ?? 0,
+      // Avanza's market-guide endpoint exposes intraday high/low but not
+      // 52-week high/low. Setting both to 0 hides the "X% FROM GLORY" line
+      // on SE cards (StockCard guards on fiftyTwoWeekHigh > 0). A second
+      // call to the price-chart endpoint could add it later if needed.
+      fiftyTwoWeekHigh: 0,
+      fiftyTwoWeekLow: 0,
       marketState,
     };
   } catch (err) {
