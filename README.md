@@ -18,10 +18,10 @@ The four env vars (see [`.env.example`](.env.example)):
 | --- | --- |
 | `ANTHROPIC_API_KEY` | Claude SDK — the WSB-analyst pass |
 | `TRIGGER_SECRET` | Shared secret guarding `/api/trigger` |
-| `KV_REST_API_URL` | Vercel KV REST endpoint |
-| `KV_REST_API_TOKEN` | Vercel KV REST token |
+| `UPSTASH_REDIS_REST_URL` | Upstash Redis REST endpoint |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis REST token |
 
-For local dev, copy the `KV_*` values from the Vercel dashboard → Storage → your KV store → ".env.local" tab. In production they're auto-injected.
+For local dev, copy the `UPSTASH_REDIS_*` values from the Vercel dashboard → Storage → your Upstash database → ".env.local" tab. In production they're auto-injected. Legacy `KV_REST_API_URL` / `KV_REST_API_TOKEN` names are also accepted by the storage layer.
 
 ## Triggering a fetch
 
@@ -49,7 +49,7 @@ The dashboard at `/` reads `/api/data` server-side and revalidates every 60 seco
 - Next.js 15 (App Router) + TypeScript (strict, `noUncheckedIndexedAccess`)
 - [`yahoo-finance2`](https://www.npmjs.com/package/yahoo-finance2) — quote data
 - [`@anthropic-ai/sdk`](https://www.npmjs.com/package/@anthropic-ai/sdk) — Claude analysis
-- [`@vercel/kv`](https://www.npmjs.com/package/@vercel/kv) — snapshot storage
+- [`@upstash/redis`](https://www.npmjs.com/package/@upstash/redis) — snapshot storage (Upstash Redis via Vercel Marketplace)
 - Tailwind CSS 4 (layout utilities only) + a hand-rolled CSS design system
 - `next/font/google` — Bebas Neue + Share Tech Mono
 - Deploys to Vercel
@@ -75,7 +75,7 @@ lib/
   tickers.ts               hardcoded ticker list
   fetchPrices.ts           per-ticker error-isolated yahoo fetch
   analyzeStocks.ts         Claude call + JSON validation
-  storage.ts               KV wrapper
+  storage.ts               Redis wrapper
   types.ts                 shared types
 ```
 

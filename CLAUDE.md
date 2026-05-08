@@ -19,7 +19,7 @@ Backend and frontend are both complete; build + lint pass clean.
 **Known limitations:**
 
 - Market-hours logic doesn't account for exchange holidays — only weekdays + regular session windows
-- KV layout is two keys (`iskbets:snapshot` for the data, `iskbets:lastAttempt` for the cooldown gate). No history — switching to a list/sorted-set would be a schema change.
+- Redis layout is two keys (`iskbets:snapshot` for the data, `iskbets:lastAttempt` for the cooldown gate). No history — switching to a list/sorted-set would be a schema change.
 
 
 
@@ -28,7 +28,7 @@ Backend and frontend are both complete; build + lint pass clean.
 - Next.js 15 (App Router) + TypeScript (strict, `noUncheckedIndexedAccess`, no `any`)
 - `yahoo-finance2` — quote data (marked `serverExternalPackages` in `next.config.ts` to avoid webpack pulling its Deno-only test files)
 - `@anthropic-ai/sdk` — analysis (model: `claude-sonnet-4-6`, no web search; data is passed in; uses native structured outputs via `output_config.format`)
-- `@vercel/kv` — storage (single key `iskbets:snapshot`)
+- `@upstash/redis` — storage (Upstash Redis via Vercel Marketplace; keys `iskbets:snapshot` for the data, `iskbets:lastAttempt` for the cooldown gate)
 - Tailwind CSS 4 (layout utilities only — colors and typography live in `globals.css` via CSS variables)
 - `next/font/google` — Bebas Neue (display) + Share Tech Mono (mono)
 - Deploys to Vercel
@@ -65,7 +65,7 @@ Documented in `.env.example`:
 
 - `ANTHROPIC_API_KEY` — Claude SDK
 - `TRIGGER_SECRET` — query-param auth for `/api/trigger`
-- `KV_REST_API_URL` / `KV_REST_API_TOKEN` — Vercel KV; auto-injected in production, manual for local dev
+- `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` — Upstash Redis; auto-injected in production via the Vercel Marketplace integration, manual for local dev. Legacy `KV_REST_API_URL` / `KV_REST_API_TOKEN` names are also supported as a fallback.
 
 ## Conventions
 
