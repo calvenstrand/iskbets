@@ -518,7 +518,8 @@ html.booting .boot-overlay,
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  /* Desktop: dividers + breathing room. Mobile overrides below. */
+  justify-content: center;
+  /* Desktop: dividers + breathing room. Mobile override is below. */
   gap: 1.4rem;
 }
 
