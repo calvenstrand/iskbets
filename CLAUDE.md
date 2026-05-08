@@ -20,13 +20,15 @@ Backend and frontend are both complete; build + lint pass clean.
 
 - Market-hours logic doesn't account for exchange holidays — only weekdays + regular session windows
 - Redis layout is two keys (`iskbets:snapshot` for the data, `iskbets:lastAttempt` for the cooldown gate). No history — switching to a list/sorted-set would be a schema change.
+- Finnhub `/quote` doesn't return 52-week high/low or volume on the free tier, so the "X% FROM GLORY" line on each card is hidden (the StockCard guards on `fiftyTwoWeekHigh > 0`). Restoring it would mean adding a second call per ticker to a different endpoint, and on the free tier 52w metrics aren't available for international stocks.
+- Per-card market badge is derived from the current time + ticker market (Stockholm/NY hours via `lib/marketHours.ts`) rather than from the data source — so there's no `POST` state, only `OPEN`/`PRE`/`CLOSED`.
 
 
 
 ## Stack
 
 - Next.js 15 (App Router) + TypeScript (strict, `noUncheckedIndexedAccess`, no `any`)
-- `yahoo-finance2` — quote data (marked `serverExternalPackages` in `next.config.ts` to avoid webpack pulling its Deno-only test files)
+- Finnhub `/api/v1/quote` REST endpoint via plain `fetch` — quote data. Yahoo's API was tried first (both `yahoo-finance2` library and the public `/v8/finance/chart` endpoint); both 429 hard from Vercel's IP pool. Finnhub free tier covers 60 req/min which is plenty.
 - `@anthropic-ai/sdk` — analysis (model: `claude-sonnet-4-6`, no web search; data is passed in; uses native structured outputs via `output_config.format`)
 - `@upstash/redis` — storage (Upstash Redis via Vercel Marketplace; keys `iskbets:snapshot` for the data, `iskbets:lastAttempt` for the cooldown gate)
 - Tailwind CSS 4 (layout utilities only — colors and typography live in `globals.css` via CSS variables)
@@ -64,6 +66,7 @@ The cooldown gate (`iskbets:lastAttempt`) is intentionally written **before** th
 Documented in `.env.example`:
 
 - `ANTHROPIC_API_KEY` — Claude SDK
+- `FINNHUB_API_KEY` — Finnhub quote endpoint
 - `TRIGGER_SECRET` — query-param auth for `/api/trigger`
 - `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` — Upstash Redis; auto-injected in production via the Vercel Marketplace integration, manual for local dev. Legacy `KV_REST_API_URL` / `KV_REST_API_TOKEN` names are also supported as a fallback.
 

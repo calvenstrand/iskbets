@@ -17,6 +17,7 @@ The four env vars (see [`.env.example`](.env.example)):
 | Var | What it's for |
 | --- | --- |
 | `ANTHROPIC_API_KEY` | Claude SDK — the WSB-analyst pass |
+| `FINNHUB_API_KEY` | Finnhub quote endpoint — sign up at [finnhub.io](https://finnhub.io/) |
 | `TRIGGER_SECRET` | Shared secret guarding `/api/trigger` |
 | `UPSTASH_REDIS_REST_URL` | Upstash Redis REST endpoint |
 | `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis REST token |
@@ -47,7 +48,7 @@ The dashboard at `/` reads `/api/data` server-side and revalidates every 60 seco
 ## Stack
 
 - Next.js 15 (App Router) + TypeScript (strict, `noUncheckedIndexedAccess`)
-- [`yahoo-finance2`](https://www.npmjs.com/package/yahoo-finance2) — quote data
+- Finnhub `/api/v1/quote` (plain `fetch`) — quote data
 - [`@anthropic-ai/sdk`](https://www.npmjs.com/package/@anthropic-ai/sdk) — Claude analysis
 - [`@upstash/redis`](https://www.npmjs.com/package/@upstash/redis) — snapshot storage (Upstash Redis via Vercel Marketplace)
 - Tailwind CSS 4 (layout utilities only) + a hand-rolled CSS design system
@@ -79,9 +80,9 @@ lib/
   types.ts                 shared types
 ```
 
-## A word on Yahoo Finance
+## A word on the data source
 
-`yahoo-finance2` is an unofficial community library — Yahoo doesn't publish a stable API. Quotes can break, ticker symbols can drift, fields can vanish. Per-ticker errors are caught and logged in [`lib/fetchPrices.ts`](lib/fetchPrices.ts) so a single bad ticker never crashes the batch.
+We started on Yahoo Finance (via `yahoo-finance2` and then the public `/v8/finance/chart` endpoint), but Yahoo aggressively rate-limits Vercel's serverless IP pool — both endpoints 429'd on every request from production. The code now uses Finnhub's `/quote` endpoint, which has a generous free tier (60 req/min) and works fine from Vercel. Per-ticker errors are caught in [`lib/fetchPrices.ts`](lib/fetchPrices.ts) so a single bad ticker never crashes the batch.
 
 ## Disclaimer
 

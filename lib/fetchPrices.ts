@@ -1,101 +1,70 @@
+import { newYorkStatus, stockholmStatus } from "./marketHours";
 import { TICKERS, type Ticker } from "./tickers";
 import type { MarketState, StockPrice } from "./types";
 
-const REAL_BROWSER_UA =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " +
-  "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-
-type ChartMeta = {
-  symbol: string;
-  currency?: string;
-  regularMarketPrice?: number;
-  chartPreviousClose?: number;
-  previousClose?: number;
-  regularMarketVolume?: number;
-  fiftyTwoWeekHigh?: number;
-  fiftyTwoWeekLow?: number;
-  marketState?: string;
+type FinnhubQuote = {
+  c: number; // current price
+  d: number; // change
+  dp: number; // change percent
+  h: number; // day high
+  l: number; // day low
+  o: number; // open
+  pc: number; // previous close
+  t: number; // timestamp (epoch s)
 };
 
-type ChartResponse = {
-  chart?: {
-    result?: Array<{ meta: ChartMeta }> | null;
-    error?: { code: string; description: string } | null;
-  };
-};
-
-function normalizeMarketState(raw: string | undefined): MarketState {
-  if (raw === "REGULAR" || raw === "PRE" || raw === "POST" || raw === "CLOSED") {
-    return raw;
-  }
-  if (raw === "PREPRE") return "PRE";
-  if (raw === "POSTPOST" || raw === "POSTAFT") return "POST";
+function deriveMarketState(market: Ticker["market"], now: Date): MarketState {
+  const status =
+    market === "SE" ? stockholmStatus(now) : newYorkStatus(now);
+  if (status === "OPEN") return "REGULAR";
+  if (status === "PRE-MARKET") return "PRE";
   return "CLOSED";
 }
 
-async function fetchOne(ticker: Ticker): Promise<StockPrice | null> {
+async function fetchOne(
+  ticker: Ticker,
+  apiKey: string,
+  now: Date,
+): Promise<StockPrice | null> {
   try {
-    // /v8/finance/chart returns enough meta for our needs and — unlike
-    // /v7/finance/quote — does not require Yahoo's crumb token, so it
-    // works from Vercel's serverless IP pools.
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
+    const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(
       ticker.symbol,
-    )}?range=1d&interval=1m`;
+    )}&token=${apiKey}`;
 
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": REAL_BROWSER_UA,
-        Accept: "application/json",
-      },
-      // Don't let Next.js cache this — the trigger is the cache layer.
-      cache: "no-store",
-    });
+    const res = await fetch(url, { cache: "no-store" });
 
     if (!res.ok) {
       console.log(`[fetchPrices] ${ticker.symbol}: HTTP ${res.status}`);
       return null;
     }
 
-    const data = (await res.json()) as ChartResponse;
-    const apiError = data.chart?.error;
-    if (apiError) {
-      console.log(
-        `[fetchPrices] ${ticker.symbol}: ${apiError.code} — ${apiError.description}`,
-      );
+    const q = (await res.json()) as Partial<FinnhubQuote>;
+    // Finnhub returns c=0 (and dp=0) for symbols it can't resolve
+    if (
+      typeof q.c !== "number" ||
+      q.c === 0 ||
+      typeof q.d !== "number" ||
+      typeof q.dp !== "number"
+    ) {
+      console.log(`[fetchPrices] ${ticker.symbol}: no quote data`);
       return null;
     }
-
-    const result = data.chart?.result?.[0];
-    const meta = result?.meta;
-    if (!meta) {
-      console.log(`[fetchPrices] ${ticker.symbol}: no meta in chart response`);
-      return null;
-    }
-
-    const price = meta.regularMarketPrice;
-    const prev = meta.chartPreviousClose ?? meta.previousClose;
-    if (price == null || prev == null) {
-      console.log(`[fetchPrices] ${ticker.symbol}: missing price fields, skipping`);
-      return null;
-    }
-
-    const change = price - prev;
-    const changePercent = prev !== 0 ? (change / prev) * 100 : 0;
 
     return {
       ticker: ticker.symbol,
       name: ticker.name,
-      currency: meta.currency ?? "",
-      regularMarketPrice: price,
-      regularMarketChange: change,
-      regularMarketChangePercent: changePercent,
-      regularMarketVolume: meta.regularMarketVolume ?? 0,
-      // /v8 chart meta doesn't expose averageDailyVolume3Month — we don't
-      // surface it in the UI anyway, so default to 0.
+      currency: ticker.market === "SE" ? "SEK" : "USD",
+      regularMarketPrice: q.c,
+      regularMarketChange: q.d,
+      regularMarketChangePercent: q.dp,
+      // /quote doesn't return volume; not surfaced in the UI anyway.
+      regularMarketVolume: 0,
       averageDailyVolume3Month: 0,
-      fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh ?? 0,
-      fiftyTwoWeekLow: meta.fiftyTwoWeekLow ?? 0,
-      marketState: normalizeMarketState(meta.marketState),
+      // /quote doesn't return 52w; "X% from glory" will be hidden when
+      // fiftyTwoWeekHigh is 0 (the StockCard already guards on this).
+      fiftyTwoWeekHigh: 0,
+      fiftyTwoWeekLow: 0,
+      marketState: deriveMarketState(ticker.market, now),
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -106,7 +75,16 @@ async function fetchOne(ticker: Ticker): Promise<StockPrice | null> {
 
 export async function fetchPrices(): Promise<StockPrice[]> {
   console.log(`[fetchPrices] fetching ${TICKERS.length} tickers`);
-  const results = await Promise.all(TICKERS.map(fetchOne));
+
+  const apiKey = process.env.FINNHUB_API_KEY;
+  if (!apiKey) {
+    throw new Error("FINNHUB_API_KEY env var not set");
+  }
+
+  const now = new Date();
+  const results = await Promise.all(
+    TICKERS.map((t) => fetchOne(t, apiKey, now)),
+  );
   const stocks = results.filter((s): s is StockPrice => s !== null);
   console.log(`[fetchPrices] ${stocks.length}/${TICKERS.length} succeeded`);
   return stocks;
