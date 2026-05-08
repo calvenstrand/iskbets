@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { displayTicker } from "@/lib/tickers";
 import type { Sentiment, StockAnalysis, StockPrice } from "@/lib/types";
 
 type Featured = "winner" | "loser";
@@ -85,8 +86,8 @@ export function StockCard({
 
       <div className="card-header flex items-start justify-between gap-3">
         <div>
-          <div className="ticker">{stock.ticker}</div>
           <div className="name">{stock.name}</div>
+          <div className="ticker">{displayTicker(stock.ticker)}</div>
         </div>
         {analysis && <div className="rating">{analysis.rating}</div>}
       </div>

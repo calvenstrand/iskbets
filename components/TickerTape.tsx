@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { displayTicker } from "@/lib/tickers";
 import type { StockPrice } from "@/lib/types";
 
 const SLOGANS = [
@@ -32,7 +33,7 @@ type TapeItem =
 function buildTape(stocks: StockPrice[]): TapeItem[] {
   const tickers: TapeItem[] = stocks.map((s) => ({
     kind: "ticker" as const,
-    ticker: s.ticker,
+    ticker: displayTicker(s.ticker),
     pct: s.regularMarketChangePercent,
   }));
   const slogans: TapeItem[] = SLOGANS.map((text) => ({

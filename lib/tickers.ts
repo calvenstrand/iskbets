@@ -6,6 +6,19 @@ export const PERSON_NAMES: Record<Person, string> = {
   oskar: "Oskar",
 };
 
+/**
+ * Stockholm tickers carry a `.ST` suffix and a hyphen for the share class
+ * (e.g., "VOLV-B.ST") as our internal disambiguation key. On the local
+ * exchange and on Avanza they render as "VOLV B" — strip the suffix and
+ * convert the hyphen to a space.
+ */
+export function displayTicker(ticker: string): string {
+  if (ticker.endsWith(".ST")) {
+    return ticker.slice(0, -3).replace("-", " ");
+  }
+  return ticker;
+}
+
 export type Ticker = {
   symbol: string;
   name: string;

@@ -685,10 +685,10 @@ html.booting .boot-overlay,
   .stock-card {
     padding: 0.6rem 0.65rem 0.7rem;
   }
-  .stock-card .ticker {
+  .stock-card .name {
     font-size: 1.15rem;
   }
-  .stock-card .name {
+  .stock-card .ticker {
     font-size: 0.62rem;
   }
   .stock-card .price {
@@ -729,7 +729,7 @@ html.booting .boot-overlay,
   transform: translateY(-1px);
 }
 
-.stock-card .ticker {
+.stock-card .name {
   font-family: var(--font-display);
   font-size: 1.5rem;
   line-height: 1;
@@ -737,7 +737,7 @@ html.booting .boot-overlay,
   color: var(--text);
 }
 
-.stock-card .name {
+.stock-card .ticker {
   font-size: 0.72rem;
   color: var(--text-dim);
   margin-top: 0.15rem;
@@ -835,7 +835,7 @@ html.booting .boot-overlay,
   border-top-width: 2px;
 }
 
-.stock-card.featured .ticker {
+.stock-card.featured .name {
   font-size: 2.1rem;
 }
 
@@ -863,7 +863,7 @@ html.booting .boot-overlay,
   border-top-color: var(--green);
 }
 
-.stock-card.featured.winner .ticker {
+.stock-card.featured.winner .name {
   color: var(--green);
   text-shadow: 0 0 14px rgba(0, 255, 65, 0.45);
 }
@@ -886,7 +886,7 @@ html.booting .boot-overlay,
   border-top-color: var(--red);
 }
 
-.stock-card.featured.loser .ticker {
+.stock-card.featured.loser .name {
   color: var(--red);
   text-shadow: 0 0 14px rgba(255, 34, 68, 0.45);
 }
