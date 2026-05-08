@@ -99,10 +99,10 @@ body::after {
     display: none;
   }
   .stock-card {
-    padding: 0.8rem 0.9rem 0.9rem;
+    padding: 0.7rem 0.8rem 0.8rem;
   }
   .stock-card.featured {
-    padding: 1.1rem 1.1rem 1.2rem;
+    padding: 0.95rem 1rem 1.05rem;
   }
 }
 
@@ -424,7 +424,7 @@ a {
 .stock-card {
   background: linear-gradient(180deg, var(--bg-elev) 0%, #090c0b 100%);
   border: 1px solid var(--border);
-  padding: 1rem 1.1rem 1.1rem;
+  padding: 0.85rem 0.95rem 0.95rem;
   font-family: var(--font-mono);
   position: relative;
   animation: card-in 0.45s ease-out backwards;
@@ -440,23 +440,23 @@ a {
 
 .stock-card .ticker {
   font-family: var(--font-display);
-  font-size: 1.85rem;
+  font-size: 1.5rem;
   line-height: 1;
   letter-spacing: 0.04em;
   color: var(--text);
 }
 
 .stock-card .name {
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   color: var(--text-dim);
-  margin-top: 0.2rem;
+  margin-top: 0.15rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .stock-card .price {
   font-family: var(--font-mono);
-  font-size: 1.6rem;
+  font-size: 1.35rem;
   color: var(--text);
 }
 
@@ -466,31 +466,31 @@ a {
 
 .stock-card .currency {
   color: var(--text-dim);
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   margin-left: 0.35rem;
 }
 
 .stock-card .change-up {
   color: var(--green);
-  font-size: 0.95rem;
+  font-size: 0.88rem;
 }
 
 .stock-card .change-down {
   color: var(--red);
-  font-size: 0.95rem;
+  font-size: 0.88rem;
 }
 
 .stock-card .change-neutral {
   color: var(--text-dim);
-  font-size: 0.95rem;
+  font-size: 0.88rem;
 }
 
 .stock-card .rating {
   display: inline-block;
   font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   letter-spacing: 0.06em;
-  padding: 0.25rem 0.55rem;
+  padding: 0.2rem 0.5rem;
   border: 1px solid var(--border-bright);
   background: #0a0e0c;
   color: var(--text);
@@ -500,14 +500,14 @@ a {
 .stock-card .comment {
   font-style: italic;
   color: var(--text-dim);
-  font-size: 0.85rem;
-  line-height: 1.45;
+  font-size: 0.8rem;
+  line-height: 1.4;
   border-left: 2px solid var(--border-bright);
-  padding-left: 0.65rem;
+  padding-left: 0.55rem;
 }
 
 .stock-card .meta {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   color: var(--text-dim);
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -515,9 +515,9 @@ a {
 
 .stock-card .badge {
   display: inline-block;
-  padding: 0.15rem 0.45rem;
+  padding: 0.12rem 0.4rem;
   border: 1px solid var(--border-bright);
-  font-size: 0.7rem;
+  font-size: 0.66rem;
   letter-spacing: 0.08em;
 }
 
@@ -563,15 +563,15 @@ a {
 
 /* Featured (winner / loser) cards */
 .stock-card.featured {
-  padding: 1.4rem 1.4rem 1.5rem;
+  padding: 1.15rem 1.15rem 1.2rem;
 }
 
 .stock-card.featured .ticker {
-  font-size: 2.6rem;
+  font-size: 2.1rem;
 }
 
 .stock-card.featured .price {
-  font-size: 2rem;
+  font-size: 1.7rem;
 }
 
 .stock-card.featured.winner {
@@ -590,10 +590,10 @@ a {
 
 .featured-label {
   font-family: var(--font-display);
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   letter-spacing: 0.18em;
   color: var(--text-dim);
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.2rem;
 }
 
 .featured-label.win {

@@ -100,7 +100,7 @@ export function StockCard({ stock, analysis, index, featured }: StockCardProps) 
         {analysis && <div className="rating">{analysis.rating}</div>}
       </div>
 
-      <div className="mt-4 flex items-baseline gap-3 flex-wrap">
+      <div className="mt-3 flex items-baseline gap-2 flex-wrap">
         <span className={`price ${hasPrice ? "" : "na"}`}>
           {hasPrice ? formatPrice(stock.regularMarketPrice, stock.currency) : "N/A"}
         </span>
@@ -116,10 +116,10 @@ export function StockCard({ stock, analysis, index, featured }: StockCardProps) 
       </div>
 
       {analysis && (
-        <p className="comment mt-4">&ldquo;{analysis.comment}&rdquo;</p>
+        <p className="comment mt-3">&ldquo;{analysis.comment}&rdquo;</p>
       )}
 
-      <div className="mt-4 flex items-center justify-between gap-3 flex-wrap">
+      <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
         <span className={marketStateBadgeClass(stock.marketState)}>
           {marketStateLabel(stock.marketState)}
         </span>

@@ -51,9 +51,9 @@ export function Dashboard({ data }: DashboardProps) {
       <section className="px-4 md:px-8 lg:px-12 mt-8">
         {(winner || loser) && (
           <div
-            className="grid gap-4 mb-8"
+            className="grid gap-3 mb-6"
             style={{
-              gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
             }}
           >
             {winner && (
@@ -76,9 +76,9 @@ export function Dashboard({ data }: DashboardProps) {
         )}
 
         <div
-          className="grid gap-4"
+          className="grid gap-3"
           style={{
-            gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
           }}
         >
           {gridStocks.map((stock, i) => (
