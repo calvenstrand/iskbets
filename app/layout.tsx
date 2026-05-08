@@ -33,6 +33,14 @@ const TITLE = "ISKBets — Stockholm meets WallStreetBets. Diamond hands.";
 const DESCRIPTION =
   "Wall Street meets WallStreetBets. AI-rated Stockholm stocks with WSB-flavored commentary. Greed is good. Diamond hands. Not financial advice.";
 
+// LinkedIn (and some other crawlers) read og:logo with `property=`, but
+// Next.js's metadata.other always emits `name=`. Render the tag manually
+// — React 19 hoists <meta> from anywhere in the tree into <head>.
+const LOGO_URL = new URL(
+  "/logo.png",
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.iskbets.se",
+).toString();
+
 export const metadata: Metadata = {
   metadataBase: getMetadataBase(),
   title: {
@@ -100,6 +108,7 @@ export default function RootLayout({
       className={`${bebas.variable} ${shareTechMono.variable} booting`}
     >
       <body>
+        <meta property="og:logo" content={LOGO_URL} />
         <BootSequence />
         {children}
         <Analytics />
