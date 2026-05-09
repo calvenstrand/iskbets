@@ -8,7 +8,7 @@ Backend and frontend are both complete; build + lint pass clean.
 
 **Working:**
 
-- `/api/trigger` (auth via `?key=` for manual or `Authorization: Bearer ${CRON_SECRET}` for Vercel Cron) → `fetchPrices` → optional `analyzeStocks` (gated by smart-skip logic) → `saveStockData` → optional brief generation (morning at 08:30 CET / evening at 22:00 CET, idempotent per day). Vercel Cron fires every 15 min on weekdays during market hours; the AI only re-runs when something genuinely moved.
+- `/api/trigger` (auth via `?key=` for manual or `Authorization: Bearer ${CRON_SECRET}` for Vercel Cron) → `fetchPrices` (smart: skips closed-market tickers and reuses their cached prices) → optional `analyzeStocks` (gated by smart-skip logic) → `saveStockData` → optional brief generation (morning at 08:30 CET / evening at 22:00 CET, idempotent per day). Vercel Cron fires every 15 min on weekdays; off-hours fires are near-instant since they're pure cache passthrough.
 - `/api/data` (public) reads the latest snapshot from KV
 - `/` server component fetches `/api/data` on the server with `revalidate: 60`, then hands the data to a `'use client'` Dashboard
 - Dashboard sub-components: one-time boot-sequence splash (CRT-style boot log, gated by sessionStorage so it plays once per browser session), ticker tape, masthead header (I$KBETS wordmark + date/issue dateline), market-status bar (5 markets — Tokyo, Hong Kong, Stockholm, London, NYC — real timezones via `Intl`; collapses to pill+code on mobile), mood banner, winner/loser featured cards, responsive grid, last-updated footer
@@ -44,7 +44,7 @@ Backend and frontend are both complete; build + lint pass clean.
 ```
 /api/trigger (GET; manual ?key=TRIGGER_SECRET OR Vercel Cron Bearer ${CRON_SECRET})
   → markAttempt()        lib/storage.ts  (1-min cooldown gate)
-  → fetchPrices()        lib/fetchPrices.ts  (Finnhub + Avanza)
+  → fetchPrices(cached)  lib/fetchPrices.ts  (Finnhub + Avanza, only for tickers whose market is in its live window — closed-market tickers reuse cached prices, no API call)
   → shouldRerunAI()      app/api/trigger/route.ts (decides whether AI runs)
        ├─ AI run        analyzeStocks()  lib/analyzeStocks.ts
        └─ AI skipped    reuse last analysis from existing snapshot
@@ -66,6 +66,8 @@ The Anthropic call only fires when at least one of these is true:
 Otherwise prices are refreshed but the existing analysis is carried forward. This decouples price freshness (every 15 min) from AI cost (only when there's something new to say).
 
 **Cron schedule** lives in `vercel.json`: `*/15 6-22 * * 1-5` UTC (every 15 min, weekdays, covers ~07:00–00:00 CET / ~08:00–01:00 CEST). The window is wide enough to catch both DST modes for the morning brief (08:30 CET) and evening brief (22:00 CET).
+
+**Live-window gating in `fetchPrices`** (`isMarketLive` in `lib/marketHours.ts`): for each ticker, check whether its market is currently in a "live data" window — open + 30 min post-close buffer. Inside the window: fetch fresh from Finnhub/Avanza. Outside: reuse the cached price from the previous snapshot, no API call. Bootstrap edge case: if a ticker has no cached price yet (very first cron run, or a newly added ticker), fetch regardless of window. Result: cron fires outside market hours are essentially free no-ops; only the markets actually trading hit the network.
 
 **Briefs**:
 

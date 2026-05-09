@@ -60,6 +60,27 @@ export function hongKongStatus(now: Date): Status {
   return "CLOSED";
 }
 
+/**
+ * Whether a market is in its "live data" window — open for trading or
+ * within ~30 min of close (so the closing print gets captured by the
+ * cron). Outside this window, prices are static and re-fetching just
+ * burns API calls. Used by fetchPrices to decide which tickers to skip
+ * (and reuse their cached price).
+ */
+export function isMarketLive(market: "SE" | "US", now: Date): boolean {
+  if (market === "SE") {
+    const { isWeekend, minutes } = partsFor(now, "Europe/Stockholm");
+    if (isWeekend) return false;
+    // 09:00 open → 18:00 (= 17:30 close + 30 min buffer)
+    return minutes >= 9 * 60 && minutes < 18 * 60;
+  }
+  // US — Finnhub free returns real-time during regular + pre-market
+  const { isWeekend, minutes } = partsFor(now, "America/New_York");
+  if (isWeekend) return false;
+  // 04:00 pre-market open → 16:30 (= 16:00 close + 30 min buffer)
+  return minutes >= 4 * 60 && minutes < 16 * 60 + 30;
+}
+
 export function pipClass(s: Status): string {
   if (s === "OPEN") return "market-pip open";
   if (s === "PRE-MARKET") return "market-pip pre";

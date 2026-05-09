@@ -1,4 +1,4 @@
-import { newYorkStatus, stockholmStatus } from "./marketHours";
+import { isMarketLive, newYorkStatus, stockholmStatus } from "./marketHours";
 import { TICKERS, type Ticker } from "./tickers";
 import type { MarketState, StockPrice } from "./types";
 
@@ -164,22 +164,73 @@ async function fetchOneFromAvanza(
 
 // ============== Orchestrator ==============
 
-export async function fetchPrices(): Promise<StockPrice[]> {
-  console.log(`[fetchPrices] fetching ${TICKERS.length} tickers`);
+type FetchResult =
+  | { source: "fetched"; value: StockPrice }
+  | { source: "cached"; value: StockPrice }
+  | { source: "stale"; value: StockPrice }  // fetch failed → fell back to cache
+  | { source: "skipped"; value: null };     // no fetch, no cache, gone
 
+/**
+ * Fetches per-ticker prices, but only when each ticker's market is in its
+ * live data window. For closed markets we reuse the cached price from the
+ * previous snapshot — closing prints don't change overnight, so re-hitting
+ * Finnhub/Avanza is wasted effort.
+ *
+ * Bootstrap edge case: if a ticker has no cached price (first ever run, or
+ * a newly-added ticker), we fetch it regardless of its live window so we
+ * have at least one data point.
+ */
+export async function fetchPrices(
+  cachedPrices?: StockPrice[],
+): Promise<StockPrice[]> {
   const finnhubKey = process.env.FINNHUB_API_KEY;
   if (!finnhubKey) throw new Error("FINNHUB_API_KEY env var not set");
 
   const now = new Date();
-  const results = await Promise.all(
-    TICKERS.map((t) =>
-      t.market === "SE"
-        ? fetchOneFromAvanza(t, now)
-        : fetchOneFromFinnhub(t, finnhubKey, now),
-    ),
+  const cache = new Map((cachedPrices ?? []).map((p) => [p.ticker, p]));
+
+  const results: FetchResult[] = await Promise.all(
+    TICKERS.map(async (t): Promise<FetchResult> => {
+      const live = isMarketLive(t.market, now);
+      const cachedPrice = cache.get(t.symbol);
+
+      // Closed market AND we already have data → reuse, no API call.
+      if (!live && cachedPrice) {
+        return { source: "cached", value: cachedPrice };
+      }
+
+      // Live market OR no cache → actually fetch.
+      const fresh =
+        t.market === "SE"
+          ? await fetchOneFromAvanza(t, now)
+          : await fetchOneFromFinnhub(t, finnhubKey, now);
+
+      if (fresh) {
+        return { source: "fetched", value: fresh };
+      }
+
+      // Fetch failed (provider hiccup, ticker delisted, etc.) — fall back
+      // to cached if we have it.
+      if (cachedPrice) {
+        console.log(
+          `[fetchPrices] ${t.symbol}: fetch failed, using cached price`,
+        );
+        return { source: "stale", value: cachedPrice };
+      }
+
+      return { source: "skipped", value: null };
+    }),
   );
 
-  const stocks = results.filter((s): s is StockPrice => s !== null);
-  console.log(`[fetchPrices] ${stocks.length}/${TICKERS.length} succeeded`);
+  const counts = { fetched: 0, cached: 0, stale: 0, skipped: 0 };
+  for (const r of results) counts[r.source]++;
+  const stocks = results
+    .map((r) => r.value)
+    .filter((s): s is StockPrice => s !== null);
+
+  console.log(
+    `[fetchPrices] ${stocks.length}/${TICKERS.length} ok ` +
+      `(${counts.fetched} fetched, ${counts.cached} cached, ${counts.stale} stale, ${counts.skipped} skipped)`,
+  );
   return stocks;
 }

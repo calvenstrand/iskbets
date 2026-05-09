@@ -192,13 +192,16 @@ export async function GET(request: Request): Promise<NextResponse> {
     // whether the rest succeeds or fails midway.
     await markAttempt();
 
+    // Read existing snapshot first so fetchPrices can reuse cached prices
+    // for markets that are currently closed (no live data to update).
+    const existing = await getStockData();
+
     console.log("[trigger] fetching prices");
-    const newPrices = await fetchPrices();
+    const newPrices = await fetchPrices(existing?.stocks);
     if (newPrices.length === 0) {
       throw new Error("no stocks fetched — every ticker failed");
     }
 
-    const existing = await getStockData();
     const now = Date.now();
     const decision = shouldRerunAI(
       newPrices,
