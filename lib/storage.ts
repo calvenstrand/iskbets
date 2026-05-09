@@ -3,6 +3,7 @@ import { stockholmMondayOfWeek } from "./dateUtil";
 import type {
   AnalysisPayload,
   Brief,
+  DailyResult,
   DashboardData,
   StockPrice,
   StoredData,
@@ -18,6 +19,7 @@ const WEEKEND_BRIEF_KEY = "iskbets:weekendWire";
 const YESTERDAY_KEY = "iskbets:yesterday";
 const WEEK_START_KEY = "iskbets:weekStart";
 const ARCHIVE_KEY = "iskbets:archive"; // Redis hash, fields = weekStart dates
+const DAILY_ARCHIVE_KEY = "iskbets:dailyArchive"; // Redis hash, fields = YYYY-MM-DD
 
 function readCreds(): { url: string | undefined; token: string | undefined } {
   // Support both env name conventions:
@@ -231,6 +233,46 @@ export async function listWeeklyResults(
   if (!all) return [];
   const sorted = Object.values(all).sort((a, b) =>
     b.weekStart.localeCompare(a.weekStart),
+  );
+  return limit ? sorted.slice(0, limit) : sorted;
+}
+
+// ============== Daily archive (per-trading-day history) ==============
+
+/**
+ * Same hash pattern as the weekly archive, finer granularity. Field
+ * name = `date` (YYYY-MM-DD STO). Idempotent per trading day. Holiday
+ * Mondays will store a duplicate of the previous Friday's close — that
+ * can be filtered downstream by detecting zero `changePct` across the
+ * board if a future feature needs strict trading-day filtering.
+ */
+
+export async function getDailyResult(
+  date: string,
+): Promise<DailyResult | null> {
+  const v = await getRedis().hget<DailyResult>(DAILY_ARCHIVE_KEY, date);
+  return v ?? null;
+}
+
+export async function setDailyResult(result: DailyResult): Promise<void> {
+  await getRedis().hset(DAILY_ARCHIVE_KEY, { [result.date]: result });
+}
+
+/** All archived days, sorted DESC by `date` (newest first). */
+export async function listDailyResults(
+  limit?: number,
+): Promise<DailyResult[]> {
+  if (shouldUseMock().use) {
+    const { getMockDailyResults } = await import("./mockData");
+    const all = getMockDailyResults();
+    return limit ? all.slice(0, limit) : all;
+  }
+  const all = await getRedis().hgetall<Record<string, DailyResult>>(
+    DAILY_ARCHIVE_KEY,
+  );
+  if (!all) return [];
+  const sorted = Object.values(all).sort((a, b) =>
+    b.date.localeCompare(a.date),
   );
   return limit ? sorted.slice(0, limit) : sorted;
 }

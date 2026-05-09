@@ -2,6 +2,7 @@ import { deriveRating, deriveSentiment } from "./derive";
 import { stockholmDate, stockholmMondayOfWeek } from "./dateUtil";
 import type {
   Brief,
+  DailyResult,
   StockAnalysis,
   StockPrice,
   StoredData,
@@ -563,6 +564,81 @@ export function getMockWeekStartSnapshot(): WeekStartSnapshot {
     };
   });
   return { weekStart: monday, stocks };
+}
+
+/** Five trading days of fake history so dev mode returns realistic data
+ * from `listDailyResults` end-to-end. Hand-picked numbers so each day
+ * tells a slightly different story. */
+export function getMockDailyResults(): DailyResult[] {
+  const today = new Date();
+  const todayMs = Date.UTC(
+    today.getUTCFullYear(),
+    today.getUTCMonth(),
+    today.getUTCDate(),
+  );
+  const fmt = (dt: Date) =>
+    `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
+
+  // Each day: per-ticker change% delta map. Stocks not in a day's map
+  // get a small random-ish move from a fixed offset.
+  const dayDeltas: Array<{ daysBack: number; mood: string; deltas: Record<string, number> }> = [
+    {
+      daysBack: 1,
+      mood: "Chris's tech bag printing tendies, NET +5.4% leading the gang.",
+      deltas: { NET: 5.4, SHOP: 2.1, DDOG: 3.2, "HACK.ST": 2.8, QBTS: -1.8, "DICOT.ST": -2.4 },
+    },
+    {
+      daysBack: 2,
+      mood: "Eric's industrials carried the day. Volvo + Atlas both bid.",
+      deltas: { "VOLV-B.ST": 2.4, "ATCO-B.ST": 1.9, "THULE.ST": 3.1, NVDA: -0.8, GME: -3.2 },
+    },
+    {
+      daysBack: 3,
+      mood: "Bagholders' day. Almost everything red except QBTS quantum-printing.",
+      deltas: { QBTS: 8.2, PLTR: 1.4, NET: -2.1, SHOP: -3.4, "DICOT.ST": -5.8, DFTX: -4.2 },
+    },
+    {
+      daysBack: 4,
+      mood: "Tuesday grind. Mixed action. Nothing dramatic.",
+      deltas: { "INVE-B.ST": 0.8, NVDA: 1.2, TSLA: -1.4, "VPLAY-B.ST": -2.1 },
+    },
+    {
+      daysBack: 5,
+      mood: "Monday open. Klarna popped on earnings. Rest sideways.",
+      deltas: { KLAR: 6.4, "INVE-B.ST": 1.1, GOOG: 0.4, AMD: 1.8, "BINV.ST": -2.4 },
+    },
+  ];
+
+  return dayDeltas.map(({ daysBack, mood, deltas }) => {
+    const dt = new Date(todayMs - daysBack * 86_400_000);
+    const stocks = STOCKS.filter((s) => Number.isFinite(s.regularMarketPrice)).map(
+      (s) => ({
+        ticker: s.ticker,
+        name: s.name,
+        currency: s.currency,
+        close: s.regularMarketPrice,
+        changePct: deltas[s.ticker] ?? 0,
+      }),
+    );
+    // Per-friend: simple mean of owned-ticker changePct.
+    const friends = [
+      { person: "chris", name: "Chris" },
+      { person: "eric", name: "Eric" },
+      { person: "johan", name: "Johan" },
+      { person: "oskar", name: "Oskar" },
+    ].map(({ person, name }) => ({
+      person,
+      name,
+      dayPct: 0, // Could compute from deltas + ownership; left at 0 for the demo.
+    }));
+    return {
+      date: fmt(dt),
+      capturedAt: todayMs - daysBack * 86_400_000 + 22 * 3600_000,
+      stocks,
+      friends,
+      overallMood: mood,
+    };
+  });
 }
 
 /** Three weeks of fake history so dev mode shows what `listWeeklyResults`

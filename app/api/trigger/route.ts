@@ -15,6 +15,7 @@ import {
 } from "@/lib/dateUtil";
 import { fetchPrices } from "@/lib/fetchPrices";
 import {
+  getDailyResult,
   getEveningBrief,
   getLastAttempt,
   getMorningBrief,
@@ -25,6 +26,7 @@ import {
   getYesterdaySnapshot,
   markAttempt,
   saveStockData,
+  setDailyResult,
   setEveningBrief,
   setMorningBrief,
   setWeekendBrief,
@@ -33,6 +35,7 @@ import {
   setYesterdaySnapshot,
 } from "@/lib/storage";
 import type { StockPrice, StoredData } from "@/lib/types";
+import { computeDailyResult } from "@/lib/dailyResult";
 import { computeWeeklyResult } from "@/lib/weeklyResult";
 
 export const dynamic = "force-dynamic";
@@ -194,6 +197,11 @@ async function maybeGenerateBriefs(
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`[trigger] evening brief failed: ${msg}`);
     }
+
+    // Daily archive — runs in the same window so it captures today's
+    // close. Independent of brief success: if Claude refused, we still
+    // store the numbers. Idempotent per Stockholm calendar day.
+    await maybeArchiveDailyResult(todaySnapshot, now);
   }
 
   // Weekend Wire: Friday 22:45–23:30 Stockholm. Fires once per week
@@ -240,6 +248,41 @@ async function maybeGenerateBriefs(
     // week, so spam-firing this branch is a no-op after the first
     // archive lands.
     await maybeArchiveWeeklyResult(todaySnapshot, now);
+  }
+}
+
+/**
+ * Archive today's compact result for long-term history. Same Redis-hash
+ * pattern as the weekly archive, finer granularity. Enables future
+ * per-stock charts, day-by-day leaderboards, volatility / streak stats,
+ * mid-week recaps. ~1.5 KB/day, ~350 KB/year. NOT exposed in /api/data
+ * — pull via `listDailyResults` from a future feature.
+ *
+ * Holiday Mondays archive a duplicate of the previous Friday's close
+ * (since cached prices weren't refreshed). That's a downstream
+ * concern — filter by detecting all-zero changePct if needed.
+ */
+async function maybeArchiveDailyResult(
+  todaySnapshot: StoredData,
+  now: Date,
+): Promise<void> {
+  const today = stockholmDate(now);
+  try {
+    const existing = await getDailyResult(today);
+    if (existing) {
+      // Idempotent — every cron in the evening window after the first
+      // archive is a no-op.
+      return;
+    }
+    const result = computeDailyResult({ snapshot: todaySnapshot, date: today });
+    await setDailyResult(result);
+    console.log(
+      `[trigger] daily result archived for ${today} ` +
+        `(${result.stocks.length} stocks, ${result.friends.length} friends)`,
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[trigger] daily archive failed: ${msg}`);
   }
 }
 

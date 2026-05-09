@@ -71,6 +71,36 @@ export type WeekStartSnapshot = {
   stocks: StockPrice[];
 };
 
+/** Compact, archive-friendly snapshot of one trading day's close.
+ * Written by the evening-wrap branch right after the snapshot is locked
+ * in for the day; stored in a Redis hash keyed by `date`. ~1.5 KB per
+ * day; 250 trading days/year ≈ 350 KB. Designed so future features
+ * (per-stock charts, day-by-day leaderboards, volatility / streak
+ * stats, mid-week recaps) have raw daily history to draw from. */
+export type DailyResult = {
+  /** YYYY-MM-DD (Stockholm). The trading day this captures. */
+  date: string;
+  /** Epoch ms when the archive entry was written (during the
+   * 22:00–22:45 STO evening-wrap window). */
+  capturedAt: number;
+  /** Per-stock today close + intraday change. */
+  stocks: Array<{
+    ticker: string;
+    name: string;
+    currency: string;
+    close: number;
+    changePct: number;
+  }>;
+  /** Per-friend day% — simple mean of owned-ticker `changePct`. */
+  friends: Array<{
+    person: string; // keyof PEOPLE
+    name: string;
+    dayPct: number;
+  }>;
+  /** Today's `overallMood` from the analyzer. */
+  overallMood: string;
+};
+
 /** Compact, archive-friendly summary of one trading week's result.
  * Written Friday evening after the weekend wire fires; stored in a
  * Redis hash keyed by `weekStart`. Designed to be cheap to accumulate

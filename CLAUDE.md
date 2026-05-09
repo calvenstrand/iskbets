@@ -53,8 +53,9 @@ Backend and frontend are both complete; build + lint pass clean.
   → maybeGenerateBriefs() (idempotent, time-windowed)
        ├─ inMorningBriefWindow → generateMorningBrief() (reads yesterday)
        ├─ inEveningBriefWindow → archive yesterday + generateEveningBrief()
+       │                         + maybeArchiveDailyResult() (compact daily archive)
        └─ inWeekendWireWindow (Friday only) → generateWeekendWire() (reads weekStart)
-                                              + maybeArchiveWeeklyResult() (compact long-term archive)
+                                              + maybeArchiveWeeklyResult() (compact weekly archive)
 
 /api/data (GET, public, CDN-cached 60s)
   → getDashboardData()   lib/storage.ts → { snapshot, morningBrief?, eveningBrief?, weekendBrief?, weekStartPrices? }
@@ -88,7 +89,7 @@ All three are stored under separate Redis keys; each stores its own `date`, and 
 
 ## KV shape
 
-Eight Redis keys (one of which is a hash), all under the `iskbets:` namespace:
+Nine Redis keys (two are hashes), all under the `iskbets:` namespace:
 
 ```ts
 // iskbets:snapshot — the live dashboard data
@@ -123,6 +124,15 @@ Eight Redis keys (one of which is a hash), all under the `iskbets:` namespace:
 //                   Future home for history graphs / yearly recap / monthly
 //                   leaderboards. NOT in /api/data — pull via a new endpoint
 //                   when needed.
+
+// iskbets:dailyArchive — Redis HASH. Field name = date (YYYY-MM-DD STO).
+//                   Field value = DailyResult (compact: per-stock close +
+//                   changePct, per-friend dayPct, today's overallMood).
+//                   Written by the evening-wrap branch (22:00–22:45 STO).
+//                   Idempotent per Stockholm calendar day. Read via
+//                   `listDailyResults(limit?)`. Foundation for future
+//                   per-stock charts, day-by-day leaderboards, volatility
+//                   stats. NOT in /api/data — pull when needed.
 ```
 
 ## Env vars
