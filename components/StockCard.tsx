@@ -9,6 +9,9 @@ type StockCardProps = {
   analysis: StockAnalysis | undefined;
   index: number;
   featured?: Featured;
+  /** Set true momentarily when the AI comment for this stock just changed.
+   * Triggers a one-shot glow animation on the card. */
+  flashing?: boolean;
 };
 
 function formatPrice(value: number, currency: string): string {
@@ -61,10 +64,16 @@ export function StockCard({
   analysis,
   index,
   featured,
+  flashing,
 }: StockCardProps) {
   const glow = sentimentGlow(analysis?.sentiment);
   const featuredClass = featured ? `featured ${featured}` : "";
-  const cardClass = ["stock-card", featuredClass, glow]
+  const cardClass = [
+    "stock-card",
+    featuredClass,
+    glow,
+    flashing ? "ai-update" : null,
+  ]
     .filter(Boolean)
     .join(" ");
 

@@ -5,6 +5,7 @@ type Kind = "morning" | "evening";
 type Props = {
   morningBrief?: Brief;
   eveningBrief?: Brief;
+  flash?: boolean;
 };
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -30,7 +31,7 @@ const LABELS: Record<Kind, string> = {
   evening: "EVENING WRAP",
 };
 
-export function BriefCard({ morningBrief, eveningBrief }: Props) {
+export function BriefCard({ morningBrief, eveningBrief, flash }: Props) {
   const candidates: { kind: Kind; brief: Brief }[] = [];
   if (morningBrief) candidates.push({ kind: "morning", brief: morningBrief });
   if (eveningBrief) candidates.push({ kind: "evening", brief: eveningBrief });
@@ -41,8 +42,16 @@ export function BriefCard({ morningBrief, eveningBrief }: Props) {
   const current = candidates[0];
   if (!current) return null;
 
+  const className = [
+    "brief",
+    `brief-${current.kind}`,
+    flash ? "ai-update" : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <section className={`brief brief-${current.kind}`}>
+    <section className={className}>
       <header className="brief-header">
         <span className="brief-kind">{LABELS[current.kind]}</span>
         <span className="brief-date">{formatBriefDate(current.brief.date)}</span>

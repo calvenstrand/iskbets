@@ -110,6 +110,52 @@ a {
   color: inherit;
 }
 
+/* ============= AI-update flash effect ============= */
+/* Applied for ~1.8s after a poll discovers fresh AI output (new comment,
+   new mood line, new brief). Uses an outline so it stacks cleanly on top
+   of each element's existing borders / box-shadows / animations without
+   conflicting with them. */
+
+@keyframes ai-update-pulse {
+  0% {
+    outline-color: rgba(0, 255, 65, 0.95);
+    box-shadow:
+      0 0 38px 4px rgba(0, 255, 65, 0.55),
+      0 0 80px 12px rgba(0, 255, 65, 0.18);
+  }
+  60% {
+    outline-color: rgba(0, 255, 65, 0.4);
+    box-shadow:
+      0 0 12px 0 rgba(0, 255, 65, 0.18),
+      0 0 0 0 rgba(0, 255, 65, 0);
+  }
+  100% {
+    outline-color: rgba(0, 255, 65, 0);
+    box-shadow:
+      0 0 0 0 rgba(0, 255, 65, 0),
+      0 0 0 0 rgba(0, 255, 65, 0);
+  }
+}
+
+.ai-update {
+  outline: 2px solid transparent;
+  outline-offset: -2px;
+  animation: ai-update-pulse 1800ms cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+
+/* Brief flash gets a slightly slower, more contemplative pulse — the
+   morning/evening updates are the most "noteworthy" things to notice. */
+.brief.ai-update {
+  animation-duration: 2400ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-update {
+    animation: none;
+    outline: 2px solid rgba(0, 255, 65, 0.6);
+  }
+}
+
 /* ============= Animations ============= */
 
 @keyframes marquee {

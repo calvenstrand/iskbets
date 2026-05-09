@@ -1,7 +1,14 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { TICKERS } from "@/lib/tickers";
-import type { Brief, StockAnalysis, StockPrice, StoredData } from "@/lib/types";
+import type {
+  Brief,
+  DashboardData,
+  StockAnalysis,
+  StockPrice,
+  StoredData,
+} from "@/lib/types";
 import { BriefCard } from "./Brief";
 import { Header } from "./Header";
 import { MarketStatus } from "./MarketStatus";
@@ -17,12 +24,15 @@ type DashboardProps = {
   eveningBrief?: Brief;
 };
 
+const POLL_MS = 5 * 60 * 1000; // 5 min — comfortably below the 15-min cron cadence
+const FLASH_MS = 1800;
+
 // Pre-built lookup so the grid sort doesn't scan TICKERS for every card.
 const OWNED_TICKERS = new Set(
   TICKERS.filter((t) => (t.owners?.length ?? 0) > 0).map((t) => t.symbol),
 );
 
-// Owners' picks bubble to the top (Chris/Eric/Oskar), then everyone else.
+// Owners' picks bubble to the top, then everyone else.
 // Within each group, biggest gainers first.
 function sortGridStocks(stocks: StockPrice[]): StockPrice[] {
   return [...stocks].sort((a, b) => {
@@ -33,41 +43,172 @@ function sortGridStocks(stocks: StockPrice[]): StockPrice[] {
   });
 }
 
-export function Dashboard({ data, morningBrief, eveningBrief }: DashboardProps) {
-  const analysisByTicker = new Map<string, StockAnalysis>(
-    data.analysis.stocks.map((a) => [a.ticker, a]),
+/** Tickers whose AI comment changed between two snapshots. */
+function findCommentChanges(
+  prev: StoredData,
+  next: StoredData,
+): Set<string> {
+  const oldComments = new Map(
+    prev.analysis.stocks.map((s) => [s.ticker, s.comment ?? ""]),
+  );
+  const changed = new Set<string>();
+  for (const s of next.analysis.stocks) {
+    const newComment = s.comment ?? "";
+    const oldComment = oldComments.get(s.ticker) ?? "";
+    if (newComment !== oldComment && newComment !== "") {
+      changed.add(s.ticker);
+    }
+  }
+  return changed;
+}
+
+export function Dashboard({
+  data: initialData,
+  morningBrief: initialMorning,
+  eveningBrief: initialEvening,
+}: DashboardProps) {
+  const [snapshot, setSnapshot] = useState<StoredData>(initialData);
+  const [morningBrief, setMorningBrief] = useState<Brief | undefined>(
+    initialMorning,
+  );
+  const [eveningBrief, setEveningBrief] = useState<Brief | undefined>(
+    initialEvening,
   );
 
-  const winnerTicker = data.analysis.biggestWinner;
-  const loserTicker = data.analysis.biggestLoser;
+  // Visual flash state — set on poll diff, cleared after FLASH_MS.
+  const [flashedTickers, setFlashedTickers] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [moodFlash, setMoodFlash] = useState(false);
+  const [briefFlash, setBriefFlash] = useState(false);
 
-  const winner = data.stocks.find((s) => s.ticker === winnerTicker);
-  const loser = data.stocks.find((s) => s.ticker === loserTicker);
+  // Refs for closure-stable access to the latest state from the poll loop.
+  const snapshotRef = useRef(snapshot);
+  const morningRef = useRef(morningBrief);
+  const eveningRef = useRef(eveningBrief);
+  snapshotRef.current = snapshot;
+  morningRef.current = morningBrief;
+  eveningRef.current = eveningBrief;
+
+  // Single timeout per flash kind so a fast follow-up update doesn't cut
+  // the previous flash short.
+  const tickerFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const moodFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const briefFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function refresh() {
+      try {
+        const res = await fetch("/api/data", { cache: "no-store" });
+        if (!res.ok) return;
+        const fresh = (await res.json()) as DashboardData;
+        if (cancelled) return;
+
+        const prev = snapshotRef.current;
+        const prevMorningGen = morningRef.current?.generatedAt ?? 0;
+        const prevEveningGen = eveningRef.current?.generatedAt ?? 0;
+
+        const changedTickers = findCommentChanges(prev, fresh.snapshot);
+        const moodChanged =
+          prev.analysis.overallMood !== fresh.snapshot.analysis.overallMood;
+        const morningChanged =
+          (fresh.morningBrief?.generatedAt ?? 0) > prevMorningGen;
+        const eveningChanged =
+          (fresh.eveningBrief?.generatedAt ?? 0) > prevEveningGen;
+
+        // Update state regardless — silent UX even when nothing flashes.
+        setSnapshot(fresh.snapshot);
+        setMorningBrief(fresh.morningBrief);
+        setEveningBrief(fresh.eveningBrief);
+
+        if (changedTickers.size > 0) {
+          if (tickerFlashTimer.current) {
+            clearTimeout(tickerFlashTimer.current);
+          }
+          setFlashedTickers(changedTickers);
+          tickerFlashTimer.current = setTimeout(() => {
+            if (!cancelled) setFlashedTickers(new Set());
+          }, FLASH_MS);
+        }
+        if (moodChanged) {
+          if (moodFlashTimer.current) clearTimeout(moodFlashTimer.current);
+          setMoodFlash(true);
+          moodFlashTimer.current = setTimeout(() => {
+            if (!cancelled) setMoodFlash(false);
+          }, FLASH_MS);
+        }
+        if (morningChanged || eveningChanged) {
+          if (briefFlashTimer.current) clearTimeout(briefFlashTimer.current);
+          setBriefFlash(true);
+          briefFlashTimer.current = setTimeout(() => {
+            if (!cancelled) setBriefFlash(false);
+          }, FLASH_MS);
+        }
+      } catch {
+        // Silent — try again next interval.
+      }
+    }
+
+    const interval = setInterval(refresh, POLL_MS);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
+      if (tickerFlashTimer.current) clearTimeout(tickerFlashTimer.current);
+      if (moodFlashTimer.current) clearTimeout(moodFlashTimer.current);
+      if (briefFlashTimer.current) clearTimeout(briefFlashTimer.current);
+    };
+  }, []);
+
+  const analysisByTicker = new Map<string, StockAnalysis>(
+    snapshot.analysis.stocks.map((a) => [a.ticker, a]),
+  );
+
+  const winnerTicker = snapshot.analysis.biggestWinner;
+  const loserTicker = snapshot.analysis.biggestLoser;
+
+  const winner = snapshot.stocks.find((s) => s.ticker === winnerTicker);
+  const loser = snapshot.stocks.find((s) => s.ticker === loserTicker);
 
   const featuredTickers = new Set<string>();
   if (winner) featuredTickers.add(winner.ticker);
   if (loser) featuredTickers.add(loser.ticker);
 
   const gridStocks: StockPrice[] = sortGridStocks(
-    data.stocks.filter((s) => !featuredTickers.has(s.ticker)),
+    snapshot.stocks.filter((s) => !featuredTickers.has(s.ticker)),
   );
 
-  const totalChangePct = data.stocks.reduce(
+  const totalChangePct = snapshot.stocks.reduce(
     (sum, s) => sum + (s.regularMarketChangePercent ?? 0),
     0,
   );
-  const avgChangePct = data.stocks.length
-    ? totalChangePct / data.stocks.length
+  const avgChangePct = snapshot.stocks.length
+    ? totalChangePct / snapshot.stocks.length
     : 0;
 
   return (
     <main>
       <PullToRefresh />
-      <TickerTape stocks={data.stocks} />
+      <TickerTape stocks={snapshot.stocks} />
       <Header />
       <MarketStatus />
-      <BriefCard morningBrief={morningBrief} eveningBrief={eveningBrief} />
-      <MoodBanner mood={data.analysis.overallMood} avgChangePct={avgChangePct} />
+      <BriefCard
+        morningBrief={morningBrief}
+        eveningBrief={eveningBrief}
+        flash={briefFlash}
+      />
+      <MoodBanner
+        mood={snapshot.analysis.overallMood}
+        avgChangePct={avgChangePct}
+        flash={moodFlash}
+      />
 
       <section className="px-4 md:px-8 lg:px-12 mt-8 mb-12">
         {(winner || loser) && (
@@ -78,6 +219,7 @@ export function Dashboard({ data, morningBrief, eveningBrief }: DashboardProps) 
                 analysis={analysisByTicker.get(winner.ticker)}
                 featured="winner"
                 index={0}
+                flashing={flashedTickers.has(winner.ticker)}
               />
             )}
             {loser && (
@@ -86,6 +228,7 @@ export function Dashboard({ data, morningBrief, eveningBrief }: DashboardProps) 
                 analysis={analysisByTicker.get(loser.ticker)}
                 featured="loser"
                 index={1}
+                flashing={flashedTickers.has(loser.ticker)}
               />
             )}
           </div>
@@ -98,12 +241,13 @@ export function Dashboard({ data, morningBrief, eveningBrief }: DashboardProps) 
               stock={stock}
               analysis={analysisByTicker.get(stock.ticker)}
               index={i + 2}
+              flashing={flashedTickers.has(stock.ticker)}
             />
           ))}
         </div>
       </section>
 
-      <UpdatedFooter updatedAt={data.updatedAt} />
+      <UpdatedFooter updatedAt={snapshot.updatedAt} />
     </main>
   );
 }
