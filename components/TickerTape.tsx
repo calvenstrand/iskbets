@@ -55,14 +55,14 @@ function buildTape(stocks: StockPrice[]): TapeItem[] {
 function renderItem(item: TapeItem, key: string) {
   if (item.kind === "slogan") {
     return (
-      <span key={key} className="tape-item">
+      <span key={key} className="tape-item tape-slogan">
         <span className="tape-diamond">◆</span> {item.text}
       </span>
     );
   }
   const cls = item.pct >= 0 ? "tape-up" : "tape-down";
   return (
-    <span key={key} className="tape-item">
+    <span key={key} className="tape-item tape-ticker">
       <span className="tape-diamond">◆</span>
       <span>{item.ticker}</span>
       <span className={cls}>{formatPct(item.pct)}</span>

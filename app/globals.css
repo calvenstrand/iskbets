@@ -5,9 +5,10 @@
   --bg-elev: #0d1110;
   --border: #1a2620;
   --border-bright: #2a3a32;
-  --green: #00ff41;
+  --green: #00e676;
   --green-dim: #00b32d;
   --green-deep: #033a14;
+  --green-glow: rgba(0, 230, 118, 0.12);
   --gold: #f5c842;
   --gold-dim: #b08e1f;
   --red: #ff2244;
@@ -284,7 +285,19 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
-  text-shadow: 0 0 6px rgba(0, 255, 65, 0.45);
+}
+
+/* Ticker+price segments stay at full green so live data pops. */
+.tape-ticker {
+  color: var(--green);
+  text-shadow: 0 0 6px rgba(0, 230, 118, 0.35);
+}
+
+/* Slogans drop to --green-dim so the marquee has visual rhythm —
+   slogans recede, live ticker rows lead the eye. */
+.tape-slogan {
+  color: var(--green-dim);
+  text-shadow: none;
 }
 
 .tape-diamond {
@@ -1276,29 +1289,26 @@ html.booting .boot-overlay,
   text-transform: uppercase;
 }
 
-/* Sentiment glow */
-.glow-moon {
-  box-shadow:
-    0 0 22px rgba(0, 255, 65, 0.35),
-    inset 0 0 12px rgba(0, 255, 65, 0.05);
-  border-color: rgba(0, 255, 65, 0.4);
-}
+/* Sentiment-driven card border + glow + bg tint. Featured cards
+   (.stock-card.featured.winner / .loser) have higher specificity so
+   they keep their dedicated styling — only the regular grid cards
+   pick this up. */
+.glow-moon,
 .glow-up {
-  box-shadow: 0 0 14px rgba(0, 255, 65, 0.18);
-  border-color: rgba(0, 255, 65, 0.22);
+  border-color: rgba(0, 230, 118, 0.35);
+  box-shadow: 0 0 20px rgba(0, 230, 118, 0.08);
+  background: rgba(0, 230, 118, 0.02);
 }
 .glow-neutral {
-  box-shadow: 0 0 10px rgba(245, 200, 66, 0.12);
+  border-color: rgba(245, 200, 66, 0.2);
+  box-shadow: none;
+  background: transparent;
 }
-.glow-down {
-  box-shadow: 0 0 14px rgba(255, 34, 68, 0.2);
-  border-color: rgba(255, 34, 68, 0.22);
-}
+.glow-down,
 .glow-rekt {
-  box-shadow:
-    0 0 22px rgba(255, 34, 68, 0.35),
-    inset 0 0 12px rgba(255, 34, 68, 0.05);
-  border-color: rgba(255, 34, 68, 0.45);
+  border-color: rgba(255, 34, 68, 0.35);
+  box-shadow: 0 0 20px rgba(255, 34, 68, 0.08);
+  background: rgba(255, 34, 68, 0.02);
 }
 
 /* Featured (winner / loser) cards */
