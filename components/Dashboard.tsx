@@ -250,14 +250,14 @@ export function Dashboard({
       <TickerTape stocks={snapshot.stocks} />
       <Header />
       <MarketStatus />
+      <Leaderboard stocks={snapshot.stocks} weekStartPrices={weekStartPrices} />
+
       <BriefCard
         morningBrief={morningBrief}
         eveningBrief={eveningBrief}
         weekendBrief={weekendBrief}
         flash={briefFlash}
       />
-
-      <Leaderboard stocks={snapshot.stocks} weekStartPrices={weekStartPrices} />
 
       <MoodBanner
         mood={snapshot.analysis.overallMood}
