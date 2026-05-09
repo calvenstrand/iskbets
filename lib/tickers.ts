@@ -49,6 +49,7 @@ export const TICKERS: Ticker[] = [
   { symbol: "DICOT.ST", name: "Dicot Pharma", market: "SE", avanzaId: 861798, owners: ["oskar"] },
   { symbol: "VPLAY-B.ST", name: "Viaplay Group B", market: "SE", avanzaId: 945460, owners: ["eric"] },
   { symbol: "INTRUM.ST", name: "Intrum", market: "SE", avanzaId: 5583, owners: ["johan"] },
+  { symbol: "HACK.ST", name: "Hacksaw Gaming", market: "SE", avanzaId: 2094659, owners: ["chris"] },
   // WSB darlings — fetched via Finnhub
   { symbol: "NVDA", name: "Nvidia", market: "US" },
   { symbol: "TSLA", name: "Tesla", market: "US" },

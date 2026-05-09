@@ -375,6 +375,19 @@ const STOCKS: StockPrice[] = [
     fiftyTwoWeekLow: 0,
     marketState: "REGULAR",
   },
+  {
+    ticker: "HACK.ST",
+    name: "Hacksaw Gaming",
+    currency: "SEK",
+    regularMarketPrice: 124.5,
+    regularMarketChange: 4.2,
+    regularMarketChangePercent: 3.5,
+    regularMarketVolume: 320_000,
+    averageDailyVolume3Month: 410_000,
+    fiftyTwoWeekHigh: 0,
+    fiftyTwoWeekLow: 0,
+    marketState: "REGULAR",
+  },
 ];
 
 // Hand-written WSB comments for the tickers worth talking about. Tickers
@@ -398,6 +411,7 @@ const COMMENTS: Record<string, string> = {
   GOOG: "two apes' GOOG printing, Gemini cooking the comp",
   DDOG: "Chris's DDOG +2.2%, observability bag fed",
   DFTX: "Oskar's DFTX -8%, biotech bagholder gets another lesson",
+  "HACK.ST": "Chris's Hacksaw +3.5%, slot machines printing tendies",
 };
 
 const OVERALL_MOOD =
@@ -509,6 +523,7 @@ const WEEK_DELTA: Record<string, number> = {
   KLAR: 0.041,
   DDOG: 0.057,
   GOOG: 0.034,
+  "HACK.ST": 0.082,
   // Eric — mixed
   "VOLV-B.ST": 0.012,
   "ATCO-B.ST": 0.008,
