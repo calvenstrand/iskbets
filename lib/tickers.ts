@@ -61,6 +61,7 @@ export const TICKERS: Ticker[] = [
   { symbol: "NET", name: "Cloudflare", market: "US", owners: ["chris"] },
   { symbol: "KLAR", name: "Klarna Group", market: "US", owners: ["chris"] },
   { symbol: "QBTS", name: "D-Wave Quantum", market: "US", owners: ["johan"] },
-  { symbol: "GOOGL", name: "Alphabet", market: "US", owners: ["chris", "oskar"] },
+  { symbol: "GOOG", name: "Alphabet", market: "US", owners: ["chris", "oskar"] },
   { symbol: "DDOG", name: "Datadog", market: "US", owners: ["chris"] },
+  { symbol: "DFTX", name: "Definium Therapeutics", market: "US", owners: ["oskar"] },
 ];

@@ -154,7 +154,7 @@ const STOCKS: StockPrice[] = [
     marketState: "REGULAR",
   },
   {
-    ticker: "GOOGL",
+    ticker: "GOOG",
     name: "Alphabet",
     currency: "USD",
     regularMarketPrice: 198.4,
@@ -175,6 +175,19 @@ const STOCKS: StockPrice[] = [
     regularMarketChangePercent: 2.2,
     regularMarketVolume: 4_100_000,
     averageDailyVolume3Month: 3_700_000,
+    fiftyTwoWeekHigh: 0,
+    fiftyTwoWeekLow: 0,
+    marketState: "REGULAR",
+  },
+  {
+    ticker: "DFTX",
+    name: "Definium Therapeutics",
+    currency: "USD",
+    regularMarketPrice: 4.85,
+    regularMarketChange: -0.42,
+    regularMarketChangePercent: -8.0,
+    regularMarketVolume: 1_240_000,
+    averageDailyVolume3Month: 980_000,
     fiftyTwoWeekHigh: 0,
     fiftyTwoWeekLow: 0,
     marketState: "REGULAR",
@@ -382,8 +395,9 @@ const COMMENTS: Record<string, string> = {
   "DICOT.ST": "Oskar's Dicot apes vaporized at 25 öre",
   "VPLAY-B.ST": "Eric's Viaplay sinking, paper hands fleeing",
   "INVE-B.ST": "the syndicate's Investor B grinding +1.4%, Wallenberg blessing",
-  GOOGL: "two apes' GOOGL printing, Gemini cooking the comp",
+  GOOG: "two apes' GOOG printing, Gemini cooking the comp",
   DDOG: "Chris's DDOG +2.2%, observability bag fed",
+  DFTX: "Oskar's DFTX -8%, biotech bagholder gets another lesson",
 };
 
 const OVERALL_MOOD =
@@ -494,7 +508,7 @@ const WEEK_DELTA: Record<string, number> = {
   NET: 0.094,
   KLAR: 0.041,
   DDOG: 0.057,
-  GOOGL: 0.034,
+  GOOG: 0.034,
   // Eric — mixed
   "VOLV-B.ST": 0.012,
   "ATCO-B.ST": 0.008,
@@ -505,6 +519,7 @@ const WEEK_DELTA: Record<string, number> = {
   // Oskar — bagholder week
   "SWED-A.ST": -0.015,
   "DICOT.ST": -0.184,
+  DFTX: -0.142,
   // Johan — quantum chads
   "INTRUM.ST": -0.04,
   PLTR: 0.078,
