@@ -4,7 +4,9 @@ import {
   generateEveningBrief,
   generateMorningBrief,
   generateWeekendWire,
+  generateWeeklyChampion,
 } from "@/lib/briefs";
+import { computeLeaderboard, pickWeekChampion } from "@/lib/leaderboard";
 import {
   inEveningBriefWindow,
   inMorningBriefWindow,
@@ -21,6 +23,7 @@ import {
   getMorningBrief,
   getStockData,
   getWeekendBrief,
+  getWeeklyChampion,
   getWeeklyResult,
   getWeekStartSnapshot,
   getYesterdaySnapshot,
@@ -30,6 +33,7 @@ import {
   setEveningBrief,
   setMorningBrief,
   setWeekendBrief,
+  setWeeklyChampion,
   setWeeklyResult,
   setWeekStartSnapshot,
   setYesterdaySnapshot,
@@ -248,6 +252,12 @@ async function maybeGenerateBriefs(
     // week, so spam-firing this branch is a no-op after the first
     // archive lands.
     await maybeArchiveWeeklyResult(todaySnapshot, now);
+
+    // Weekly champion — separate Anthropic call right after the wire,
+    // targeting the WTD leader (not today's #1). Pinned through the
+    // weekend until next Friday's call. Independent try/catch from
+    // the wire and archive.
+    await maybeGenerateWeeklyChampion(todaySnapshot, now);
   }
 }
 
@@ -331,6 +341,93 @@ async function maybeArchiveWeeklyResult(
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[trigger] weekly archive failed: ${msg}`);
+  }
+}
+
+/**
+ * Generate the "champion of the week" recap: a 2–3 sentence WSB piece
+ * about whoever has the highest WTD% at end of week. Lives at its own
+ * Redis key, pinned through the weekend, overwritten next Friday.
+ *
+ * Targets the WTD leader, not today's #1 — they can be different
+ * people, especially if Friday's session reshuffled things. The
+ * champion-of-the-week card on the dashboard always shows the WTD
+ * leader (the actual week's winner), independent of today's sort.
+ *
+ * Idempotent per week: if a champion entry already exists for this
+ * week's Monday, skip. Independent try/catch from the wire and archive
+ * branches — a champion failure doesn't break either.
+ */
+async function maybeGenerateWeeklyChampion(
+  todaySnapshot: StoredData,
+  now: Date,
+): Promise<void> {
+  const weekKey = stockholmMondayOfWeek(now);
+  try {
+    const existing = await getWeeklyChampion();
+    if (existing?.weekStart === weekKey) {
+      console.log(
+        "[trigger] weekly champion already generated this week",
+      );
+      return;
+    }
+    const weekStart = await getWeekStartSnapshot();
+    if (!weekStart || weekStart.weekStart !== weekKey) {
+      console.log(
+        "[trigger] weekly champion skipped — week-start missing or stale",
+      );
+      return;
+    }
+    const weekStartPrices = Object.fromEntries(
+      weekStart.stocks.map((s) => [s.ticker, s.regularMarketPrice]),
+    );
+    const champion = pickWeekChampion(todaySnapshot.stocks, weekStartPrices);
+    if (!champion) {
+      console.log(
+        "[trigger] weekly champion skipped — no friend has WTD data",
+      );
+      return;
+    }
+    // Build the "others" list for context in the prompt.
+    const everyone = computeLeaderboard(todaySnapshot.stocks, weekStartPrices);
+    const others = everyone.filter((e) => e.person !== champion.person);
+
+    const line = await generateWeeklyChampion({
+      champion,
+      others,
+      today: todaySnapshot,
+      weekStart,
+    });
+
+    // Friday from the Monday: add 4 days. Same trick used in lib/weeklyResult.
+    const [yy, mm, dd] = weekKey.split("-").map(Number);
+    const weekEnd =
+      yy && mm && dd
+        ? (() => {
+            const friday = new Date(Date.UTC(yy, mm - 1, dd + 4));
+            const y = friday.getUTCFullYear();
+            const m = String(friday.getUTCMonth() + 1).padStart(2, "0");
+            const d = String(friday.getUTCDate()).padStart(2, "0");
+            return `${y}-${m}-${d}`;
+          })()
+        : weekKey;
+
+    await setWeeklyChampion({
+      weekStart: weekKey,
+      weekEnd,
+      person: champion.person,
+      name: champion.name,
+      wtdPct: Number((champion.wtdPct ?? 0).toFixed(2)),
+      line,
+      generatedAt: Date.now(),
+    });
+    console.log(
+      `[trigger] weekly champion ${champion.name} (WTD ` +
+        `${champion.wtdPct?.toFixed(2)}%) saved`,
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[trigger] weekly champion failed: ${msg}`);
   }
 }
 

@@ -6,6 +6,7 @@ import type {
   StockAnalysis,
   StockPrice,
   StoredData,
+  WeeklyChampion,
   WeeklyResult,
   WeekStartSnapshot,
 } from "./types";
@@ -464,13 +465,6 @@ export function getMockData(): StoredData {
       overallMood: OVERALL_MOOD,
       biggestWinner: winner,
       biggestLoser: loser,
-      // Matches whoever the mock leaderboard math puts at #1 (currently
-      // Johan, dragged up by QBTS +14.4%). If you change STOCKS, also
-      // update this so the line stays in sync — otherwise the leaderboard
-      // hides it as stale.
-      championPerson: "johan",
-      championLine:
-        "Johan's quantum supremacy continues — QBTS doing the heavy lifting at +14%, dragging his bag to the top while everybody else trades sideways. The rest of you better cope harder, the throne is his.",
     },
     updatedAt: new Date(now).toISOString(),
     lastFetch: now,
@@ -585,6 +579,32 @@ export function getMockWeekStartSnapshot(): WeekStartSnapshot {
     };
   });
   return { weekStart: monday, stocks };
+}
+
+/** Mock weekly champion for dev mode. Targets the WTD leader given
+ * the WEEK_DELTA fixture (Chris, dragged up by NET +9.4% / SHOP +6.2%
+ * / HACK +8.2% / DDOG +5.7%). Update when WEEK_DELTA changes so the
+ * card matches the leaderboard math. */
+export function getMockWeeklyChampion(): WeeklyChampion {
+  const monday = stockholmMondayOfWeek(new Date());
+  const [y, m, d] = monday.split("-").map(Number);
+  let weekEnd = monday;
+  if (y && m && d) {
+    const friday = new Date(Date.UTC(y, m - 1, d + 4));
+    const yy = friday.getUTCFullYear();
+    const mm = String(friday.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(friday.getUTCDate()).padStart(2, "0");
+    weekEnd = `${yy}-${mm}-${dd}`;
+  }
+  return {
+    weekStart: monday,
+    weekEnd,
+    person: "chris",
+    name: "Chris",
+    wtdPct: 5.16,
+    line: "Chris ate this week alive — NET +9.4% and HACK +8.2% printing tendies while everybody else's bag took naps. The syndicate's tech tilt finally paying. Eric's industrials grinded sideways but the gang knows who's wearing the crown until Monday's open.",
+    generatedAt: Date.now() - 2 * 60 * 60 * 1000, // 2h ago
+  };
 }
 
 /** Five trading days of fake history so dev mode returns realistic data

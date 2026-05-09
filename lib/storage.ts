@@ -7,6 +7,7 @@ import type {
   DashboardData,
   StockPrice,
   StoredData,
+  WeeklyChampion,
   WeeklyResult,
   WeekStartSnapshot,
 } from "./types";
@@ -20,6 +21,7 @@ const YESTERDAY_KEY = "iskbets:yesterday";
 const WEEK_START_KEY = "iskbets:weekStart";
 const ARCHIVE_KEY = "iskbets:archive"; // Redis hash, fields = weekStart dates
 const DAILY_ARCHIVE_KEY = "iskbets:dailyArchive"; // Redis hash, fields = YYYY-MM-DD
+const WEEKLY_CHAMPION_KEY = "iskbets:weeklyChampion";
 
 function readCreds(): { url: string | undefined; token: string | undefined } {
   // Support both env name conventions:
@@ -237,6 +239,23 @@ export async function listWeeklyResults(
   return limit ? sorted.slice(0, limit) : sorted;
 }
 
+// ============== Weekly champion (the WTD leader's recap) ==============
+
+export async function getWeeklyChampion(): Promise<WeeklyChampion | null> {
+  if (shouldUseMock().use) {
+    const { getMockWeeklyChampion } = await import("./mockData");
+    return getMockWeeklyChampion();
+  }
+  const v = await getRedis().get<WeeklyChampion>(WEEKLY_CHAMPION_KEY);
+  return v ?? null;
+}
+
+export async function setWeeklyChampion(
+  champion: WeeklyChampion,
+): Promise<void> {
+  await getRedis().set(WEEKLY_CHAMPION_KEY, champion);
+}
+
 // ============== Daily archive (per-trading-day history) ==============
 
 /**
@@ -285,14 +304,21 @@ export async function listDailyResults(
  * is best-effort.
  */
 export async function getDashboardData(): Promise<DashboardData | null> {
-  const [snapshot, morningBrief, eveningBrief, weekendBrief, weekStart] =
-    await Promise.all([
-      getStockData(),
-      getMorningBrief(),
-      getEveningBrief(),
-      getWeekendBrief(),
-      getWeekStartSnapshot(),
-    ]);
+  const [
+    snapshot,
+    morningBrief,
+    eveningBrief,
+    weekendBrief,
+    weekStart,
+    weeklyChampion,
+  ] = await Promise.all([
+    getStockData(),
+    getMorningBrief(),
+    getEveningBrief(),
+    getWeekendBrief(),
+    getWeekStartSnapshot(),
+    getWeeklyChampion(),
+  ]);
   if (!snapshot) return null;
   // Project weekStart down to a small ticker→price map. Saves ~80% of
   // the snapshot payload on every poll. Only include it if the stored
@@ -313,6 +339,7 @@ export async function getDashboardData(): Promise<DashboardData | null> {
     ...(morningBrief ? { morningBrief } : {}),
     ...(eveningBrief ? { eveningBrief } : {}),
     ...(weekendBrief ? { weekendBrief } : {}),
+    ...(weeklyChampion ? { weeklyChampion } : {}),
     ...(weekStartPrices ? { weekStartPrices } : {}),
   };
 }

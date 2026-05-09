@@ -775,6 +775,93 @@ html.booting .boot-overlay,
   text-shadow: 0 0 8px rgba(245, 200, 66, 0.3);
 }
 
+/* ============= Weekly champion (sits above the live leaderboard) ============= */
+
+.weekly-champion {
+  margin: 1.75rem clamp(1rem, 4vw, 3rem) 0;
+  padding: 1.4rem 1.5rem 1.5rem;
+  border: 1px solid rgba(245, 200, 66, 0.55);
+  background: linear-gradient(
+    135deg,
+    rgba(245, 200, 66, 0.18) 0%,
+    rgba(245, 200, 66, 0.06) 50%,
+    var(--bg-elev) 100%
+  );
+  box-shadow:
+    0 0 28px rgba(245, 200, 66, 0.18),
+    0 0 14px rgba(245, 200, 66, 0.18) inset;
+  font-family: var(--font-mono);
+  position: relative;
+  overflow: hidden;
+  animation: card-in 0.5s ease-out;
+}
+
+.weekly-champion-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.weekly-champion-kind {
+  font-family: var(--font-display);
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  letter-spacing: 0.22em;
+  color: var(--gold);
+  text-shadow: 0 0 10px rgba(245, 200, 66, 0.5);
+}
+
+.weekly-champion-range {
+  font-size: 0.72rem;
+  letter-spacing: 0.2em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.weekly-champion-row {
+  display: flex;
+  align-items: baseline;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.85rem;
+}
+
+.weekly-champion-identity {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.weekly-champion-name {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 5vw, 3rem);
+  letter-spacing: 0.1em;
+  color: var(--text);
+  line-height: 1;
+}
+
+.weekly-champion-wtd {
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 3vw, 1.9rem);
+  letter-spacing: 0.04em;
+  color: var(--green);
+  text-shadow: 0 0 8px rgba(0, 255, 65, 0.35);
+  line-height: 1;
+}
+
+.weekly-champion-line {
+  margin: 0;
+  font-size: clamp(0.95rem, 1.6vw, 1.1rem);
+  font-style: italic;
+  line-height: 1.55;
+  color: var(--gold);
+  text-shadow: 0 0 8px rgba(245, 200, 66, 0.2);
+  max-width: 70ch;
+}
+
 /* ============= Friend leaderboard ============= */
 
 .leaderboard {
@@ -1007,22 +1094,6 @@ html.booting .boot-overlay,
 }
 .leader-champion .leader-impact-cell {
   font-size: 0.9rem;
-}
-
-/* WSB one-liner about the champion. Italic, gold-tinted, sits at the
-   bottom of the champion card as the cherry on top. Suppressed when
-   the AI line is stale (the person it was written for is no longer #1). */
-.leader-champion-quote {
-  margin: 0.85rem 0 0;
-  padding-top: 0.85rem;
-  border-top: 1px solid rgba(245, 200, 66, 0.25);
-  font-family: var(--font-mono);
-  font-size: clamp(0.95rem, 1.6vw, 1.1rem);
-  font-style: italic;
-  line-height: 1.5;
-  color: var(--gold);
-  text-shadow: 0 0 8px rgba(245, 200, 66, 0.25);
-  max-width: 60ch;
 }
 
 @media (max-width: 640px) {

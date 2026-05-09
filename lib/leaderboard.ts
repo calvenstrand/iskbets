@@ -109,6 +109,25 @@ export function computeLeaderboard(
   return entries;
 }
 
+/**
+ * Pick the friend with the highest WTD% — the actual week champion, not
+ * whoever is currently #1 on the live today% sort. Returns null when no
+ * baseline exists yet so the caller can skip generation.
+ */
+export function pickWeekChampion(
+  stocks: StockPrice[],
+  weekStartPrices: Record<string, number> | undefined,
+): LeaderboardEntry | null {
+  if (!weekStartPrices) return null;
+  const entries = computeLeaderboard(stocks, weekStartPrices);
+  const withWtd = entries.filter((e) => e.wtdPct !== null);
+  if (withWtd.length === 0) return null;
+  withWtd.sort(
+    (a, b) => (b.wtdPct ?? -Infinity) - (a.wtdPct ?? -Infinity),
+  );
+  return withWtd[0] ?? null;
+}
+
 export type WeekMover = {
   ticker: string;
   weekChangePct: number;

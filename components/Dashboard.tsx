@@ -9,6 +9,7 @@ import type {
   StockAnalysis,
   StockPrice,
   StoredData,
+  WeeklyChampion,
 } from "@/lib/types";
 import { BriefCard } from "./Brief";
 import { Header } from "./Header";
@@ -19,12 +20,14 @@ import { PullToRefresh } from "./PullToRefresh";
 import { StockCard } from "./StockCard";
 import { TickerTape } from "./TickerTape";
 import { UpdatedFooter } from "./UpdatedFooter";
+import { WeeklyChampionCard } from "./WeeklyChampion";
 
 type DashboardProps = {
   data: StoredData;
   morningBrief?: Brief;
   eveningBrief?: Brief;
   weekendBrief?: Brief;
+  weeklyChampion?: WeeklyChampion;
   weekStartPrices?: Record<string, number>;
 };
 
@@ -71,6 +74,7 @@ export function Dashboard({
   morningBrief: initialMorning,
   eveningBrief: initialEvening,
   weekendBrief: initialWeekend,
+  weeklyChampion: initialWeeklyChampion,
   weekStartPrices: initialWeekStart,
 }: DashboardProps) {
   const [snapshot, setSnapshot] = useState<StoredData>(initialData);
@@ -83,6 +87,9 @@ export function Dashboard({
   const [weekendBrief, setWeekendBrief] = useState<Brief | undefined>(
     initialWeekend,
   );
+  const [weeklyChampion, setWeeklyChampion] = useState<
+    WeeklyChampion | undefined
+  >(initialWeeklyChampion);
   const [weekStartPrices, setWeekStartPrices] = useState<
     Record<string, number> | undefined
   >(initialWeekStart);
@@ -141,6 +148,7 @@ export function Dashboard({
         setMorningBrief(fresh.morningBrief);
         setEveningBrief(fresh.eveningBrief);
         setWeekendBrief(fresh.weekendBrief);
+        setWeeklyChampion(fresh.weeklyChampion);
         setWeekStartPrices(fresh.weekStartPrices);
 
         if (changedTickers.size > 0) {
@@ -250,11 +258,11 @@ export function Dashboard({
       <TickerTape stocks={snapshot.stocks} />
       <Header />
       <MarketStatus />
+      {weeklyChampion && <WeeklyChampionCard champion={weeklyChampion} />}
+
       <Leaderboard
         stocks={snapshot.stocks}
         weekStartPrices={weekStartPrices}
-        championPerson={snapshot.analysis.championPerson}
-        championLine={snapshot.analysis.championLine}
       />
 
       <MoodBanner

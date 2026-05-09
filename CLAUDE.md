@@ -56,9 +56,10 @@ Backend and frontend are both complete; build + lint pass clean.
        │                         + maybeArchiveDailyResult() (compact daily archive)
        └─ inWeekendWireWindow (Friday only) → generateWeekendWire() (reads weekStart)
                                               + maybeArchiveWeeklyResult() (compact weekly archive)
+                                              + maybeGenerateWeeklyChampion() (separate AI call, recap of WTD leader)
 
 /api/data (GET, public, CDN-cached 60s)
-  → getDashboardData()   lib/storage.ts → { snapshot, morningBrief?, eveningBrief?, weekendBrief?, weekStartPrices? }
+  → getDashboardData()   lib/storage.ts → { snapshot, morningBrief?, eveningBrief?, weekendBrief?, weeklyChampion?, weekStartPrices? }
 ```
 
 **Smart AI gating** (`shouldRerunAI` in `app/api/trigger/route.ts`):
@@ -83,13 +84,15 @@ Long-form analyst messages generated on a recurring cadence:
 
 All three are stored under separate Redis keys; each stores its own `date`, and the BriefCard rotates to whichever was most recently generated. Morning is gold, evening is cyan, weekend is purple. Brief generation is wrapped in try/catch in the trigger route — a brief failure never breaks the snapshot save.
 
-**Friend leaderboard**: per-friend daily/WTD performance, computed in `lib/leaderboard.ts` from the snapshot + `weekStartPrices` map. Renders between the mood banner and the featured cards. WTD column gracefully hides when no Monday baseline exists yet (e.g. very first deploy or if Monday's archive missed). Sort is descending by today's % change. Top spot gets a gold border.
+**Friend leaderboard**: per-friend daily/WTD performance, computed in `lib/leaderboard.ts` from the snapshot + `weekStartPrices` map. Renders above the brief. WTD column gracefully hides when no Monday baseline exists yet (e.g. very first deploy or if Monday's archive missed). Sort is descending by today's % change. Champion (#1) gets a hero treatment with a gold gradient + glow + 👑 LEADER badge; each card shows a top + bottom mover so the story behind the number is visible.
+
+**Champion of the Week**: separate gold card pinned above the leaderboard. Generated once a week alongside the Weekend Wire (Friday 22:45–23:30 STO) by a dedicated Anthropic call. Targets the friend with the highest **WTD%** at end of week — the actual week champion, which can differ from today's #1. Persists through the weekend until next Friday's call overwrites it. Title shows the date range so it's always clear which week it covers.
 
 **Cooldown gate** (`iskbets:lastAttempt`) is intentionally written **before** the pipeline runs — so a partial failure (provider flake, Anthropic rate limit) still consumes the cooldown. It's now 1 min (was 30) — just spam-prevention for manual clicks; cron fires every 15 min so it's never blocked.
 
 ## KV shape
 
-Nine Redis keys (two are hashes), all under the `iskbets:` namespace:
+Ten Redis keys (two are hashes), all under the `iskbets:` namespace:
 
 ```ts
 // iskbets:snapshot — the live dashboard data
@@ -133,6 +136,16 @@ Nine Redis keys (two are hashes), all under the `iskbets:` namespace:
 //                   `listDailyResults(limit?)`. Foundation for future
 //                   per-stock charts, day-by-day leaderboards, volatility
 //                   stats. NOT in /api/data — pull when needed.
+
+// iskbets:weeklyChampion — { weekStart, weekEnd, person, name, wtdPct,
+//                            line, generatedAt }. Champion of the week
+//                            recap, generated alongside the Weekend Wire
+//                            on Friday evening. Targets the WTD leader
+//                            (highest WTD%, which can differ from today's
+//                            #1 on the live leaderboard). Pinned through
+//                            the weekend, overwritten next Friday.
+//                            Surfaced in /api/data; rendered as a gold
+//                            card above the leaderboard.
 ```
 
 ## Env vars

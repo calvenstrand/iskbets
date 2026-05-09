@@ -40,13 +40,6 @@ export type AnalysisPayload = {
   overallMood: string;
   biggestWinner: string;
   biggestLoser: string;
-  /** Friend who was #1 on the leaderboard at the time of the last AI run.
-   * Frontend only renders `championLine` when this matches the live #1 —
-   * stale lines (Eric overtook Chris between AI runs) are suppressed. */
-  championPerson?: string; // keyof PEOPLE
-  /** WSB one-liner about the champion. Generated alongside overallMood
-   * by the analyzer. */
-  championLine?: string;
 };
 
 /** A long-form analyst brief (morning recap or evening wrap-up). */
@@ -57,12 +50,38 @@ export type Brief = {
   generatedAt: number;
 };
 
+/** Champion-of-the-week recap, generated alongside the Weekend Wire on
+ * Friday evening. Targets the friend with the highest WTD% — the
+ * actual week's leader — not whoever is currently #1 on the live
+ * "today%" sort. Pinned through the weekend; overwritten by the next
+ * Friday's call. */
+export type WeeklyChampion = {
+  /** YYYY-MM-DD of the Monday for the week this champion covers. */
+  weekStart: string;
+  /** YYYY-MM-DD of the Friday — used in the card's date range header. */
+  weekEnd: string;
+  /** keyof PEOPLE — used for the gold name on the card. */
+  person: string;
+  /** Display name ("Chris", "Eric", …). */
+  name: string;
+  /** WTD % of the champion at end of week. */
+  wtdPct: number;
+  /** WSB recap line from Claude — 2–3 sentences, week-over-week story. */
+  line: string;
+  /** Epoch ms when generated. */
+  generatedAt: number;
+};
+
 /** What the dashboard reads. Bundles snapshot + briefs from separate Redis keys. */
 export type DashboardData = {
   snapshot: StoredData;
   morningBrief?: Brief;
   eveningBrief?: Brief;
   weekendBrief?: Brief;
+  /** The most recent weekly champion (generated last Friday). Pinned for
+   * the whole following week — the title on the card carries the date
+   * range so it's always clear which week it refers to. */
+  weeklyChampion?: WeeklyChampion;
   /** Compact ticker → price map captured at the start of the trading week
    * (first Monday trigger). Used by the leaderboard for WTD performance.
    * Optional — at the very first deploy or if Monday's archive missed,

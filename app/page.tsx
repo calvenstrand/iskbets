@@ -39,6 +39,7 @@ export default async function Home() {
       morningBrief={data.morningBrief}
       eveningBrief={data.eveningBrief}
       weekendBrief={data.weekendBrief}
+      weeklyChampion={data.weeklyChampion}
       weekStartPrices={data.weekStartPrices}
     />
   );
