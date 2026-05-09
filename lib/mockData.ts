@@ -480,12 +480,31 @@ const MORNING_BRIEF_TEXT =
 const EVENING_BRIEF_TEXT =
   "What a session. NVDA printed +6.8%, hauling Chris's tech bag to +4.1% net while the rest of the gang grinded sideways. Stockholm closed mixed — Eric's roof boxes catching a bid, Oskar's Dicot continuing its slow death at 25 öre. NY rolled over into the close. Sleep tight, bagholders. Tomorrow we ride.";
 
+const WEEKEND_BRIEF_TEXT =
+  "What a week, apes. Chris's NET printed +9.4% for the syndicate's biggest tendies of the year, dragging his bag to the top of the leaderboard. Eric's industrials traded sideways — Volvo and Atlas held the line, but Viaplay continues its slow-motion seppuku at -8% WTD. Oskar's Dicot lost another 18% because of course it did. Johan's QBTS quantum-printed +12% on the week and he hasn't shut up about it. Stockholm rings the bell again Monday — be ready.";
+
+/**
+ * Dev-only override: pin one of "morning" | "evening" | "weekend" as the
+ * BriefCard's "current" brief. Whatever you pick gets `generatedAt = now`,
+ * so the BriefCard's most-recent rotation rule shows it. Without the var,
+ * the natural offsets below put morning on top (matching the typical
+ * weekday-morning state).
+ *
+ *   MOCK_BRIEF_LATEST=weekend npm run dev
+ */
+function offsetFor(kind: "morning" | "evening" | "weekend"): number {
+  if (process.env.MOCK_BRIEF_LATEST === kind) return 0;
+  if (kind === "morning") return 2 * 60 * 60 * 1000; // 2h ago
+  if (kind === "evening") return 12 * 60 * 60 * 1000; // 12h ago
+  return 36 * 60 * 60 * 1000; // weekend → 36h ago
+}
+
 export function getMockMorningBrief(): Brief {
   const now = Date.now();
   return {
     date: stockholmDate(new Date(now)),
     text: MORNING_BRIEF_TEXT,
-    generatedAt: now - 2 * 60 * 60 * 1000, // 2h ago
+    generatedAt: now - offsetFor("morning"),
   };
 }
 
@@ -494,12 +513,9 @@ export function getMockEveningBrief(): Brief {
   return {
     date: stockholmDate(new Date(now - 24 * 60 * 60 * 1000)), // yesterday
     text: EVENING_BRIEF_TEXT,
-    generatedAt: now - 12 * 60 * 60 * 1000, // 12h ago
+    generatedAt: now - offsetFor("evening"),
   };
 }
-
-const WEEKEND_BRIEF_TEXT =
-  "What a week, apes. Chris's NET printed +9.4% for the syndicate's biggest tendies of the year, dragging his bag to the top of the leaderboard. Eric's industrials traded sideways — Volvo and Atlas held the line, but Viaplay continues its slow-motion seppuku at -8% WTD. Oskar's Dicot lost another 18% because of course it did. Johan's QBTS quantum-printed +12% on the week and he hasn't shut up about it. Stockholm rings the bell again Monday — be ready.";
 
 export function getMockWeekendBrief(): Brief {
   const now = Date.now();
@@ -507,9 +523,7 @@ export function getMockWeekendBrief(): Brief {
   return {
     date: monday,
     text: WEEKEND_BRIEF_TEXT,
-    // Slightly OLDER than the evening brief so the BriefCard rotation
-    // demo defaults to evening — switch this offset to test ordering.
-    generatedAt: now - 36 * 60 * 60 * 1000,
+    generatedAt: now - offsetFor("weekend"),
   };
 }
 
