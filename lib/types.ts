@@ -40,6 +40,13 @@ export type AnalysisPayload = {
   overallMood: string;
   biggestWinner: string;
   biggestLoser: string;
+  /** Friend who was #1 on the leaderboard at the time of the last AI run.
+   * Frontend only renders `championLine` when this matches the live #1 —
+   * stale lines (Eric overtook Chris between AI runs) are suppressed. */
+  championPerson?: string; // keyof PEOPLE
+  /** WSB one-liner about the champion. Generated alongside overallMood
+   * by the analyzer. */
+  championLine?: string;
 };
 
 /** A long-form analyst brief (morning recap or evening wrap-up). */

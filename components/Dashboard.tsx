@@ -250,7 +250,12 @@ export function Dashboard({
       <TickerTape stocks={snapshot.stocks} />
       <Header />
       <MarketStatus />
-      <Leaderboard stocks={snapshot.stocks} weekStartPrices={weekStartPrices} />
+      <Leaderboard
+        stocks={snapshot.stocks}
+        weekStartPrices={weekStartPrices}
+        championPerson={snapshot.analysis.championPerson}
+        championLine={snapshot.analysis.championLine}
+      />
 
       <MoodBanner
         mood={snapshot.analysis.overallMood}

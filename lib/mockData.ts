@@ -464,6 +464,13 @@ export function getMockData(): StoredData {
       overallMood: OVERALL_MOOD,
       biggestWinner: winner,
       biggestLoser: loser,
+      // Matches whoever the mock leaderboard math puts at #1 (currently
+      // Johan, dragged up by QBTS +14.4%). If you change STOCKS, also
+      // update this so the line stays in sync — otherwise the leaderboard
+      // hides it as stale.
+      championPerson: "johan",
+      championLine:
+        "Johan's quantum supremacy continues, the rest of you cope harder",
     },
     updatedAt: new Date(now).toISOString(),
     lastFetch: now,

@@ -9,6 +9,12 @@ import type { StockPrice } from "@/lib/types";
 type Props = {
   stocks: StockPrice[];
   weekStartPrices?: Record<string, number>;
+  /** The friend who was #1 at the time of the last AI run. Used to gate
+   * `championLine` — if the live leaderboard's #1 doesn't match, the line
+   * is suppressed (we don't want to render Chris's line over Eric's name). */
+  championPerson?: string;
+  /** WSB one-liner about whoever was champion at AI time. */
+  championLine?: string;
 };
 
 function formatPct(value: number | null): string {
@@ -53,7 +59,12 @@ function ImpactRow({
   );
 }
 
-export function Leaderboard({ stocks, weekStartPrices }: Props) {
+export function Leaderboard({
+  stocks,
+  weekStartPrices,
+  championPerson,
+  championLine,
+}: Props) {
   const entries = computeLeaderboard(stocks, weekStartPrices);
   if (entries.length === 0) return null;
 
@@ -61,6 +72,12 @@ export function Leaderboard({ stocks, weekStartPrices }: Props) {
   const champion = entries[0];
   if (!champion) return null;
   const challengers = entries.slice(1);
+
+  // Only show the AI line if the person it was written for is still #1.
+  // Otherwise it's stale (Eric overtook Chris between AI runs) — suppress
+  // rather than mislead.
+  const liveChampionLine =
+    championLine && championPerson === champion.person ? championLine : null;
 
   return (
     <section className="leaderboard">
@@ -71,7 +88,11 @@ export function Leaderboard({ stocks, weekStartPrices }: Props) {
         </span>
       </header>
 
-      <ChampionCard entry={champion} showWtd={showWtd} />
+      <ChampionCard
+        entry={champion}
+        showWtd={showWtd}
+        championLine={liveChampionLine}
+      />
 
       {challengers.length > 0 && (
         <div className="leaderboard-grid">
@@ -92,9 +113,11 @@ export function Leaderboard({ stocks, weekStartPrices }: Props) {
 function ChampionCard({
   entry,
   showWtd,
+  championLine,
 }: {
   entry: LeaderboardEntry;
   showWtd: boolean;
+  championLine: string | null;
 }) {
   const todayClass = pctClass(entry.todayPct);
   const wtdClass = pctClass(entry.wtdPct);
@@ -132,6 +155,9 @@ function ChampionCard({
         topMover={entry.topMover}
         bottomMover={entry.bottomMover}
       />
+      {championLine && (
+        <p className="leader-champion-quote">&ldquo;{championLine}&rdquo;</p>
+      )}
     </article>
   );
 }

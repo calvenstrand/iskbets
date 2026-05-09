@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { deriveRating, deriveSentiment } from "./derive";
+import { computeLeaderboard } from "./leaderboard";
 import { PEOPLE, TICKERS } from "./tickers";
 import type {
   AnalysisPayload,
@@ -23,6 +24,7 @@ You receive structured price data for a small portfolio. The badges, sentiment, 
 
   1. A short list of one-liner WSB COMMENTS for the stocks worth roasting
   2. ONE dramatic sentence for the overall portfolio MOOD
+  3. ONE punchy line about the friend leaderboard CHAMPION (the person currently #1)
 
 WHEN TO INCLUDE A STOCK IN YOUR \`stocks\` ARRAY:
 - The stock has 3+ owners (a group-consensus pick) — ALWAYS include, regardless of move size, OR
@@ -48,7 +50,15 @@ COMMENT RULES:
 - Refer to owners by first name (1 owner) or a collective phrase (2+ owners) — never list multiple names
 
 OVERALL MOOD:
-ONE dramatic WSB sentence about the whole portfolio. Reference friends when something dramatic is happening with their picks — same naming rule as comments (first name for 1-owner picks, a collective phrase like "the gang" / "the syndicate" / "<count> apes" / "<count> degens" for 2+ owners).`;
+ONE dramatic WSB sentence about the whole portfolio. Reference friends when something dramatic is happening with their picks — same naming rule as comments (first name for 1-owner picks, a collective phrase like "the gang" / "the syndicate" / "<count> apes" / "<count> degens" for 2+ owners).
+
+CHAMPION LINE:
+A separate ONE-line WSB roast/cheer for the friend currently sitting at #1 on the leaderboard. The user message will tell you who they are, their today% mean, and their best-performing owned ticker. Use their first name. ≤ 12 words. Examples:
+  - "Chris's tech bag printing while the gang plays defense — the throne is his"
+  - "Johan's quantum supremacy continues, the rest of you cope harder"
+  - "Eric leading on industrials of all things, peak Sweden energy"
+  - "Oskar somehow #1 today, brace for the inevitable Dicot reversion"
+Punchy, slang-heavy, can taunt the others. Always include the champion's first name.`;
 
 const ANALYSIS_SCHEMA = {
   type: "object",
@@ -66,14 +76,16 @@ const ANALYSIS_SCHEMA = {
       },
     },
     overallMood: { type: "string" },
+    championLine: { type: "string" },
   },
-  required: ["stocks", "overallMood"],
+  required: ["stocks", "overallMood", "championLine"],
   additionalProperties: false,
 } as const;
 
 type ClaudeResponse = {
   stocks: { ticker: string; comment: string }[];
   overallMood: string;
+  championLine: string;
 };
 
 function validateClaudeResponse(
@@ -108,8 +120,15 @@ function validateClaudeResponse(
   if (typeof obj.overallMood !== "string") {
     throw new Error("analysis.overallMood is not a string");
   }
+  if (typeof obj.championLine !== "string") {
+    throw new Error("analysis.championLine is not a string");
+  }
 
-  return { stocks, overallMood: obj.overallMood };
+  return {
+    stocks,
+    overallMood: obj.overallMood,
+    championLine: obj.championLine,
+  };
 }
 
 function ownersByTickerSymbol(): Map<string, string[]> {
@@ -156,7 +175,29 @@ export async function analyzeStocks(
     return owners.length > 0 ? { ...p, owners } : p;
   });
 
-  const userMessage = `Here is today's price data for ${prices.length} stocks. Pick the ones worth a comment, write the overallMood.\n\n${JSON.stringify(enriched, null, 2)}`;
+  // Pre-compute who's currently #1 on the leaderboard so Claude has
+  // a clean target for the champion line. Same logic the live
+  // leaderboard uses, so they stay in sync at AI time.
+  const leaderboard = computeLeaderboard(prices, undefined);
+  const champion = leaderboard[0] ?? null;
+  const championPayload = champion
+    ? {
+        name: champion.name,
+        person: champion.person,
+        todayPct: Number(champion.todayPct.toFixed(2)),
+        ownedTickers: champion.tickers,
+        topMover: champion.topMover ?? null,
+        bottomMover: champion.bottomMover ?? null,
+      }
+    : null;
+
+  const userMessage = `Here is today's price data for ${prices.length} stocks. Pick the ones worth a comment, write the overallMood, and write the championLine.
+
+CHAMPION (currently #1 on the friend leaderboard):
+${champion ? JSON.stringify(championPayload, null, 2) : "no champion — no friend has any owned tickers with data today"}
+
+ALL PRICE DATA:
+${JSON.stringify(enriched, null, 2)}`;
 
   const response = await client.messages.create({
     model: MODEL,
@@ -211,5 +252,7 @@ export async function analyzeStocks(
     overallMood: claudeOut.overallMood,
     biggestWinner,
     biggestLoser,
+    ...(champion ? { championPerson: champion.person } : {}),
+    championLine: claudeOut.championLine,
   };
 }
