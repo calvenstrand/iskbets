@@ -48,6 +48,9 @@ export const metadata: Metadata = {
     template: "%s · ISKBets",
   },
   description: DESCRIPTION,
+  alternates: {
+    canonical: "https://www.iskbets.se",
+  },
   applicationName: "ISKBets",
   keywords: [
     "stocks",
