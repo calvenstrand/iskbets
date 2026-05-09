@@ -1,4 +1,5 @@
 import { Redis } from "@upstash/redis";
+import { stockholmMondayOfWeek } from "./dateUtil";
 import type {
   AnalysisPayload,
   Brief,
@@ -204,12 +205,19 @@ export async function getDashboardData(): Promise<DashboardData | null> {
     ]);
   if (!snapshot) return null;
   // Project weekStart down to a small ticker→price map. Saves ~80% of
-  // the snapshot payload on every poll.
-  const weekStartPrices = weekStart
-    ? Object.fromEntries(
-        weekStart.stocks.map((s) => [s.ticker, s.regularMarketPrice]),
-      )
-    : undefined;
+  // the snapshot payload on every poll. Only include it if the stored
+  // baseline is for THIS Stockholm-week's Monday — if Monday's archive
+  // failed and we're holding last week's snapshot, the leaderboard's
+  // WTD column would silently compare against a stale baseline and lie.
+  // The trigger route's weekend-wire branch already does this same check;
+  // we mirror it here so the client-side leaderboard never sees stale data.
+  const thisMonday = stockholmMondayOfWeek(new Date());
+  const weekStartPrices =
+    weekStart && weekStart.weekStart === thisMonday
+      ? Object.fromEntries(
+          weekStart.stocks.map((s) => [s.ticker, s.regularMarketPrice]),
+        )
+      : undefined;
   return {
     snapshot,
     ...(morningBrief ? { morningBrief } : {}),
