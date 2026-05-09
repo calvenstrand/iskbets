@@ -1,0 +1,25 @@
+name: ISKBets — stock fetch
+
+on:
+  schedule:
+    # Every 15 min on weekdays, UTC. Same window we used to fire from
+    # vercel.json — covers ~07:00–00:00 CET / ~08:00–01:00 CEST so the
+    # morning brief (08:30 CET) and evening brief (22:00 CET) windows
+    # always have at least one cron fire inside them in either DST mode.
+    - cron: "*/15 6-22 * * 1-5"
+  # Manual fallback so we can fire one off from the Actions tab without
+  # waiting for the next 15-min slot.
+  workflow_dispatch:
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hit /api/trigger
+        run: |
+          curl https://www.iskbets.se/api/trigger \
+            --header "x-trigger-secret: ${{ secrets.TRIGGER_SECRET }}" \
+            --max-time 90 \
+            --fail-with-body \
+            --silent \
+            --show-error

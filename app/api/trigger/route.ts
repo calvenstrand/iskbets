@@ -58,28 +58,20 @@ const SIGNIFICANT_DELTA_PCT = 1.0; // any ticker moved ≥1pp since last AI
 
 function isAuthorized(req: Request): boolean {
   const triggerSecret = process.env.TRIGGER_SECRET;
-  if (triggerSecret) {
-    // Preferred: header — never logged in Vercel access logs, never in
-    // browser history, never leaked via Referer.
-    const headerSecret = req.headers.get("x-trigger-secret");
-    if (headerSecret && headerSecret === triggerSecret) return true;
+  if (!triggerSecret) return false;
 
-    // Legacy: ?key=TRIGGER_SECRET. Kept for backward compat with any
-    // bookmarked manual-trigger URLs. Avoid for new integrations — the
-    // value lands in access logs and Referer headers.
-    const url = new URL(req.url);
-    const key = url.searchParams.get("key");
-    if (key && key === triggerSecret) return true;
-  }
+  // Preferred: header — never logged in Vercel access logs, never in
+  // browser history, never leaked via Referer. The GitHub Actions cron
+  // workflow uses this path.
+  const headerSecret = req.headers.get("x-trigger-secret");
+  if (headerSecret && headerSecret === triggerSecret) return true;
 
-  // Vercel cron: Authorization: Bearer ${CRON_SECRET}. Vercel signs
-  // every cron request with this header automatically once CRON_SECRET
-  // is set in the project's env vars.
-  const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
-    const authHeader = req.headers.get("authorization");
-    if (authHeader === `Bearer ${cronSecret}`) return true;
-  }
+  // Legacy: ?key=TRIGGER_SECRET. Kept for backward compat with any
+  // bookmarked manual-trigger URLs. Avoid for new integrations — the
+  // value lands in access logs and Referer headers.
+  const url = new URL(req.url);
+  const key = url.searchParams.get("key");
+  if (key && key === triggerSecret) return true;
 
   return false;
 }
