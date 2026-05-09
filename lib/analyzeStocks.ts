@@ -53,12 +53,11 @@ OVERALL MOOD:
 ONE dramatic WSB sentence about the whole portfolio. Reference friends when something dramatic is happening with their picks — same naming rule as comments (first name for 1-owner picks, a collective phrase like "the gang" / "the syndicate" / "<count> apes" / "<count> degens" for 2+ owners).
 
 CHAMPION LINE:
-A separate ONE-line WSB roast/cheer for the friend currently sitting at #1 on the leaderboard. The user message will tell you who they are, their today% mean, and their best-performing owned ticker. Use their first name. ≤ 12 words. Examples:
-  - "Chris's tech bag printing while the gang plays defense — the throne is his"
-  - "Johan's quantum supremacy continues, the rest of you cope harder"
-  - "Eric leading on industrials of all things, peak Sweden energy"
-  - "Oskar somehow #1 today, brace for the inevitable Dicot reversion"
-Punchy, slang-heavy, can taunt the others. Always include the champion's first name.`;
+A WSB roast/cheer for the friend currently sitting at #1 on the leaderboard. The user message will tell you who they are, their today% mean, their best and worst owned movers, and their owned tickers. Use their first name. Length: ONE punchy line on a quiet day, TWO sentences when there's a real story to tell (a multi-stock blowout, a dramatic comeback, an unlikely leader leapfrogging the usual suspects, a brutally lopsided lead, etc). Don't pad — only expand when something is actually worth saying. Examples:
+  - SHORT (quiet day): "Eric leading on industrials of all things, peak Sweden energy"
+  - LONGER (rich story): "Chris's tech bag is in full printer mode — NET +9% and SHOP +6% dragging the syndicate to glory while the gang plays defense. The throne is his until somebody else's bag wakes up."
+  - MEDIUM: "Johan's quantum supremacy continues, QBTS doing 80% of the work. The rest of you better cope harder."
+Punchy, slang-heavy, can taunt the others. Always include the champion's first name. Do NOT explicitly mention "leaderboard" or "#1" — the placement makes that obvious.`;
 
 const ANALYSIS_SCHEMA = {
   type: "object",

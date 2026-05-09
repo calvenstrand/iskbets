@@ -470,7 +470,7 @@ export function getMockData(): StoredData {
       // hides it as stale.
       championPerson: "johan",
       championLine:
-        "Johan's quantum supremacy continues, the rest of you cope harder",
+        "Johan's quantum supremacy continues — QBTS doing the heavy lifting at +14%, dragging his bag to the top while everybody else trades sideways. The rest of you better cope harder, the throne is his.",
     },
     updatedAt: new Date(now).toISOString(),
     lastFetch: now,
