@@ -8,7 +8,7 @@ Backend and frontend are both complete; build + lint pass clean.
 
 **Working:**
 
-- `/api/trigger` (auth via `?key=` for manual or `Authorization: Bearer ${CRON_SECRET}` for Vercel Cron) → `fetchPrices` (smart: skips closed-market tickers and reuses their cached prices) → optional `analyzeStocks` (gated by smart-skip logic) → `saveStockData` → optional brief generation (morning at 08:30 CET / evening at 22:00 CET, idempotent per day). Vercel Cron fires every 15 min on weekdays; off-hours fires are near-instant since they're pure cache passthrough.
+- `/api/trigger` (auth via `x-trigger-secret` header — or legacy `?key=` query param — for manual, or `Authorization: Bearer ${CRON_SECRET}` for Vercel Cron) → `fetchPrices` (smart: skips closed-market tickers and reuses their cached prices) → optional `analyzeStocks` (gated by smart-skip logic) → `saveStockData` → optional brief generation (morning at 08:30 CET / evening at 22:00 CET, idempotent per day). Vercel Cron fires every 15 min on weekdays; off-hours fires are near-instant since they're pure cache passthrough.
 - `/api/data` (public) reads the latest snapshot from KV
 - `/` server component fetches `/api/data` on the server with `revalidate: 60`, then hands the data to a `'use client'` Dashboard
 - Dashboard sub-components: one-time boot-sequence splash (CRT-style boot log, gated by sessionStorage so it plays once per browser session), ticker tape, masthead header (I$KBETS wordmark + date/issue dateline), market-status bar (5 markets — Tokyo, Hong Kong, Stockholm, London, NYC — real timezones via `Intl`; collapses to pill+code on mobile), mood banner, winner/loser featured cards, responsive grid, last-updated footer
@@ -42,7 +42,7 @@ Backend and frontend are both complete; build + lint pass clean.
 ## Data flow
 
 ```
-/api/trigger (GET; manual ?key=TRIGGER_SECRET OR Vercel Cron Bearer ${CRON_SECRET})
+/api/trigger (GET; manual `x-trigger-secret: ${TRIGGER_SECRET}` (or legacy ?key=) OR Vercel Cron Bearer ${CRON_SECRET})
   → markAttempt()        lib/storage.ts  (1-min cooldown gate)
   → fetchPrices(cached)  lib/fetchPrices.ts  (Finnhub + Avanza, only for tickers whose market is in its live window — closed-market tickers reuse cached prices, no API call)
   → shouldRerunAI()      app/api/trigger/route.ts (decides whether AI runs)
