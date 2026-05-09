@@ -3,12 +3,20 @@ import { displayTicker } from "@/lib/tickers";
 import type { Sentiment, StockAnalysis, StockPrice } from "@/lib/types";
 
 type Featured = "winner" | "loser";
+type FeaturedScope = "week" | "day";
 
 type StockCardProps = {
   stock: StockPrice;
   analysis: StockAnalysis | undefined;
   index: number;
   featured?: Featured;
+  /** Whether the featured pick was selected based on week-over-week
+   * performance (default) or just today's intraday move (fallback when
+   * no Monday baseline exists yet). Drives the badge label. */
+  featuredScope?: FeaturedScope;
+  /** Week-over-week % to show as the headline number under the
+   * BIGGEST WINNER / LOSER badge on featured cards. */
+  featuredWeekChangePct?: number;
   /** Set true momentarily when the AI comment for this stock just changed.
    * Triggers a one-shot glow animation on the card. */
   flashing?: boolean;
@@ -64,6 +72,8 @@ export function StockCard({
   analysis,
   index,
   featured,
+  featuredScope = "week",
+  featuredWeekChangePct,
   flashing,
 }: StockCardProps) {
   const glow = sentimentGlow(analysis?.sentiment);
@@ -84,13 +94,28 @@ export function StockCard({
   const hasPrice = Number.isFinite(stock.regularMarketPrice);
   const glory = fromGlory(stock.regularMarketPrice, stock.fiftyTwoWeekHigh);
 
+  const scopeLabel = featuredScope === "week" ? "WEEK" : "TODAY";
+  const hasWeekChange =
+    featured && Number.isFinite(featuredWeekChangePct ?? NaN);
+
   return (
     <article className={cardClass} style={style}>
       {featured === "winner" && (
-        <div className="featured-label win">▲ BIGGEST WINNER 🚀</div>
+        <div className="featured-label win">
+          ▲ {scopeLabel}&apos;S BIGGEST WINNER 🚀
+        </div>
       )}
       {featured === "loser" && (
-        <div className="featured-label lose">▼ BIGGEST LOSER 📉</div>
+        <div className="featured-label lose">
+          ▼ {scopeLabel}&apos;S BIGGEST LOSER 📉
+        </div>
+      )}
+      {hasWeekChange && (
+        <div
+          className={`featured-week ${changeClass(featuredWeekChangePct ?? 0)}`}
+        >
+          {formatChangePct(featuredWeekChangePct ?? 0)} this week
+        </div>
       )}
 
       <div className="card-header flex items-start justify-between gap-3">

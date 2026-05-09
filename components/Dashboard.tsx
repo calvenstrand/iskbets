@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { pickWeekWinnerLoser } from "@/lib/leaderboard";
 import { TICKERS } from "@/lib/tickers";
 import type {
   Brief,
@@ -213,8 +214,16 @@ export function Dashboard({
     snapshot.analysis.stocks.map((a) => [a.ticker, a]),
   );
 
-  const winnerTicker = snapshot.analysis.biggestWinner;
-  const loserTicker = snapshot.analysis.biggestLoser;
+  // Featured cards now showcase the WEEK's biggest mover/dragger using
+  // the weekStartPrices baseline. Falls back to the analyzer's daily
+  // pick when no baseline is available yet (fresh deploy / Monday
+  // archive missed) so the featured slot is never empty.
+  const weekMovers = pickWeekWinnerLoser(snapshot.stocks, weekStartPrices);
+  const winnerTicker =
+    weekMovers.winner?.ticker ?? snapshot.analysis.biggestWinner;
+  const loserTicker =
+    weekMovers.loser?.ticker ?? snapshot.analysis.biggestLoser;
+  const featuredScope: "week" | "day" = weekMovers.winner ? "week" : "day";
 
   const winner = snapshot.stocks.find((s) => s.ticker === winnerTicker);
   const loser = snapshot.stocks.find((s) => s.ticker === loserTicker);
@@ -247,13 +256,14 @@ export function Dashboard({
         weekendBrief={weekendBrief}
         flash={briefFlash}
       />
+
+      <Leaderboard stocks={snapshot.stocks} weekStartPrices={weekStartPrices} />
+
       <MoodBanner
         mood={snapshot.analysis.overallMood}
         avgChangePct={avgChangePct}
         flash={moodFlash}
       />
-
-      <Leaderboard stocks={snapshot.stocks} weekStartPrices={weekStartPrices} />
 
       <section className="px-4 md:px-8 lg:px-12 mt-8 mb-12">
         {(winner || loser) && (
@@ -263,6 +273,10 @@ export function Dashboard({
                 stock={winner}
                 analysis={analysisByTicker.get(winner.ticker)}
                 featured="winner"
+                featuredScope={featuredScope}
+                {...(weekMovers.winner
+                  ? { featuredWeekChangePct: weekMovers.winner.weekChangePct }
+                  : {})}
                 index={0}
                 flashing={flashedTickers.has(winner.ticker)}
               />
@@ -272,6 +286,10 @@ export function Dashboard({
                 stock={loser}
                 analysis={analysisByTicker.get(loser.ticker)}
                 featured="loser"
+                featuredScope={featuredScope}
+                {...(weekMovers.loser
+                  ? { featuredWeekChangePct: weekMovers.loser.weekChangePct }
+                  : {})}
                 index={1}
                 flashing={flashedTickers.has(loser.ticker)}
               />

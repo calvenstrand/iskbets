@@ -19,16 +19,14 @@ function pctClass(value: number | null): string {
   return "leader-flat";
 }
 
-function rankBadge(index: number): string {
-  if (index === 0) return "#1";
-  return `#${index + 1}`;
-}
-
 export function Leaderboard({ stocks, weekStartPrices }: Props) {
   const entries = computeLeaderboard(stocks, weekStartPrices);
   if (entries.length === 0) return null;
 
   const showWtd = entries.some((e) => e.wtdPct !== null);
+  const champion = entries[0];
+  if (!champion) return null;
+  const challengers = entries.slice(1);
 
   return (
     <section className="leaderboard">
@@ -38,16 +36,69 @@ export function Leaderboard({ stocks, weekStartPrices }: Props) {
           {showWtd ? "TODAY · WEEK-TO-DATE" : "TODAY"}
         </span>
       </header>
-      <div className="leaderboard-grid">
-        {entries.map((e, i) => (
-          <LeaderboardCard key={e.person} entry={e} rank={i} showWtd={showWtd} />
-        ))}
-      </div>
+
+      <ChampionCard entry={champion} showWtd={showWtd} />
+
+      {challengers.length > 0 && (
+        <div className="leaderboard-grid">
+          {challengers.map((e, i) => (
+            <ChallengerCard
+              key={e.person}
+              entry={e}
+              rank={i + 2}
+              showWtd={showWtd}
+            />
+          ))}
+        </div>
+      )}
     </section>
   );
 }
 
-function LeaderboardCard({
+function ChampionCard({
+  entry,
+  showWtd,
+}: {
+  entry: LeaderboardEntry;
+  showWtd: boolean;
+}) {
+  const todayClass = pctClass(entry.todayPct);
+  const wtdClass = pctClass(entry.wtdPct);
+  return (
+    <article className="leader-champion">
+      <div className="leader-champion-badge">👑 LEADER</div>
+      <div className="leader-champion-row">
+        <div className="leader-champion-identity">
+          <span className="leader-champion-rank">#1</span>
+          <span className="leader-champion-name">
+            {entry.name.toUpperCase()}
+          </span>
+          <span className="leader-champion-count">
+            {entry.tickers.length} picks
+          </span>
+        </div>
+        <div className="leader-champion-stats">
+          <div className="leader-champion-stat">
+            <span className="leader-stat-label">TODAY</span>
+            <span className={`leader-champion-value ${todayClass}`}>
+              {formatPct(entry.todayPct)}
+            </span>
+          </div>
+          {showWtd && (
+            <div className="leader-champion-stat">
+              <span className="leader-stat-label">WTD</span>
+              <span className={`leader-champion-value ${wtdClass}`}>
+                {formatPct(entry.wtdPct)}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function ChallengerCard({
   entry,
   rank,
   showWtd,
@@ -59,9 +110,9 @@ function LeaderboardCard({
   const todayClass = pctClass(entry.todayPct);
   const wtdClass = pctClass(entry.wtdPct);
   return (
-    <article className={`leader-card ${rank === 0 ? "leader-top" : ""}`}>
+    <article className="leader-card">
       <div className="leader-row">
-        <span className="leader-rank">{rankBadge(rank)}</span>
+        <span className="leader-rank">#{rank}</span>
         <span className="leader-name">{entry.name.toUpperCase()}</span>
         <span className="leader-count">{entry.tickers.length} picks</span>
       </div>

@@ -86,3 +86,40 @@ export function computeLeaderboard(
 
   return entries;
 }
+
+export type WeekMover = {
+  ticker: string;
+  weekChangePct: number;
+};
+
+/**
+ * Pick the week's biggest winner and loser by week-over-week change.
+ * Returns undefined for either side when no baseline exists yet (new
+ * deploy or Monday archive missed) so callers can fall back to today's
+ * mover labels.
+ */
+export function pickWeekWinnerLoser(
+  stocks: StockPrice[],
+  weekStartPrices: Record<string, number> | undefined,
+): { winner?: WeekMover; loser?: WeekMover } {
+  if (!weekStartPrices) return {};
+  let winner: WeekMover | undefined;
+  let loser: WeekMover | undefined;
+  for (const s of stocks) {
+    const baseline = weekStartPrices[s.ticker];
+    if (!baseline || baseline <= 0 || !Number.isFinite(s.regularMarketPrice)) {
+      continue;
+    }
+    const pct = ((s.regularMarketPrice - baseline) / baseline) * 100;
+    if (!winner || pct > winner.weekChangePct) {
+      winner = { ticker: s.ticker, weekChangePct: pct };
+    }
+    if (!loser || pct < loser.weekChangePct) {
+      loser = { ticker: s.ticker, weekChangePct: pct };
+    }
+  }
+  return {
+    ...(winner ? { winner } : {}),
+    ...(loser ? { loser } : {}),
+  };
+}
