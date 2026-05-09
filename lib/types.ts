@@ -71,6 +71,41 @@ export type WeekStartSnapshot = {
   stocks: StockPrice[];
 };
 
+/** Compact, archive-friendly summary of one trading week's result.
+ * Written Friday evening after the weekend wire fires; stored in a
+ * Redis hash keyed by `weekStart`. Designed to be cheap to accumulate
+ * (~3KB per week, 52 weeks ≈ 150KB) so future features (history graphs,
+ * year-end recap, monthly leaderboards) have a corpus to draw from. */
+export type WeeklyResult = {
+  /** Monday YYYY-MM-DD (Stockholm). Sort key. */
+  weekStart: string;
+  /** Friday YYYY-MM-DD (Stockholm). */
+  weekEnd: string;
+  /** Epoch ms when the archive entry was written. */
+  capturedAt: number;
+  /** Per-stock week-over-week change. */
+  stocks: Array<{
+    ticker: string;
+    name: string;
+    currency: string;
+    /** Friday's closing price. */
+    fridayClose: number;
+    /** (fridayClose - mondayBaseline) / mondayBaseline * 100. */
+    weekChangePct: number;
+  }>;
+  /** Per-friend WTD% for the week, computed from `stocks` + ownership. */
+  friends: Array<{
+    person: string; // keyof PEOPLE
+    name: string;
+    tickers: string[];
+    wtdPct: number;
+  }>;
+  /** Friday's `overallMood` carried forward. */
+  overallMood: string;
+  /** The Weekend Wire text for the week, if it was generated. */
+  wireText?: string;
+};
+
 export type StoredData = {
   stocks: StockPrice[];
   analysis: AnalysisPayload;

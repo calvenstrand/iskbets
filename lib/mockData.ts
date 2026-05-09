@@ -5,6 +5,7 @@ import type {
   StockAnalysis,
   StockPrice,
   StoredData,
+  WeeklyResult,
   WeekStartSnapshot,
 } from "./types";
 
@@ -562,4 +563,114 @@ export function getMockWeekStartSnapshot(): WeekStartSnapshot {
     };
   });
   return { weekStart: monday, stocks };
+}
+
+/** Three weeks of fake history so dev mode shows what `listWeeklyResults`
+ * returns without needing real cron fires. Hand-picked numbers tell a
+ * rough story: Chris dominant week 1, Eric leading week 2, Johan wild
+ * week 3 thanks to QBTS. */
+export function getMockWeeklyResults(): WeeklyResult[] {
+  const monday = stockholmMondayOfWeek(new Date());
+  const [y, m, d] = monday.split("-").map(Number);
+  if (!y || !m || !d) return [];
+  // Narrowing doesn't propagate into the closure below; capture locally.
+  const yy = y;
+  const mm = m;
+  const dd = d;
+
+  function shiftDate(daysBack: number): { ws: string; we: string } {
+    const ms = Date.UTC(yy, mm - 1, dd - daysBack);
+    const wsd = new Date(ms);
+    const wed = new Date(ms + 4 * 86_400_000);
+    const fmt = (dt: Date) =>
+      `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
+    return { ws: fmt(wsd), we: fmt(wed) };
+  }
+
+  const w1 = shiftDate(7); // last week
+  const w2 = shiftDate(14);
+  const w3 = shiftDate(21);
+
+  const baseStocks = (deltaMap: Record<string, number>) =>
+    STOCKS.map((s) => ({
+      ticker: s.ticker,
+      name: s.name,
+      currency: s.currency,
+      fridayClose: s.regularMarketPrice,
+      weekChangePct: (deltaMap[s.ticker] ?? 0) * 100,
+    }));
+
+  return [
+    {
+      weekStart: w1.ws,
+      weekEnd: w1.we,
+      capturedAt: Date.now() - 3 * 86_400_000,
+      stocks: baseStocks({
+        NET: 0.094,
+        SHOP: 0.062,
+        DDOG: 0.057,
+        "HACK.ST": 0.082,
+        QBTS: 0.124,
+        "DICOT.ST": -0.184,
+        DFTX: -0.142,
+        "VPLAY-B.ST": -0.083,
+      }),
+      friends: [
+        { person: "chris", name: "Chris", tickers: [], wtdPct: 5.4 },
+        { person: "johan", name: "Johan", tickers: [], wtdPct: 3.1 },
+        { person: "eric", name: "Eric", tickers: [], wtdPct: 0.4 },
+        { person: "oskar", name: "Oskar", tickers: [], wtdPct: -7.2 },
+      ],
+      overallMood:
+        "Chris's tech bag printed tendies all week while Oskar's biotech apes got vaporized on both sides of the Atlantic.",
+      wireText:
+        "What a week, apes. Chris's NET +9.4% and HACK +8.2% dragged the syndicate to glory. Johan's QBTS quantum-printed +12% by Wednesday. Eric held the line, sideways industrials. Oskar got rekt on both DICOT and DFTX. Monday we ride.",
+    },
+    {
+      weekStart: w2.ws,
+      weekEnd: w2.we,
+      capturedAt: Date.now() - 10 * 86_400_000,
+      stocks: baseStocks({
+        "ATCO-B.ST": 0.041,
+        "VOLV-B.ST": 0.038,
+        "THULE.ST": 0.052,
+        "DOM.ST": 0.029,
+        NVDA: 0.044,
+        "DICOT.ST": -0.071,
+      }),
+      friends: [
+        { person: "eric", name: "Eric", tickers: [], wtdPct: 2.7 },
+        { person: "chris", name: "Chris", tickers: [], wtdPct: 1.4 },
+        { person: "johan", name: "Johan", tickers: [], wtdPct: 0.8 },
+        { person: "oskar", name: "Oskar", tickers: [], wtdPct: -1.9 },
+      ],
+      overallMood:
+        "Eric's industrials carried the week — Atlas, Volvo, Thule all printing while everyone else grinded sideways.",
+      wireText:
+        "Industrial supremacy week. Eric's Atlas Copco +4.1% and Thule +5.2% led the gang. Chris's bag held flat. Johan's QBTS cooled off after last week's pump. Oskar still bagholding. Monday we ride.",
+    },
+    {
+      weekStart: w3.ws,
+      weekEnd: w3.we,
+      capturedAt: Date.now() - 17 * 86_400_000,
+      stocks: baseStocks({
+        QBTS: 0.218,
+        PLTR: 0.094,
+        TSLA: 0.062,
+        "INVE-B.ST": 0.024,
+        GME: -0.114,
+        "BINV.ST": -0.087,
+      }),
+      friends: [
+        { person: "johan", name: "Johan", tickers: [], wtdPct: 8.4 },
+        { person: "chris", name: "Chris", tickers: [], wtdPct: 1.1 },
+        { person: "eric", name: "Eric", tickers: [], wtdPct: 0.6 },
+        { person: "oskar", name: "Oskar", tickers: [], wtdPct: -0.3 },
+      ],
+      overallMood:
+        "Johan's quantum stocks printed a generational week. He hasn't shut up about it.",
+      wireText:
+        "QUANTUM SUPREMACY ACHIEVED. Johan's QBTS +21.8%, PLTR +9.4% — the man is insufferable. Rest of the gang basically flat. Tomorrow we hope D-Wave doesn't reverse split.",
+    },
+  ];
 }

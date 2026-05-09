@@ -6,6 +6,7 @@ import type {
   DashboardData,
   StockPrice,
   StoredData,
+  WeeklyResult,
   WeekStartSnapshot,
 } from "./types";
 
@@ -16,6 +17,7 @@ const EVENING_BRIEF_KEY = "iskbets:eveningBrief";
 const WEEKEND_BRIEF_KEY = "iskbets:weekendWire";
 const YESTERDAY_KEY = "iskbets:yesterday";
 const WEEK_START_KEY = "iskbets:weekStart";
+const ARCHIVE_KEY = "iskbets:archive"; // Redis hash, fields = weekStart dates
 
 function readCreds(): { url: string | undefined; token: string | undefined } {
   // Support both env name conventions:
@@ -185,6 +187,52 @@ export async function setWeekStartSnapshot(
   data: WeekStartSnapshot,
 ): Promise<void> {
   await getRedis().set(WEEK_START_KEY, data);
+}
+
+// ============== Weekly archive (long-term history) ==============
+
+/**
+ * Stored as a Redis hash where field name = `weekStart` (YYYY-MM-DD)
+ * and value = the WeeklyResult JSON. Idempotent per week — re-archiving
+ * the same week overwrites the previous entry.
+ *
+ * Why a hash? O(1) get/set per week, single HGETALL pulls every week,
+ * no separate index list to maintain. With 52 weekly entries at ~3KB
+ * each the hash sits at ~150KB — well under any Upstash limit.
+ */
+
+export async function getWeeklyResult(
+  weekStart: string,
+): Promise<WeeklyResult | null> {
+  const v = await getRedis().hget<WeeklyResult>(ARCHIVE_KEY, weekStart);
+  return v ?? null;
+}
+
+export async function setWeeklyResult(result: WeeklyResult): Promise<void> {
+  await getRedis().hset(ARCHIVE_KEY, { [result.weekStart]: result });
+}
+
+/**
+ * All archived weeks, sorted DESC by `weekStart` (newest first).
+ * Optional `limit` caps the result for callers that only want the
+ * recent N weeks (e.g. a future history graph would just want ~12).
+ */
+export async function listWeeklyResults(
+  limit?: number,
+): Promise<WeeklyResult[]> {
+  if (shouldUseMock().use) {
+    const { getMockWeeklyResults } = await import("./mockData");
+    const all = getMockWeeklyResults();
+    return limit ? all.slice(0, limit) : all;
+  }
+  const all = await getRedis().hgetall<Record<string, WeeklyResult>>(
+    ARCHIVE_KEY,
+  );
+  if (!all) return [];
+  const sorted = Object.values(all).sort((a, b) =>
+    b.weekStart.localeCompare(a.weekStart),
+  );
+  return limit ? sorted.slice(0, limit) : sorted;
 }
 
 /**

@@ -19,7 +19,7 @@ Backend and frontend are both complete; build + lint pass clean.
 **Known limitations:**
 
 - Market-hours logic doesn't account for exchange holidays — only weekdays + regular session windows
-- Redis history is shallow — a snapshot, three briefs, plus `iskbets:yesterday` and `iskbets:weekStart` baselines. No multi-week history; switching to a sorted-set would be a schema change.
+- Redis includes a long-term `iskbets:archive` hash that accumulates one compact `WeeklyResult` per trading week (~3 KB each, capped naturally by the trim policy). Not yet exposed in the dashboard — read via `listWeeklyResults` for future history features.
 - Finnhub `/quote` doesn't return 52-week high/low or volume on the free tier, so the "X% FROM GLORY" line is hidden on US cards (the StockCard guards on `fiftyTwoWeekHigh > 0`). Stockholm cards (Avanza) DO have it. Asymmetric but fine.
 - Avanza is unofficial — could change/break at any time. Per-ticker error handling in `fetchPrices` means a broken Avanza endpoint just silently drops the SE cards rather than crashing the batch. Switch to a paid provider if SE coverage becomes critical.
 - Per-card market badge is derived from the current time + ticker market (Stockholm/NY hours via `lib/marketHours.ts`) rather than from the data source — so there's no `POST` state, only `OPEN`/`PRE`/`CLOSED`.
@@ -54,6 +54,7 @@ Backend and frontend are both complete; build + lint pass clean.
        ├─ inMorningBriefWindow → generateMorningBrief() (reads yesterday)
        ├─ inEveningBriefWindow → archive yesterday + generateEveningBrief()
        └─ inWeekendWireWindow (Friday only) → generateWeekendWire() (reads weekStart)
+                                              + maybeArchiveWeeklyResult() (compact long-term archive)
 
 /api/data (GET, public, CDN-cached 60s)
   → getDashboardData()   lib/storage.ts → { snapshot, morningBrief?, eveningBrief?, weekendBrief?, weekStartPrices? }
@@ -87,7 +88,7 @@ All three are stored under separate Redis keys; each stores its own `date`, and 
 
 ## KV shape
 
-Seven Redis keys, all under the `iskbets:` namespace:
+Eight Redis keys (one of which is a hash), all under the `iskbets:` namespace:
 
 ```ts
 // iskbets:snapshot — the live dashboard data
@@ -113,6 +114,15 @@ Seven Redis keys, all under the `iskbets:` namespace:
 // iskbets:weekStart — { weekStart: "YYYY-MM-DD" (Monday), stocks: StockPrice[] }
 //                     archived on the first Monday trigger; baseline for the leaderboard
 //                     WTD column and the Weekend Wire's week-over-week recap
+
+// iskbets:archive — Redis HASH. Field name = weekStart (YYYY-MM-DD).
+//                   Field value = WeeklyResult (compact: per-stock weekChangePct,
+//                   per-friend WTD%, Friday's overallMood, optional wireText).
+//                   Written Friday evening after the wire fires. Idempotent per
+//                   week. Read via `listWeeklyResults(limit?)` from lib/storage.
+//                   Future home for history graphs / yearly recap / monthly
+//                   leaderboards. NOT in /api/data — pull via a new endpoint
+//                   when needed.
 ```
 
 ## Env vars

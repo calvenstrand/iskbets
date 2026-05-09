@@ -20,6 +20,7 @@ import {
   getMorningBrief,
   getStockData,
   getWeekendBrief,
+  getWeeklyResult,
   getWeekStartSnapshot,
   getYesterdaySnapshot,
   markAttempt,
@@ -27,10 +28,12 @@ import {
   setEveningBrief,
   setMorningBrief,
   setWeekendBrief,
+  setWeeklyResult,
   setWeekStartSnapshot,
   setYesterdaySnapshot,
 } from "@/lib/storage";
 import type { StockPrice, StoredData } from "@/lib/types";
+import { computeWeeklyResult } from "@/lib/weeklyResult";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -230,6 +233,61 @@ async function maybeGenerateBriefs(
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`[trigger] weekend wire failed: ${msg}`);
     }
+
+    // Weekly archive — runs in the same window as the wire so it
+    // captures Friday's close. Independent of wire success: even if
+    // Claude refused, we still snapshot the numbers. Idempotent per
+    // week, so spam-firing this branch is a no-op after the first
+    // archive lands.
+    await maybeArchiveWeeklyResult(todaySnapshot, now);
+  }
+}
+
+/**
+ * Archive the week's compact result for long-term history. Designed to
+ * accumulate forever (or until we hit ~52 weeks and add a trim job) so
+ * future features — historical leaderboards, year-end recap, performance
+ * graphs — have a corpus to draw from. NOT exposed in /api/data; a
+ * future feature can pull from `listWeeklyResults`.
+ */
+async function maybeArchiveWeeklyResult(
+  todaySnapshot: StoredData,
+  now: Date,
+): Promise<void> {
+  const weekKey = stockholmMondayOfWeek(now);
+  try {
+    const existing = await getWeeklyResult(weekKey);
+    if (existing) {
+      console.log(`[trigger] weekly archive already written for ${weekKey}`);
+      return;
+    }
+    const weekStart = await getWeekStartSnapshot();
+    if (!weekStart || weekStart.weekStart !== weekKey) {
+      console.log(
+        "[trigger] weekly archive skipped — week-start missing or stale",
+      );
+      return;
+    }
+    // Pick up the wire text if the wire branch above succeeded.
+    // Re-reading after the write is intentional — the wire and archive
+    // are independent writes and we don't want to leak state between them.
+    const wire = await getWeekendBrief();
+    const wireText = wire?.date === weekKey ? wire.text : undefined;
+
+    const result = computeWeeklyResult({
+      fridaySnapshot: todaySnapshot,
+      weekStart,
+      ...(wireText ? { wireText } : {}),
+    });
+    await setWeeklyResult(result);
+    console.log(
+      `[trigger] weekly result archived for ${weekKey} ` +
+        `(${result.stocks.length} stocks, ${result.friends.length} friends, ` +
+        `wire ${wireText ? "included" : "missing"})`,
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[trigger] weekly archive failed: ${msg}`);
   }
 }
 
