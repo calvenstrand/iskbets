@@ -5,5 +5,11 @@
       "maxDuration": 60
     }
   },
-  "regions": ["arn1"]
+  "regions": ["arn1"],
+  "crons": [
+    {
+      "path": "/api/trigger",
+      "schedule": "*/15 7-21 * * 1-5"
+    }
+  ]
 }

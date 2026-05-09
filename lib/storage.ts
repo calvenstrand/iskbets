@@ -47,6 +47,10 @@ function shouldUseMock(): { use: boolean; reason: string } {
 export async function saveStockData(args: {
   stocks: StockPrice[];
   analysis: AnalysisPayload;
+  /** When the AI was last regenerated. Carried over if AI didn't run this turn. */
+  analyzedAt: number;
+  /** Snapshot used as the diff baseline for the next trigger. */
+  pricesAtLastAnalysis: StockPrice[];
 }): Promise<StoredData> {
   const now = Date.now();
   const data: StoredData = {
@@ -54,6 +58,8 @@ export async function saveStockData(args: {
     analysis: args.analysis,
     updatedAt: new Date(now).toISOString(),
     lastFetch: now,
+    analyzedAt: args.analyzedAt,
+    pricesAtLastAnalysis: args.pricesAtLastAnalysis,
   };
   console.log(`[storage] saving snapshot at ${data.updatedAt}`);
   await getRedis().set(KV_KEY, data);

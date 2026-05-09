@@ -402,5 +402,7 @@ export function getMockData(): StoredData {
     },
     updatedAt: new Date(now).toISOString(),
     lastFetch: now,
+    analyzedAt: now,
+    pricesAtLastAnalysis: STOCKS,
   };
 }

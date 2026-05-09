@@ -8,7 +8,7 @@ Backend and frontend are both complete; build + lint pass clean.
 
 **Working:**
 
-- `/api/trigger` (auth via `?key=`, 30-minute KV-backed cooldown) → `fetchPrices` → `analyzeStocks` → `saveStockData`
+- `/api/trigger` (auth via `?key=` for manual or `Authorization: Bearer ${CRON_SECRET}` for Vercel Cron) → `fetchPrices` → optional `analyzeStocks` (gated by smart-skip logic) → `saveStockData`. Vercel Cron fires every 15 min on weekdays during market hours; the AI only re-runs when something genuinely moved.
 - `/api/data` (public) reads the latest snapshot from KV
 - `/` server component fetches `/api/data` on the server with `revalidate: 60`, then hands the data to a `'use client'` Dashboard
 - Dashboard sub-components: one-time boot-sequence splash (CRT-style boot log, gated by sessionStorage so it plays once per browser session), ticker tape, masthead header (I$KBETS wordmark + date/issue dateline), market-status bar (5 markets — Tokyo, Hong Kong, Stockholm, London, NYC — real timezones via `Intl`; collapses to pill+code on mobile), mood banner, winner/loser featured cards, responsive grid, last-updated footer
@@ -42,26 +42,45 @@ Backend and frontend are both complete; build + lint pass clean.
 ## Data flow
 
 ```
-/api/trigger (GET, ?key=TRIGGER_SECRET, 30 min cooldown)
-  → markAttempt()        lib/storage.ts (sets cooldown gate before pipeline)
-  → fetchPrices()        lib/fetchPrices.ts
-  → analyzeStocks()      lib/analyzeStocks.ts
-  → saveStockData()      lib/storage.ts (KV)
+/api/trigger (GET; manual ?key=TRIGGER_SECRET OR Vercel Cron Bearer ${CRON_SECRET})
+  → markAttempt()        lib/storage.ts  (1-min cooldown gate)
+  → fetchPrices()        lib/fetchPrices.ts  (Finnhub + Avanza)
+  → shouldRerunAI()      app/api/trigger/route.ts (decides whether AI runs)
+       ├─ AI run        analyzeStocks()  lib/analyzeStocks.ts
+       └─ AI skipped    reuse last analysis from existing snapshot
+  → saveStockData()      lib/storage.ts (Upstash Redis)
 
 /api/data (GET, public)
   → getStockData()       lib/storage.ts → JSON
 ```
 
-The cooldown gate (`iskbets:lastAttempt`) is intentionally written **before** the pipeline runs — so a partial failure (Yahoo flake, Anthropic rate limit) still triggers the 30-minute cooldown.
+**Smart AI gating** (`shouldRerunAI` in `app/api/trigger/route.ts`):
+The Anthropic call only fires when at least one of these is true:
+1. Any ticker's `regularMarketChangePercent` shifted by **> 1pp** since the snapshot Claude last saw, AND it's been **≥ 30 min** since the last AI run.
+2. **> 4 hours** since the last AI run (freshness ceiling — the `overallMood` shouldn't go stale on a flat day).
+3. No prior analysis exists.
+
+Otherwise prices are refreshed but the existing analysis is carried forward. This decouples price freshness (every 15 min) from AI cost (only when there's something new to say).
+
+**Cron schedule** lives in `vercel.json`: `*/15 7-21 * * 1-5` UTC (every 15 min, weekdays, ~09:00–22:00 CET).
+
+**Cooldown gate** (`iskbets:lastAttempt`) is intentionally written **before** the pipeline runs — so a partial failure (provider flake, Anthropic rate limit) still consumes the cooldown. It's now 1 min (was 30) — just spam-prevention for manual clicks; cron fires every 15 min so it's never blocked.
 
 ## KV shape
 
 ```ts
 {
-  stocks: StockPrice[],
-  analysis: { stocks: StockAnalysis[], overallMood: string, biggestWinner: string, biggestLoser: string },
-  updatedAt: string,   // ISO
-  lastFetch: number    // epoch ms, used for cooldown
+  stocks: StockPrice[],          // refreshed every trigger
+  analysis: {                    // regenerated only when shouldRerunAI fires
+    stocks: StockAnalysis[],
+    overallMood: string,
+    biggestWinner: string,
+    biggestLoser: string,
+  },
+  updatedAt: string,             // ISO of last price refresh
+  lastFetch: number,             // epoch ms of last price refresh
+  analyzedAt: number,            // epoch ms of last AI run
+  pricesAtLastAnalysis: StockPrice[]  // baseline for the AI-rerun decision
 }
 ```
 
@@ -71,7 +90,8 @@ Documented in `.env.example`:
 
 - `ANTHROPIC_API_KEY` — Claude SDK
 - `FINNHUB_API_KEY` — Finnhub quote endpoint (US)
-- `TRIGGER_SECRET` — query-param auth for `/api/trigger`
+- `TRIGGER_SECRET` — manual `?key=` auth for `/api/trigger`
+- `CRON_SECRET` — Vercel Cron auth. Set this in Vercel env vars; Vercel automatically passes it to cron requests as `Authorization: Bearer ${CRON_SECRET}`. Without it, the cron will 401 every 15 min.
 - (Avanza needs no key — orderbookIds are hardcoded in `lib/tickers.ts`)
 - `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` — Upstash Redis; auto-injected in production via the Vercel Marketplace integration, manual for local dev. Legacy `KV_REST_API_URL` / `KV_REST_API_TOKEN` names are also supported as a fallback.
 
