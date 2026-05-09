@@ -1,6 +1,13 @@
 import { PEOPLE, type Person, TICKERS } from "./tickers";
 import type { StockPrice } from "./types";
 
+export type Mover = {
+  /** Internal ticker symbol — call `displayTicker(ticker)` for UI. */
+  ticker: string;
+  /** Today's `regularMarketChangePercent`. */
+  pct: number;
+};
+
 export type LeaderboardEntry = {
   person: Person;
   /** Display name — "Chris", "Eric", … from PEOPLE. */
@@ -15,6 +22,13 @@ export type LeaderboardEntry = {
   wtdPct: number | null;
   /** How many of `tickers` actually have today's price + a weekStart baseline. */
   wtdCoverage: number;
+  /** Best mover of the day among this person's owned tickers. Undefined
+   * when the person has zero tickers with finite data today. */
+  topMover?: Mover;
+  /** Worst mover of the day among this person's owned tickers. Same
+   * undefined-when-empty rule. May equal topMover when only one ticker
+   * has data — caller should de-dupe in render if needed. */
+  bottomMover?: Mover;
 };
 
 /**
@@ -52,11 +66,17 @@ export function computeLeaderboard(
     let todayCount = 0;
     let wtdSum = 0;
     let wtdCoverage = 0;
+    let topMover: Mover | undefined;
+    let bottomMover: Mover | undefined;
     for (const ticker of tickers) {
       const stock = priceByTicker.get(ticker);
       if (!stock) continue;
-      todaySum += stock.regularMarketChangePercent;
+      const pct = stock.regularMarketChangePercent;
+      if (!Number.isFinite(pct)) continue;
+      todaySum += pct;
       todayCount++;
+      if (!topMover || pct > topMover.pct) topMover = { ticker, pct };
+      if (!bottomMover || pct < bottomMover.pct) bottomMover = { ticker, pct };
       const baseline = weekStartPrices?.[ticker];
       if (baseline && baseline > 0 && Number.isFinite(stock.regularMarketPrice)) {
         wtdSum += ((stock.regularMarketPrice - baseline) / baseline) * 100;
@@ -73,6 +93,8 @@ export function computeLeaderboard(
       todayPct: todaySum / todayCount,
       wtdPct: wtdCoverage > 0 ? wtdSum / wtdCoverage : null,
       wtdCoverage,
+      ...(topMover ? { topMover } : {}),
+      ...(bottomMover ? { bottomMover } : {}),
     });
   }
 

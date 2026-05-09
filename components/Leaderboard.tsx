@@ -1,4 +1,9 @@
-import { computeLeaderboard, type LeaderboardEntry } from "@/lib/leaderboard";
+import {
+  computeLeaderboard,
+  type LeaderboardEntry,
+  type Mover,
+} from "@/lib/leaderboard";
+import { displayTicker } from "@/lib/tickers";
 import type { StockPrice } from "@/lib/types";
 
 type Props = {
@@ -17,6 +22,35 @@ function pctClass(value: number | null): string {
   if (value > 0) return "leader-up";
   if (value < 0) return "leader-down";
   return "leader-flat";
+}
+
+/** Top + bottom mover row. Renders as "▲ NVDA +6.80%   ▼ DICOT -12.50%".
+ * Hides individually when missing; suppresses the bottom slot when it
+ * would duplicate the top (a friend with only one owned ticker). */
+function ImpactRow({
+  topMover,
+  bottomMover,
+}: {
+  topMover?: Mover;
+  bottomMover?: Mover;
+}) {
+  const showBottom =
+    bottomMover && (!topMover || bottomMover.ticker !== topMover.ticker);
+  if (!topMover && !showBottom) return null;
+  return (
+    <div className="leader-impact">
+      {topMover && (
+        <span className={`leader-impact-cell ${pctClass(topMover.pct)}`}>
+          ▲ {displayTicker(topMover.ticker)} {formatPct(topMover.pct)}
+        </span>
+      )}
+      {showBottom && bottomMover && (
+        <span className={`leader-impact-cell ${pctClass(bottomMover.pct)}`}>
+          ▼ {displayTicker(bottomMover.ticker)} {formatPct(bottomMover.pct)}
+        </span>
+      )}
+    </div>
+  );
 }
 
 export function Leaderboard({ stocks, weekStartPrices }: Props) {
@@ -94,6 +128,10 @@ function ChampionCard({
           )}
         </div>
       </div>
+      <ImpactRow
+        topMover={entry.topMover}
+        bottomMover={entry.bottomMover}
+      />
     </article>
   );
 }
@@ -132,6 +170,10 @@ function ChallengerCard({
           </div>
         )}
       </div>
+      <ImpactRow
+        topMover={entry.topMover}
+        bottomMover={entry.bottomMover}
+      />
     </article>
   );
 }

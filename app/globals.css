@@ -982,6 +982,33 @@ html.booting .boot-overlay,
   color: var(--text-dim);
 }
 
+/* Per-friend "what moved this number" line — best + worst owned ticker
+   today, sit below the stats row in both champion and challenger cards. */
+.leader-impact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  padding-top: 0.65rem;
+  margin-top: 0.4rem;
+  border-top: 1px solid var(--border);
+}
+
+.leader-impact-cell {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+
+/* Champion gets a slightly bigger impact row to match its overall scale. */
+.leader-champion .leader-impact {
+  margin-top: 0.9rem;
+  padding-top: 0.85rem;
+  border-top-color: rgba(245, 200, 66, 0.25);
+}
+.leader-champion .leader-impact-cell {
+  font-size: 0.9rem;
+}
+
 @media (max-width: 640px) {
   .leader-champion-row {
     gap: 0.9rem;
