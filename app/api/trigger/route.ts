@@ -503,8 +503,28 @@ export async function GET(request: Request): Promise<NextResponse> {
     let pricesAtLastAnalysis = existing?.pricesAtLastAnalysis;
 
     if (decision.rerun || !analysis) {
-      console.log(`[trigger] AI run (${decision.reason})`);
-      analysis = await analyzeStocks(newPrices);
+      // Hand the week-start baseline to the analyzer so it can compute
+      // the week's biggest mover/dragger and force-comment on them.
+      // Without this the featured cards (which are picked by week
+      // change) can sit silent when their big move was earlier in the
+      // week. Falls back to today-only commenting when the baseline is
+      // missing or stale.
+      const thisMonday = stockholmMondayOfWeek(new Date(now));
+      const weekStartSnapshot = await getWeekStartSnapshot();
+      const weekStartPrices =
+        weekStartSnapshot && weekStartSnapshot.weekStart === thisMonday
+          ? Object.fromEntries(
+              weekStartSnapshot.stocks.map((s) => [
+                s.ticker,
+                s.regularMarketPrice,
+              ]),
+            )
+          : undefined;
+
+      console.log(
+        `[trigger] AI run (${decision.reason})${weekStartPrices ? " + week-baseline" : ""}`,
+      );
+      analysis = await analyzeStocks(newPrices, weekStartPrices);
       analyzedAt = now;
       pricesAtLastAnalysis = newPrices;
     } else {

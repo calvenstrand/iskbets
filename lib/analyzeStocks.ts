@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { deriveRating, deriveSentiment } from "./derive";
+import { pickWeekWinnerLoser } from "./leaderboard";
 import { PEOPLE, TICKERS } from "./tickers";
 import type {
   AnalysisPayload,
@@ -25,6 +26,7 @@ You receive structured price data for a small portfolio. The badges, sentiment, 
   2. ONE dramatic sentence for the overall portfolio MOOD
 
 WHEN TO INCLUDE A STOCK IN YOUR \`stocks\` ARRAY:
+- The user message lists tickers under "MUST COMMENT (week's biggest mover/dragger)" — ALWAYS include those, regardless of today's move. They drive the dashboard's featured cards and need a line, OR
 - The stock has 3+ owners (a group-consensus pick) — ALWAYS include, regardless of move size, OR
 - Today's regularMarketChangePercent is >+3% or <-3% (big mover), OR
 - The stock has 1 or 2 owners AND today's move is >+1.5% or <-1.5%
@@ -46,6 +48,7 @@ COMMENT RULES:
 - ≤ 10 words
 - Punchy, slang-heavy, no filler
 - Refer to owners by first name (1 owner) or a collective phrase (2+ owners) — never list multiple names
+- For MUST COMMENT tickers (week's mover/dragger), reference the WEEK'S move not today's — e.g. "Hacksaw +8% on the week, slot machines printing"
 
 OVERALL MOOD:
 ONE dramatic WSB sentence about the whole portfolio. Reference friends when something dramatic is happening with their picks — same naming rule as comments (first name for 1-owner picks, a collective phrase like "the gang" / "the syndicate" / "<count> apes" / "<count> degens" for 2+ owners).`;
@@ -144,6 +147,13 @@ function pickBiggestWinnerLoser(prices: StockPrice[]): {
 
 export async function analyzeStocks(
   prices: StockPrice[],
+  /** Optional Monday-baseline ticker→price map. When provided, the
+   * analyzer computes the week's biggest winner + loser and tells
+   * Claude they MUST be commented on regardless of today's move —
+   * so the dashboard's featured cards always have a line under them.
+   * When undefined (fresh deploy or stale baseline), falls back to
+   * today-only comment criteria. */
+  weekStartPrices?: Record<string, number>,
 ): Promise<AnalysisPayload> {
   console.log(
     `[analyzeStocks] analyzing ${prices.length} stocks with ${MODEL}`,
@@ -159,7 +169,28 @@ export async function analyzeStocks(
     return owners.length > 0 ? { ...p, owners } : p;
   });
 
-  const userMessage = `Here is today's price data for ${prices.length} stocks. Pick the ones worth a comment, write the overallMood.\n\n${JSON.stringify(enriched, null, 2)}`;
+  // Force-include the week's biggest mover + dragger so the featured
+  // cards always have a comment. These tickers may be quiet today but
+  // led / dragged the week — the prompt tells Claude to write about
+  // their week move, not today's.
+  const weekMovers = pickWeekWinnerLoser(prices, weekStartPrices);
+  const mustCommentBlock: string[] = [];
+  if (weekMovers.winner) {
+    mustCommentBlock.push(
+      `- ${weekMovers.winner.ticker} (week's biggest WINNER, ${weekMovers.winner.weekChangePct.toFixed(2)}% WTD)`,
+    );
+  }
+  if (weekMovers.loser) {
+    mustCommentBlock.push(
+      `- ${weekMovers.loser.ticker} (week's biggest LOSER, ${weekMovers.loser.weekChangePct.toFixed(2)}% WTD)`,
+    );
+  }
+  const mustCommentSection =
+    mustCommentBlock.length > 0
+      ? `MUST COMMENT (week's biggest mover/dragger — ALWAYS include, comment on the WEEK'S move):\n${mustCommentBlock.join("\n")}\n\n`
+      : "";
+
+  const userMessage = `Here is today's price data for ${prices.length} stocks. Pick the ones worth a comment, write the overallMood.\n\n${mustCommentSection}ALL PRICE DATA:\n${JSON.stringify(enriched, null, 2)}`;
 
   const response = await client.messages.create({
     model: MODEL,
