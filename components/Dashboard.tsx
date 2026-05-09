@@ -98,6 +98,7 @@ export function Dashboard({
 
   useEffect(() => {
     let cancelled = false;
+    let interval: ReturnType<typeof setInterval> | null = null;
 
     async function refresh() {
       try {
@@ -151,15 +152,38 @@ export function Dashboard({
       }
     }
 
-    const interval = setInterval(refresh, POLL_MS);
+    function startPolling() {
+      if (interval !== null) return; // idempotent — already running
+      interval = setInterval(refresh, POLL_MS);
+    }
+
+    function stopPolling() {
+      if (interval !== null) {
+        clearInterval(interval);
+        interval = null;
+      }
+    }
+
+    // Only poll while the tab is visible. With the cron firing every 15 min
+    // and a 5-min poll, leaving the tab open overnight would otherwise burn
+    // ~144 needless /api/data calls per user.
     const onVisibility = () => {
-      if (document.visibilityState === "visible") refresh();
+      if (document.visibilityState === "visible") {
+        refresh(); // catch up immediately on return
+        startPolling();
+      } else {
+        stopPolling();
+      }
     };
     document.addEventListener("visibilitychange", onVisibility);
 
+    if (document.visibilityState === "visible") {
+      startPolling();
+    }
+
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      stopPolling();
       document.removeEventListener("visibilitychange", onVisibility);
       if (tickerFlashTimer.current) clearTimeout(tickerFlashTimer.current);
       if (moodFlashTimer.current) clearTimeout(moodFlashTimer.current);

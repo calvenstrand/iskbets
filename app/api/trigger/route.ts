@@ -149,13 +149,19 @@ async function maybeGenerateBriefs(
         console.log("[trigger] evening brief already generated for today");
       } else {
         const text = await generateEveningBrief(todaySnapshot);
+        // Archive yesterday-snapshot BEFORE writing the brief. The
+        // idempotency check is keyed on the brief's existence, so if the
+        // brief write succeeds and the archive then fails, we'd be stuck:
+        // tomorrow's morning brief would reflect on stale yesterday data
+        // and never retry. Archive-first means a partial failure leaves
+        // the brief unwritten and the next cron in this window retries
+        // both. Re-archiving the same snapshot is a harmless overwrite.
+        await setYesterdaySnapshot(todaySnapshot);
         await setEveningBrief({
           date: today,
           text,
           generatedAt: Date.now(),
         });
-        // Archive today's snapshot for tomorrow morning's brief.
-        await setYesterdaySnapshot(todaySnapshot);
         console.log("[trigger] evening brief generated + yesterday archived");
       }
     } catch (err) {
