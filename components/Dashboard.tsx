@@ -252,17 +252,17 @@ export function Dashboard({
       <MarketStatus />
       <Leaderboard stocks={snapshot.stocks} weekStartPrices={weekStartPrices} />
 
+      <MoodBanner
+        mood={snapshot.analysis.overallMood}
+        avgChangePct={avgChangePct}
+        flash={moodFlash}
+      />
+
       <BriefCard
         morningBrief={morningBrief}
         eveningBrief={eveningBrief}
         weekendBrief={weekendBrief}
         flash={briefFlash}
-      />
-
-      <MoodBanner
-        mood={snapshot.analysis.overallMood}
-        avgChangePct={avgChangePct}
-        flash={moodFlash}
       />
 
       <section className="px-4 md:px-8 lg:px-12 mt-8 mb-12">
