@@ -660,6 +660,9 @@ html.booting .boot-overlay,
     rgba(245, 200, 66, 0.06) 0%,
     transparent 100%
   );
+  max-width: 1000px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .brief-evening {
