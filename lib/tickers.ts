@@ -35,7 +35,7 @@ export type Ticker = {
 
 export const TICKERS: Ticker[] = [
   // Swedish stocks — fetched via Avanza unofficial API by orderbookId
-  { symbol: "INVE-B.ST", name: "Investor B", market: "SE", avanzaId: 5247, owners: ["chris", "eric", "oskar"] },
+  { symbol: "INVE-B.ST", name: "Investor B", market: "SE", avanzaId: 5247, owners: ["chris", "eric", "johan", "oskar"] },
   { symbol: "VOLV-B.ST", name: "Volvo B", market: "SE", avanzaId: 5269, owners: ["eric"] },
   { symbol: "SWED-A.ST", name: "Swedbank A", market: "SE", avanzaId: 5241, owners: ["oskar"] },
   { symbol: "SHB-B.ST", name: "Handelsbanken B", market: "SE", avanzaId: 5265, owners: ["chris"] },
@@ -61,4 +61,6 @@ export const TICKERS: Ticker[] = [
   { symbol: "NET", name: "Cloudflare", market: "US", owners: ["chris"] },
   { symbol: "KLAR", name: "Klarna Group", market: "US", owners: ["chris"] },
   { symbol: "QBTS", name: "D-Wave Quantum", market: "US", owners: ["johan"] },
+  { symbol: "GOOGL", name: "Alphabet", market: "US", owners: ["chris", "oskar"] },
+  { symbol: "DDOG", name: "Datadog", market: "US", owners: ["chris"] },
 ];

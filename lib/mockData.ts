@@ -153,6 +153,32 @@ const STOCKS: StockPrice[] = [
     fiftyTwoWeekLow: 1.18,
     marketState: "REGULAR",
   },
+  {
+    ticker: "GOOGL",
+    name: "Alphabet",
+    currency: "USD",
+    regularMarketPrice: 198.4,
+    regularMarketChange: 2.36,
+    regularMarketChangePercent: 1.2,
+    regularMarketVolume: 22_400_000,
+    averageDailyVolume3Month: 28_300_000,
+    fiftyTwoWeekHigh: 0,
+    fiftyTwoWeekLow: 0,
+    marketState: "REGULAR",
+  },
+  {
+    ticker: "DDOG",
+    name: "Datadog",
+    currency: "USD",
+    regularMarketPrice: 132.6,
+    regularMarketChange: 2.81,
+    regularMarketChangePercent: 2.2,
+    regularMarketVolume: 4_100_000,
+    averageDailyVolume3Month: 3_700_000,
+    fiftyTwoWeekHigh: 0,
+    fiftyTwoWeekLow: 0,
+    marketState: "REGULAR",
+  },
   // ============== Sweden — ISK staples ==============
   {
     ticker: "INVE-B.ST",
@@ -355,7 +381,9 @@ const COMMENTS: Record<string, string> = {
   "NIBE-B.ST": "Eric's heat pumps go brrr, Swedish saviour",
   "DICOT.ST": "Oskar's Dicot apes vaporized at 25 öre",
   "VPLAY-B.ST": "Eric's Viaplay sinking, paper hands fleeing",
-  "INVE-B.ST": "the gang's Investor B grinding +1.4%, Wallenberg blessing",
+  "INVE-B.ST": "the syndicate's Investor B grinding +1.4%, Wallenberg blessing",
+  GOOGL: "two apes' GOOGL printing, Gemini cooking the comp",
+  DDOG: "Chris's DDOG +2.2%, observability bag fed",
 };
 
 const OVERALL_MOOD =
@@ -465,6 +493,8 @@ const WEEK_DELTA: Record<string, number> = {
   SHOP: 0.062,
   NET: 0.094,
   KLAR: 0.041,
+  DDOG: 0.057,
+  GOOGL: 0.034,
   // Eric — mixed
   "VOLV-B.ST": 0.012,
   "ATCO-B.ST": 0.008,
