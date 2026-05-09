@@ -660,9 +660,15 @@ html.booting .boot-overlay,
     rgba(245, 200, 66, 0.06) 0%,
     transparent 100%
   );
-  max-width: 1000px;
-  margin-left: auto;
-  margin-right: auto;
+  /* Keep the gradient + borders full-bleed edge-to-edge, but cap the
+     inner content at 1000px by growing horizontal padding at wide
+     viewports. `max(...)` picks whichever is bigger: the existing
+     responsive padding (which wins on narrow screens) OR the calc
+     needed to center a 1000px content column (which wins on desktop). */
+  padding-inline: max(
+    clamp(1rem, 4vw, 3rem),
+    calc((100% - 1000px) / 2)
+  );
 }
 
 .brief-evening {
