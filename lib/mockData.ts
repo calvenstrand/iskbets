@@ -1,5 +1,6 @@
 import { deriveRating, deriveSentiment } from "./derive";
-import type { StockAnalysis, StockPrice, StoredData } from "./types";
+import { stockholmDate } from "./dateUtil";
+import type { Brief, StockAnalysis, StockPrice, StoredData } from "./types";
 
 const STOCKS: StockPrice[] = [
   // ============== US — WSB darlings ==============
@@ -404,5 +405,31 @@ export function getMockData(): StoredData {
     lastFetch: now,
     analyzedAt: now,
     pricesAtLastAnalysis: STOCKS,
+  };
+}
+
+// ============== Mock briefs ==============
+
+const MORNING_BRIEF_TEXT =
+  "Yesterday Chris's Cloudflare ripped face off everyone and everything else, dragging the syndicate to +2.3% net. Eric's industrials held the line as always. Oskar's Dicot apes still haven't shown up to morning prayer — currency: copium. Stockholm rings the bell in 30, ape eyes on Klarna after that earnings beat last night.";
+
+const EVENING_BRIEF_TEXT =
+  "What a session. NVDA printed +6.8%, hauling Chris's tech bag to +4.1% net while the rest of the gang grinded sideways. Stockholm closed mixed — Eric's roof boxes catching a bid, Oskar's Dicot continuing its slow death at 25 öre. NY rolled over into the close. Sleep tight, bagholders. Tomorrow we ride.";
+
+export function getMockMorningBrief(): Brief {
+  const now = Date.now();
+  return {
+    date: stockholmDate(new Date(now)),
+    text: MORNING_BRIEF_TEXT,
+    generatedAt: now - 2 * 60 * 60 * 1000, // 2h ago
+  };
+}
+
+export function getMockEveningBrief(): Brief {
+  const now = Date.now();
+  return {
+    date: stockholmDate(new Date(now - 24 * 60 * 60 * 1000)), // yesterday
+    text: EVENING_BRIEF_TEXT,
+    generatedAt: now - 12 * 60 * 60 * 1000, // 12h ago
   };
 }

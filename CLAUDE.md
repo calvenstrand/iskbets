@@ -8,7 +8,7 @@ Backend and frontend are both complete; build + lint pass clean.
 
 **Working:**
 
-- `/api/trigger` (auth via `?key=` for manual or `Authorization: Bearer ${CRON_SECRET}` for Vercel Cron) → `fetchPrices` → optional `analyzeStocks` (gated by smart-skip logic) → `saveStockData`. Vercel Cron fires every 15 min on weekdays during market hours; the AI only re-runs when something genuinely moved.
+- `/api/trigger` (auth via `?key=` for manual or `Authorization: Bearer ${CRON_SECRET}` for Vercel Cron) → `fetchPrices` → optional `analyzeStocks` (gated by smart-skip logic) → `saveStockData` → optional brief generation (morning at 08:30 CET / evening at 22:00 CET, idempotent per day). Vercel Cron fires every 15 min on weekdays during market hours; the AI only re-runs when something genuinely moved.
 - `/api/data` (public) reads the latest snapshot from KV
 - `/` server component fetches `/api/data` on the server with `revalidate: 60`, then hands the data to a `'use client'` Dashboard
 - Dashboard sub-components: one-time boot-sequence splash (CRT-style boot log, gated by sessionStorage so it plays once per browser session), ticker tape, masthead header (I$KBETS wordmark + date/issue dateline), market-status bar (5 markets — Tokyo, Hong Kong, Stockholm, London, NYC — real timezones via `Intl`; collapses to pill+code on mobile), mood banner, winner/loser featured cards, responsive grid, last-updated footer
@@ -49,9 +49,12 @@ Backend and frontend are both complete; build + lint pass clean.
        ├─ AI run        analyzeStocks()  lib/analyzeStocks.ts
        └─ AI skipped    reuse last analysis from existing snapshot
   → saveStockData()      lib/storage.ts (Upstash Redis)
+  → maybeGenerateBriefs() (idempotent, time-windowed)
+       ├─ inMorningBriefWindow → generateMorningBrief() (reads yesterday)
+       └─ inEveningBriefWindow → generateEveningBrief() + archive yesterday
 
 /api/data (GET, public)
-  → getStockData()       lib/storage.ts → JSON
+  → getDashboardData()   lib/storage.ts → { snapshot, morningBrief?, eveningBrief? }
 ```
 
 **Smart AI gating** (`shouldRerunAI` in `app/api/trigger/route.ts`):
@@ -62,13 +65,27 @@ The Anthropic call only fires when at least one of these is true:
 
 Otherwise prices are refreshed but the existing analysis is carried forward. This decouples price freshness (every 15 min) from AI cost (only when there's something new to say).
 
-**Cron schedule** lives in `vercel.json`: `*/15 7-21 * * 1-5` UTC (every 15 min, weekdays, ~09:00–22:00 CET).
+**Cron schedule** lives in `vercel.json`: `*/15 6-22 * * 1-5` UTC (every 15 min, weekdays, covers ~07:00–00:00 CET / ~08:00–01:00 CEST). The window is wide enough to catch both DST modes for the morning brief (08:30 CET) and evening brief (22:00 CET).
+
+**Briefs**:
+
+Long-form analyst messages generated twice per weekday:
+
+- **Morning Wire** — fires once between 08:30–09:00 Stockholm time (30 min before market open). Reads from `iskbets:yesterday` (the snapshot archived at the previous evening's brief) and reflects on yesterday's close + sets up today.
+- **Evening Wrap** — fires once between 22:00–22:45 Stockholm time (after NY close). Wraps up today's action and archives the current snapshot to `iskbets:yesterday` for tomorrow's morning brief.
+
+Both are idempotent per Stockholm calendar day (each brief stores `date`, comparison against today skips if already done). Brief generation is wrapped in try/catch in the trigger route — a brief failure never breaks the snapshot save.
+
+The `BriefCard` UI component shows whichever brief was generated most recently above the mood banner. Morning has a gold tint, evening has a cyan tint.
 
 **Cooldown gate** (`iskbets:lastAttempt`) is intentionally written **before** the pipeline runs — so a partial failure (provider flake, Anthropic rate limit) still consumes the cooldown. It's now 1 min (was 30) — just spam-prevention for manual clicks; cron fires every 15 min so it's never blocked.
 
 ## KV shape
 
+Five Redis keys, all under the `iskbets:` namespace:
+
 ```ts
+// iskbets:snapshot — the live dashboard data
 {
   stocks: StockPrice[],          // refreshed every trigger
   analysis: {                    // regenerated only when shouldRerunAI fires
@@ -82,6 +99,11 @@ Otherwise prices are refreshed but the existing analysis is carried forward. Thi
   analyzedAt: number,            // epoch ms of last AI run
   pricesAtLastAnalysis: StockPrice[]  // baseline for the AI-rerun decision
 }
+
+// iskbets:lastAttempt — number, epoch ms (cooldown gate)
+// iskbets:morningBrief — { date: "YYYY-MM-DD", text: string, generatedAt: number }
+// iskbets:eveningBrief — same shape as morningBrief
+// iskbets:yesterday — copy of the snapshot at evening-brief time, used by next morning's brief
 ```
 
 ## Env vars

@@ -597,6 +597,75 @@ html.booting .boot-overlay,
   color: var(--gold);
 }
 
+/* ============= Brief (Morning Wire / Evening Wrap) ============= */
+
+.brief {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 1.5rem clamp(1rem, 4vw, 3rem);
+  font-family: var(--font-mono);
+  position: relative;
+  animation: card-in 0.5s ease-out;
+}
+
+.brief-morning {
+  background: linear-gradient(
+    180deg,
+    rgba(245, 200, 66, 0.06) 0%,
+    transparent 100%
+  );
+}
+
+.brief-evening {
+  background: linear-gradient(
+    180deg,
+    rgba(76, 201, 255, 0.06) 0%,
+    transparent 100%
+  );
+}
+
+.brief-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.brief-kind {
+  font-family: var(--font-display);
+  font-size: clamp(0.95rem, 2vw, 1.15rem);
+  letter-spacing: 0.18em;
+  color: var(--text);
+}
+
+.brief-morning .brief-kind {
+  color: var(--gold);
+  text-shadow: 0 0 8px rgba(245, 200, 66, 0.35);
+}
+
+.brief-evening .brief-kind {
+  color: #4cc9ff;
+  text-shadow: 0 0 8px rgba(76, 201, 255, 0.35);
+}
+
+.brief-date {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.brief-body {
+  font-size: clamp(0.92rem, 1.5vw, 1.05rem);
+  line-height: 1.6;
+  color: var(--text);
+  max-width: 75ch;
+  margin: 0;
+}
+
 /* ============= Mood banner ============= */
 
 .mood-banner {

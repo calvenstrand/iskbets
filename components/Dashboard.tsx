@@ -1,7 +1,8 @@
 "use client";
 
 import { TICKERS } from "@/lib/tickers";
-import type { StockAnalysis, StockPrice, StoredData } from "@/lib/types";
+import type { Brief, StockAnalysis, StockPrice, StoredData } from "@/lib/types";
+import { BriefCard } from "./Brief";
 import { Header } from "./Header";
 import { MarketStatus } from "./MarketStatus";
 import { MoodBanner } from "./MoodBanner";
@@ -12,6 +13,8 @@ import { UpdatedFooter } from "./UpdatedFooter";
 
 type DashboardProps = {
   data: StoredData;
+  morningBrief?: Brief;
+  eveningBrief?: Brief;
 };
 
 // Pre-built lookup so the grid sort doesn't scan TICKERS for every card.
@@ -30,7 +33,7 @@ function sortGridStocks(stocks: StockPrice[]): StockPrice[] {
   });
 }
 
-export function Dashboard({ data }: DashboardProps) {
+export function Dashboard({ data, morningBrief, eveningBrief }: DashboardProps) {
   const analysisByTicker = new Map<string, StockAnalysis>(
     data.analysis.stocks.map((a) => [a.ticker, a]),
   );
@@ -63,6 +66,7 @@ export function Dashboard({ data }: DashboardProps) {
       <TickerTape stocks={data.stocks} />
       <Header />
       <MarketStatus />
+      <BriefCard morningBrief={morningBrief} eveningBrief={eveningBrief} />
       <MoodBanner mood={data.analysis.overallMood} avgChangePct={avgChangePct} />
 
       <section className="px-4 md:px-8 lg:px-12 mt-8 mb-12">

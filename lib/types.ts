@@ -42,6 +42,21 @@ export type AnalysisPayload = {
   biggestLoser: string;
 };
 
+/** A long-form analyst brief (morning recap or evening wrap-up). */
+export type Brief = {
+  /** YYYY-MM-DD in Stockholm timezone — the day this brief is FOR. */
+  date: string;
+  text: string;
+  generatedAt: number;
+};
+
+/** What the dashboard reads. Bundles snapshot + briefs from separate Redis keys. */
+export type DashboardData = {
+  snapshot: StoredData;
+  morningBrief?: Brief;
+  eveningBrief?: Brief;
+};
+
 export type StoredData = {
   stocks: StockPrice[];
   analysis: AnalysisPayload;

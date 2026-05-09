@@ -1,13 +1,25 @@
 import { NextResponse } from "next/server";
 import { analyzeStocks } from "@/lib/analyzeStocks";
+import { generateEveningBrief, generateMorningBrief } from "@/lib/briefs";
+import {
+  inEveningBriefWindow,
+  inMorningBriefWindow,
+  stockholmDate,
+} from "@/lib/dateUtil";
 import { fetchPrices } from "@/lib/fetchPrices";
 import {
+  getEveningBrief,
   getLastAttempt,
+  getMorningBrief,
   getStockData,
+  getYesterdaySnapshot,
   markAttempt,
   saveStockData,
+  setEveningBrief,
+  setMorningBrief,
+  setYesterdaySnapshot,
 } from "@/lib/storage";
-import type { StockPrice } from "@/lib/types";
+import type { StockPrice, StoredData } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -89,6 +101,70 @@ function shouldRerunAI(
   };
 }
 
+/**
+ * Generate and persist the morning/evening brief if we're in the right
+ * window AND today's brief hasn't been generated yet. Failures here are
+ * caught and logged — they don't fail the trigger response.
+ */
+async function maybeGenerateBriefs(
+  todaySnapshot: StoredData,
+  now: Date,
+): Promise<void> {
+  const today = stockholmDate(now);
+
+  // Morning brief: 08:30–09:00 Stockholm. Reads yesterday's archived snapshot.
+  if (inMorningBriefWindow(now)) {
+    try {
+      const existing = await getMorningBrief();
+      if (existing?.date === today) {
+        console.log("[trigger] morning brief already generated for today");
+      } else {
+        const yesterday = await getYesterdaySnapshot();
+        if (!yesterday) {
+          console.log(
+            "[trigger] morning brief skipped — no yesterday snapshot yet",
+          );
+        } else {
+          const text = await generateMorningBrief(yesterday);
+          await setMorningBrief({
+            date: today,
+            text,
+            generatedAt: Date.now(),
+          });
+          console.log("[trigger] morning brief generated");
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[trigger] morning brief failed: ${msg}`);
+    }
+  }
+
+  // Evening brief: 22:00–22:45 Stockholm. Also archives today's snapshot
+  // as "yesterday" for tomorrow's morning brief.
+  if (inEveningBriefWindow(now)) {
+    try {
+      const existing = await getEveningBrief();
+      if (existing?.date === today) {
+        console.log("[trigger] evening brief already generated for today");
+      } else {
+        const text = await generateEveningBrief(todaySnapshot);
+        await setEveningBrief({
+          date: today,
+          text,
+          generatedAt: Date.now(),
+        });
+        // Archive today's snapshot for tomorrow morning's brief.
+        await setYesterdaySnapshot(todaySnapshot);
+        console.log("[trigger] evening brief generated + yesterday archived");
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[trigger] evening brief failed: ${msg}`);
+    }
+  }
+}
+
 export async function GET(request: Request): Promise<NextResponse> {
   if (!isAuthorized(request)) {
     console.log("[trigger] auth failed");
@@ -156,6 +232,13 @@ export async function GET(request: Request): Promise<NextResponse> {
       analyzedAt,
       pricesAtLastAnalysis,
     });
+
+    // Brief generation runs alongside the regular pipeline. Idempotent —
+    // each brief stores a `date` (Stockholm tz) and won't regenerate if
+    // today's already exists. Cron fires every 15 min in the brief windows
+    // so this typically lands once per window per day.
+    await maybeGenerateBriefs(saved, new Date());
+
     console.log("[trigger] pipeline done");
     return NextResponse.json(saved, { status: 200 });
   } catch (err) {

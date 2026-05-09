@@ -1,8 +1,17 @@
 import { Redis } from "@upstash/redis";
-import type { AnalysisPayload, StockPrice, StoredData } from "./types";
+import type {
+  AnalysisPayload,
+  Brief,
+  DashboardData,
+  StockPrice,
+  StoredData,
+} from "./types";
 
 const KV_KEY = "iskbets:snapshot";
 const ATTEMPT_KEY = "iskbets:lastAttempt";
+const MORNING_BRIEF_KEY = "iskbets:morningBrief";
+const EVENING_BRIEF_KEY = "iskbets:eveningBrief";
+const YESTERDAY_KEY = "iskbets:yesterday";
 
 function readCreds(): { url: string | undefined; token: string | undefined } {
   // Support both env name conventions:
@@ -94,4 +103,63 @@ export async function getLastAttempt(): Promise<number> {
  */
 export async function markAttempt(): Promise<void> {
   await getRedis().set(ATTEMPT_KEY, Date.now());
+}
+
+// ============== Briefs ==============
+
+export async function getMorningBrief(): Promise<Brief | null> {
+  if (shouldUseMock().use) {
+    const { getMockMorningBrief } = await import("./mockData");
+    return getMockMorningBrief();
+  }
+  const v = await getRedis().get<Brief>(MORNING_BRIEF_KEY);
+  return v ?? null;
+}
+
+export async function setMorningBrief(brief: Brief): Promise<void> {
+  await getRedis().set(MORNING_BRIEF_KEY, brief);
+}
+
+export async function getEveningBrief(): Promise<Brief | null> {
+  if (shouldUseMock().use) {
+    const { getMockEveningBrief } = await import("./mockData");
+    return getMockEveningBrief();
+  }
+  const v = await getRedis().get<Brief>(EVENING_BRIEF_KEY);
+  return v ?? null;
+}
+
+export async function setEveningBrief(brief: Brief): Promise<void> {
+  await getRedis().set(EVENING_BRIEF_KEY, brief);
+}
+
+/**
+ * Snapshot taken at evening-brief time — what the morning brief reads from.
+ * Capped at one day; overwritten each evening.
+ */
+export async function getYesterdaySnapshot(): Promise<StoredData | null> {
+  const v = await getRedis().get<StoredData>(YESTERDAY_KEY);
+  return v ?? null;
+}
+
+export async function setYesterdaySnapshot(data: StoredData): Promise<void> {
+  await getRedis().set(YESTERDAY_KEY, data);
+}
+
+/**
+ * One-shot fetch for the dashboard: snapshot + morning + evening brief in parallel.
+ * Returns null only if there's no snapshot — briefs are best-effort.
+ */
+export async function getDashboardData(): Promise<DashboardData | null> {
+  const [snapshot, morningBrief, eveningBrief] = await Promise.all([
+    getStockData(),
+    getMorningBrief(),
+    getEveningBrief(),
+  ]);
+  if (!snapshot) return null;
+  return {
+    snapshot,
+    ...(morningBrief ? { morningBrief } : {}),
+    ...(eveningBrief ? { eveningBrief } : {}),
+  };
 }
