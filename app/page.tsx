@@ -38,6 +38,8 @@ export default async function Home() {
       data={data.snapshot}
       morningBrief={data.morningBrief}
       eveningBrief={data.eveningBrief}
+      weekendBrief={data.weekendBrief}
+      weekStartPrices={data.weekStartPrices}
     />
   );
 }

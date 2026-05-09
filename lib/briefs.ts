@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { PEOPLE, TICKERS } from "./tickers";
-import type { StoredData } from "./types";
+import type { StoredData, WeekStartSnapshot } from "./types";
 
 const MODEL = "claude-sonnet-4-6";
 
@@ -24,6 +24,10 @@ This is the MORNING WIRE. Stockholm opens in ~30 minutes. You're reflecting on y
 const EVENING_SYSTEM = `${SHARED_VOICE}
 
 This is the EVENING WRAP. The NY closing bell just rang. You're delivering today's verdict — what happened, who won, who got rekt. Decisive, sometimes gloating, sometimes mournful. End with a one-beat "tomorrow" note or a sleep-tight goodnight to the bagholders.`;
+
+const WEEKEND_SYSTEM = `${SHARED_VOICE.replace("3 to 4 sentences.", "4 to 6 sentences.")}
+
+This is the WEEKEND WIRE. NY just closed for the week. You're recapping the WHOLE WEEK — Monday's open to Friday's close. Use the per-stock weekChangePercent values to call out the week's biggest printers and the worst bagholders. Reference the friend group when their picks moved dramatically over the week. End with a glance toward Monday — what to watch, who needs to apologize, who's ready to YOLO again. Don't mention specific dates.`;
 
 function ownersByTicker(): Map<string, string[]> {
   return new Map(
@@ -99,4 +103,48 @@ export async function generateEveningBrief(
   console.log(`[briefs] generating evening brief for ${today.updatedAt}`);
   const userMessage = `Today's close — wrap it up.\n\n${JSON.stringify(summarize(today), null, 2)}`;
   return callClaude(EVENING_SYSTEM, userMessage);
+}
+
+/** Strip down a snapshot for the weekend recap, including week-over-week
+ * percentage change per stock relative to the Monday baseline. */
+function summarizeWeek(today: StoredData, weekStart: WeekStartSnapshot) {
+  const ownersMap = ownersByTicker();
+  const baselineByTicker = new Map(
+    weekStart.stocks.map((s) => [s.ticker, s.regularMarketPrice]),
+  );
+  return {
+    weekStart: weekStart.weekStart,
+    capturedAt: today.updatedAt,
+    overallMood: today.analysis.overallMood,
+    stocks: today.stocks.map((s) => {
+      const baseline = baselineByTicker.get(s.ticker);
+      const weekChangePercent =
+        baseline && baseline > 0
+          ? ((s.regularMarketPrice - baseline) / baseline) * 100
+          : null;
+      const owners = ownersMap.get(s.ticker) ?? [];
+      return {
+        ticker: s.ticker,
+        name: s.name,
+        currency: s.currency,
+        regularMarketPrice: s.regularMarketPrice,
+        regularMarketChangePercent: s.regularMarketChangePercent,
+        ...(weekChangePercent !== null
+          ? { weekChangePercent: Number(weekChangePercent.toFixed(2)) }
+          : {}),
+        ...(owners.length > 0 ? { owners } : {}),
+      };
+    }),
+  };
+}
+
+export async function generateWeekendWire(
+  today: StoredData,
+  weekStart: WeekStartSnapshot,
+): Promise<string> {
+  console.log(
+    `[briefs] generating weekend wire for week of ${weekStart.weekStart}`,
+  );
+  const userMessage = `The week is in the books — recap Monday → Friday.\n\n${JSON.stringify(summarizeWeek(today, weekStart), null, 2)}`;
+  return callClaude(WEEKEND_SYSTEM, userMessage);
 }

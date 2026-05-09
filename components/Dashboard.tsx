@@ -11,6 +11,7 @@ import type {
 } from "@/lib/types";
 import { BriefCard } from "./Brief";
 import { Header } from "./Header";
+import { Leaderboard } from "./Leaderboard";
 import { MarketStatus } from "./MarketStatus";
 import { MoodBanner } from "./MoodBanner";
 import { PullToRefresh } from "./PullToRefresh";
@@ -22,6 +23,8 @@ type DashboardProps = {
   data: StoredData;
   morningBrief?: Brief;
   eveningBrief?: Brief;
+  weekendBrief?: Brief;
+  weekStartPrices?: Record<string, number>;
 };
 
 const POLL_MS = 5 * 60 * 1000; // 5 min — comfortably below the 15-min cron cadence
@@ -66,6 +69,8 @@ export function Dashboard({
   data: initialData,
   morningBrief: initialMorning,
   eveningBrief: initialEvening,
+  weekendBrief: initialWeekend,
+  weekStartPrices: initialWeekStart,
 }: DashboardProps) {
   const [snapshot, setSnapshot] = useState<StoredData>(initialData);
   const [morningBrief, setMorningBrief] = useState<Brief | undefined>(
@@ -74,6 +79,12 @@ export function Dashboard({
   const [eveningBrief, setEveningBrief] = useState<Brief | undefined>(
     initialEvening,
   );
+  const [weekendBrief, setWeekendBrief] = useState<Brief | undefined>(
+    initialWeekend,
+  );
+  const [weekStartPrices, setWeekStartPrices] = useState<
+    Record<string, number> | undefined
+  >(initialWeekStart);
 
   // Visual flash state — set on poll diff, cleared after FLASH_MS.
   const [flashedTickers, setFlashedTickers] = useState<Set<string>>(
@@ -86,9 +97,11 @@ export function Dashboard({
   const snapshotRef = useRef(snapshot);
   const morningRef = useRef(morningBrief);
   const eveningRef = useRef(eveningBrief);
+  const weekendRef = useRef(weekendBrief);
   snapshotRef.current = snapshot;
   morningRef.current = morningBrief;
   eveningRef.current = eveningBrief;
+  weekendRef.current = weekendBrief;
 
   // Single timeout per flash kind so a fast follow-up update doesn't cut
   // the previous flash short.
@@ -110,6 +123,7 @@ export function Dashboard({
         const prev = snapshotRef.current;
         const prevMorningGen = morningRef.current?.generatedAt ?? 0;
         const prevEveningGen = eveningRef.current?.generatedAt ?? 0;
+        const prevWeekendGen = weekendRef.current?.generatedAt ?? 0;
 
         const changedTickers = findCommentChanges(prev, fresh.snapshot);
         const moodChanged =
@@ -118,11 +132,15 @@ export function Dashboard({
           (fresh.morningBrief?.generatedAt ?? 0) > prevMorningGen;
         const eveningChanged =
           (fresh.eveningBrief?.generatedAt ?? 0) > prevEveningGen;
+        const weekendChanged =
+          (fresh.weekendBrief?.generatedAt ?? 0) > prevWeekendGen;
 
         // Update state regardless — silent UX even when nothing flashes.
         setSnapshot(fresh.snapshot);
         setMorningBrief(fresh.morningBrief);
         setEveningBrief(fresh.eveningBrief);
+        setWeekendBrief(fresh.weekendBrief);
+        setWeekStartPrices(fresh.weekStartPrices);
 
         if (changedTickers.size > 0) {
           if (tickerFlashTimer.current) {
@@ -140,7 +158,7 @@ export function Dashboard({
             if (!cancelled) setMoodFlash(false);
           }, FLASH_MS);
         }
-        if (morningChanged || eveningChanged) {
+        if (morningChanged || eveningChanged || weekendChanged) {
           if (briefFlashTimer.current) clearTimeout(briefFlashTimer.current);
           setBriefFlash(true);
           briefFlashTimer.current = setTimeout(() => {
@@ -226,6 +244,7 @@ export function Dashboard({
       <BriefCard
         morningBrief={morningBrief}
         eveningBrief={eveningBrief}
+        weekendBrief={weekendBrief}
         flash={briefFlash}
       />
       <MoodBanner
@@ -233,6 +252,8 @@ export function Dashboard({
         avgChangePct={avgChangePct}
         flash={moodFlash}
       />
+
+      <Leaderboard stocks={snapshot.stocks} weekStartPrices={weekStartPrices} />
 
       <section className="px-4 md:px-8 lg:px-12 mt-8 mb-12">
         {(winner || loser) && (

@@ -55,6 +55,20 @@ export type DashboardData = {
   snapshot: StoredData;
   morningBrief?: Brief;
   eveningBrief?: Brief;
+  weekendBrief?: Brief;
+  /** Compact ticker → price map captured at the start of the trading week
+   * (first Monday trigger). Used by the leaderboard for WTD performance.
+   * Optional — at the very first deploy or if Monday's archive missed,
+   * the leaderboard gracefully hides the WTD column. */
+  weekStartPrices?: Record<string, number>;
+};
+
+/** Snapshot taken at the first Monday trigger of the week — baseline for
+ * the leaderboard's WTD column and the Weekend Wire's week-over-week recap. */
+export type WeekStartSnapshot = {
+  /** YYYY-MM-DD of the Monday this baseline is for. */
+  weekStart: string;
+  stocks: StockPrice[];
 };
 
 export type StoredData = {

@@ -5,13 +5,16 @@ import type {
   DashboardData,
   StockPrice,
   StoredData,
+  WeekStartSnapshot,
 } from "./types";
 
 const KV_KEY = "iskbets:snapshot";
 const ATTEMPT_KEY = "iskbets:lastAttempt";
 const MORNING_BRIEF_KEY = "iskbets:morningBrief";
 const EVENING_BRIEF_KEY = "iskbets:eveningBrief";
+const WEEKEND_BRIEF_KEY = "iskbets:weekendWire";
 const YESTERDAY_KEY = "iskbets:yesterday";
+const WEEK_START_KEY = "iskbets:weekStart";
 
 function readCreds(): { url: string | undefined; token: string | undefined } {
   // Support both env name conventions:
@@ -146,20 +149,72 @@ export async function setYesterdaySnapshot(data: StoredData): Promise<void> {
   await getRedis().set(YESTERDAY_KEY, data);
 }
 
+// ============== Weekend Wire (weekly recap brief) ==============
+
+export async function getWeekendBrief(): Promise<Brief | null> {
+  if (shouldUseMock().use) {
+    const { getMockWeekendBrief } = await import("./mockData");
+    return getMockWeekendBrief();
+  }
+  const v = await getRedis().get<Brief>(WEEKEND_BRIEF_KEY);
+  return v ?? null;
+}
+
+export async function setWeekendBrief(brief: Brief): Promise<void> {
+  await getRedis().set(WEEKEND_BRIEF_KEY, brief);
+}
+
+// ============== Week-start snapshot (leaderboard WTD baseline) ==============
+
 /**
- * One-shot fetch for the dashboard: snapshot + morning + evening brief in parallel.
- * Returns null only if there's no snapshot — briefs are best-effort.
+ * Baseline snapshot for the trading week — written by the first Monday
+ * trigger and read by both the leaderboard (WTD column) and the Weekend
+ * Wire (week-over-week recap).
+ */
+export async function getWeekStartSnapshot(): Promise<WeekStartSnapshot | null> {
+  if (shouldUseMock().use) {
+    const { getMockWeekStartSnapshot } = await import("./mockData");
+    return getMockWeekStartSnapshot();
+  }
+  const v = await getRedis().get<WeekStartSnapshot>(WEEK_START_KEY);
+  return v ?? null;
+}
+
+export async function setWeekStartSnapshot(
+  data: WeekStartSnapshot,
+): Promise<void> {
+  await getRedis().set(WEEK_START_KEY, data);
+}
+
+/**
+ * One-shot fetch for the dashboard: snapshot + all three briefs + the
+ * compact week-start price map (just ticker → price, not the full
+ * snapshot — keeps the polled payload small). All in parallel.
+ * Returns null only if the live snapshot is missing — everything else
+ * is best-effort.
  */
 export async function getDashboardData(): Promise<DashboardData | null> {
-  const [snapshot, morningBrief, eveningBrief] = await Promise.all([
-    getStockData(),
-    getMorningBrief(),
-    getEveningBrief(),
-  ]);
+  const [snapshot, morningBrief, eveningBrief, weekendBrief, weekStart] =
+    await Promise.all([
+      getStockData(),
+      getMorningBrief(),
+      getEveningBrief(),
+      getWeekendBrief(),
+      getWeekStartSnapshot(),
+    ]);
   if (!snapshot) return null;
+  // Project weekStart down to a small ticker→price map. Saves ~80% of
+  // the snapshot payload on every poll.
+  const weekStartPrices = weekStart
+    ? Object.fromEntries(
+        weekStart.stocks.map((s) => [s.ticker, s.regularMarketPrice]),
+      )
+    : undefined;
   return {
     snapshot,
     ...(morningBrief ? { morningBrief } : {}),
     ...(eveningBrief ? { eveningBrief } : {}),
+    ...(weekendBrief ? { weekendBrief } : {}),
+    ...(weekStartPrices ? { weekStartPrices } : {}),
   };
 }

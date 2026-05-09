@@ -1,6 +1,12 @@
 import { deriveRating, deriveSentiment } from "./derive";
-import { stockholmDate } from "./dateUtil";
-import type { Brief, StockAnalysis, StockPrice, StoredData } from "./types";
+import { stockholmDate, stockholmMondayOfWeek } from "./dateUtil";
+import type {
+  Brief,
+  StockAnalysis,
+  StockPrice,
+  StoredData,
+  WeekStartSnapshot,
+} from "./types";
 
 const STOCKS: StockPrice[] = [
   // ============== US — WSB darlings ==============
@@ -432,4 +438,68 @@ export function getMockEveningBrief(): Brief {
     text: EVENING_BRIEF_TEXT,
     generatedAt: now - 12 * 60 * 60 * 1000, // 12h ago
   };
+}
+
+const WEEKEND_BRIEF_TEXT =
+  "What a week, apes. Chris's NET printed +9.4% for the syndicate's biggest tendies of the year, dragging his bag to the top of the leaderboard. Eric's industrials traded sideways — Volvo and Atlas held the line, but Viaplay continues its slow-motion seppuku at -8% WTD. Oskar's Dicot lost another 18% because of course it did. Johan's QBTS quantum-printed +12% on the week and he hasn't shut up about it. Stockholm rings the bell again Monday — be ready.";
+
+export function getMockWeekendBrief(): Brief {
+  const now = Date.now();
+  const monday = stockholmMondayOfWeek(new Date(now));
+  return {
+    date: monday,
+    text: WEEKEND_BRIEF_TEXT,
+    // Slightly OLDER than the evening brief so the BriefCard rotation
+    // demo defaults to evening — switch this offset to test ordering.
+    generatedAt: now - 36 * 60 * 60 * 1000,
+  };
+}
+
+// Per-ticker offset: weekStart price = today * (1 - WEEK_DELTA[ticker]).
+// Hand-picked so each friend's leaderboard column tells a story —
+// Chris is up, Eric mixed, Oskar down, Johan winning.
+const WEEK_DELTA: Record<string, number> = {
+  // Chris's bag — winning
+  "INVE-B.ST": 0.025,
+  "SHB-B.ST": 0.018,
+  SHOP: 0.062,
+  NET: 0.094,
+  KLAR: 0.041,
+  // Eric — mixed
+  "VOLV-B.ST": 0.012,
+  "ATCO-B.ST": 0.008,
+  "DOM.ST": 0.034,
+  "THULE.ST": 0.045,
+  "NIBE-B.ST": -0.022,
+  "VPLAY-B.ST": -0.083,
+  // Oskar — bagholder week
+  "SWED-A.ST": -0.015,
+  "DICOT.ST": -0.184,
+  // Johan — quantum chads
+  "INTRUM.ST": -0.04,
+  PLTR: 0.078,
+  QBTS: 0.124,
+  // Unowned, just for color
+  NVDA: 0.099,
+  TSLA: 0.045,
+  GME: -0.062,
+  AMD: 0.014,
+  COIN: -0.024,
+  MSTR: 0.018,
+  "HM-B.ST": -0.038,
+  "BINV.ST": -0.092,
+  "CAST.ST": -0.011,
+};
+
+export function getMockWeekStartSnapshot(): WeekStartSnapshot {
+  const monday = stockholmMondayOfWeek(new Date());
+  const stocks: StockPrice[] = STOCKS.map((s) => {
+    const delta = WEEK_DELTA[s.ticker] ?? 0;
+    return {
+      ...s,
+      // Reverse-derive Monday's open: today = monday * (1 + delta).
+      regularMarketPrice: s.regularMarketPrice / (1 + delta),
+    };
+  });
+  return { weekStart: monday, stocks };
 }

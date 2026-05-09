@@ -22,7 +22,7 @@ const stockholmTimeFormatter = new Intl.DateTimeFormat("en-US", {
   hour12: false,
 });
 
-type Parts = { isWeekend: boolean; minutes: number };
+type Parts = { isWeekend: boolean; weekday: string; minutes: number };
 
 function partsInStockholm(d: Date): Parts {
   const parts = stockholmTimeFormatter.formatToParts(d);
@@ -31,6 +31,7 @@ function partsInStockholm(d: Date): Parts {
   const minute = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
   return {
     isWeekend: weekday === "Sat" || weekday === "Sun",
+    weekday,
     minutes: hour * 60 + minute,
   };
 }
@@ -48,4 +49,44 @@ export function inEveningBriefWindow(d: Date): boolean {
   const { isWeekend, minutes } = partsInStockholm(d);
   if (isWeekend) return false;
   return minutes >= 22 * 60 && minutes < 22 * 60 + 45;
+}
+
+/** Window for the Weekend Wire: Friday 22:45 – 23:30 Stockholm time.
+ * Fires immediately after the evening wrap window closes — same "after
+ * the bell" energy but for the whole week. Cron runs every 15 min so
+ * the window catches multiple fires in both DST modes. */
+export function inWeekendWireWindow(d: Date): boolean {
+  const { weekday, minutes } = partsInStockholm(d);
+  if (weekday !== "Fri") return false;
+  return minutes >= 22 * 60 + 45 && minutes < 23 * 60 + 30;
+}
+
+/** True if the Stockholm weekday is Monday. Used to gate the
+ * once-per-week weekStart archive. */
+export function isStockholmMonday(d: Date): boolean {
+  return partsInStockholm(d).weekday === "Mon";
+}
+
+/** Returns YYYY-MM-DD of the Monday in the same Stockholm week as `d`.
+ * Used as the idempotency key for both the weekStart snapshot and the
+ * Weekend Wire — every brief / archive in week W shares the same value. */
+export function stockholmMondayOfWeek(d: Date): string {
+  // Map Stockholm weekday name → 0=Mon..6=Sun offset.
+  const offsetByDay: Record<string, number> = {
+    Mon: 0,
+    Tue: 1,
+    Wed: 2,
+    Thu: 3,
+    Fri: 4,
+    Sat: 5,
+    Sun: 6,
+  };
+  const { weekday } = partsInStockholm(d);
+  const offset = offsetByDay[weekday] ?? 0;
+  // Subtract whole UTC days. We then re-derive the Stockholm calendar
+  // date from the shifted instant — DST shifts of ±1h never push the
+  // calendar date past the resulting day boundary in Stockholm, so this
+  // is safe across spring-forward / fall-back.
+  const shifted = new Date(d.getTime() - offset * 86_400_000);
+  return stockholmDate(shifted);
 }

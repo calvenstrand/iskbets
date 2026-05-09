@@ -1,10 +1,17 @@
 import { NextResponse } from "next/server";
 import { analyzeStocks } from "@/lib/analyzeStocks";
-import { generateEveningBrief, generateMorningBrief } from "@/lib/briefs";
+import {
+  generateEveningBrief,
+  generateMorningBrief,
+  generateWeekendWire,
+} from "@/lib/briefs";
 import {
   inEveningBriefWindow,
   inMorningBriefWindow,
+  inWeekendWireWindow,
+  isStockholmMonday,
   stockholmDate,
+  stockholmMondayOfWeek,
 } from "@/lib/dateUtil";
 import { fetchPrices } from "@/lib/fetchPrices";
 import {
@@ -12,11 +19,15 @@ import {
   getLastAttempt,
   getMorningBrief,
   getStockData,
+  getWeekendBrief,
+  getWeekStartSnapshot,
   getYesterdaySnapshot,
   markAttempt,
   saveStockData,
   setEveningBrief,
   setMorningBrief,
+  setWeekendBrief,
+  setWeekStartSnapshot,
   setYesterdaySnapshot,
 } from "@/lib/storage";
 import type { StockPrice, StoredData } from "@/lib/types";
@@ -113,9 +124,10 @@ function shouldRerunAI(
 }
 
 /**
- * Generate and persist the morning/evening brief if we're in the right
- * window AND today's brief hasn't been generated yet. Failures here are
- * caught and logged — they don't fail the trigger response.
+ * Generate and persist the morning / evening / weekend-wire briefs if
+ * we're in the right window AND that brief hasn't been generated for
+ * its target period yet. Failures here are caught and logged — they
+ * don't fail the trigger response.
  */
 async function maybeGenerateBriefs(
   todaySnapshot: StoredData,
@@ -179,6 +191,75 @@ async function maybeGenerateBriefs(
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`[trigger] evening brief failed: ${msg}`);
     }
+  }
+
+  // Weekend Wire: Friday 22:45–23:30 Stockholm. Fires once per week
+  // — the recap of Monday → Friday. Idempotency keyed on the week's
+  // Monday date. Reads today's snapshot (live, just-saved Friday close)
+  // and the weekStart snapshot (archived on the first Monday trigger).
+  // No cron fires Sat/Sun, so this is the last chance until next Monday.
+  if (inWeekendWireWindow(now)) {
+    try {
+      const weekKey = stockholmMondayOfWeek(now);
+      const existing = await getWeekendBrief();
+      if (existing?.date === weekKey) {
+        console.log("[trigger] weekend wire already generated this week");
+      } else {
+        const weekStart = await getWeekStartSnapshot();
+        if (!weekStart) {
+          console.log(
+            "[trigger] weekend wire skipped — no week-start snapshot yet",
+          );
+        } else if (weekStart.weekStart !== weekKey) {
+          // Stale baseline (e.g., Monday's archive missed). Better to
+          // skip than reflect on the wrong week.
+          console.log(
+            `[trigger] weekend wire skipped — week-start is ${weekStart.weekStart}, expected ${weekKey}`,
+          );
+        } else {
+          const text = await generateWeekendWire(todaySnapshot, weekStart);
+          await setWeekendBrief({
+            date: weekKey,
+            text,
+            generatedAt: Date.now(),
+          });
+          console.log("[trigger] weekend wire generated");
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[trigger] weekend wire failed: ${msg}`);
+    }
+  }
+}
+
+/**
+ * On the first Monday trigger of the week, archive the snapshot as the
+ * week's baseline. Used by the leaderboard's WTD column and the Weekend
+ * Wire's week-over-week recap. Idempotent — keyed on the Monday's date,
+ * so subsequent Monday triggers no-op.
+ */
+async function maybeArchiveWeekStart(
+  snapshot: StoredData,
+  now: Date,
+): Promise<void> {
+  if (!isStockholmMonday(now)) return;
+  const weekKey = stockholmMondayOfWeek(now);
+  try {
+    const existing = await getWeekStartSnapshot();
+    if (existing?.weekStart === weekKey) {
+      // Already archived this Monday's baseline. Subsequent Monday
+      // triggers are no-ops.
+      return;
+    }
+    await setWeekStartSnapshot({
+      weekStart: weekKey,
+      stocks: snapshot.stocks,
+    });
+    console.log(`[trigger] week-start snapshot archived for ${weekKey}`);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[trigger] week-start archive failed: ${msg}`);
   }
 }
 
@@ -253,11 +334,19 @@ export async function GET(request: Request): Promise<NextResponse> {
       pricesAtLastAnalysis,
     });
 
+    const triggerNow = new Date();
+
+    // Archive the Monday baseline once per week (no-op other days, or
+    // on subsequent Monday triggers after the first one this week).
+    // Runs BEFORE the briefs so a same-trigger morning brief on Monday
+    // sees the baseline as fresh.
+    await maybeArchiveWeekStart(saved, triggerNow);
+
     // Brief generation runs alongside the regular pipeline. Idempotent —
     // each brief stores a `date` (Stockholm tz) and won't regenerate if
     // today's already exists. Cron fires every 15 min in the brief windows
     // so this typically lands once per window per day.
-    await maybeGenerateBriefs(saved, new Date());
+    await maybeGenerateBriefs(saved, triggerNow);
 
     console.log("[trigger] pipeline done");
     return NextResponse.json(saved, { status: 200 });
