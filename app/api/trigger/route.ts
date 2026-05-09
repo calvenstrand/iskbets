@@ -11,7 +11,6 @@ import {
   inEveningBriefWindow,
   inMorningBriefWindow,
   inWeekendWireWindow,
-  isStockholmMonday,
   stockholmDate,
   stockholmMondayOfWeek,
 } from "@/lib/dateUtil";
@@ -424,22 +423,34 @@ async function maybeGenerateWeeklyChampion(
 }
 
 /**
- * On the first Monday trigger of the week, archive the snapshot as the
- * week's baseline. Used by the leaderboard's WTD column and the Weekend
- * Wire's week-over-week recap. Idempotent — keyed on the Monday's date,
- * so subsequent Monday triggers no-op.
+ * Archive the snapshot as this week's baseline if we don't already have
+ * one for the current Stockholm-week's Monday. Used by the leaderboard's
+ * WTD column and the Weekend Wire's week-over-week recap.
+ *
+ * Fires on the FIRST trigger of the week that doesn't have a current
+ * baseline — typically Monday morning, but resilient to:
+ *   - Monday being a Swedish public holiday (cron still fires; cached
+ *     Friday-close prices get archived as the baseline — semantically
+ *     correct since Friday's close IS the start of the trading week)
+ *   - Cron failing entirely on Monday (Tuesday morning's first trigger
+ *     backfills with whatever the snapshot then holds — typically still
+ *     Friday's close if Tuesday morning is pre-open)
+ *   - A new feature being deployed mid-week and needing a baseline
+ *     before next Monday (today's situation: deployed Saturday, the
+ *     next weekday trigger backfills)
+ *
+ * Idempotent — once a row exists for `stockholmMondayOfWeek(now)`,
+ * subsequent triggers in the same week no-op.
  */
 async function maybeArchiveWeekStart(
   snapshot: StoredData,
   now: Date,
 ): Promise<void> {
-  if (!isStockholmMonday(now)) return;
   const weekKey = stockholmMondayOfWeek(now);
   try {
     const existing = await getWeekStartSnapshot();
     if (existing?.weekStart === weekKey) {
-      // Already archived this Monday's baseline. Subsequent Monday
-      // triggers are no-ops.
+      // Already have this week's baseline. Subsequent triggers no-op.
       return;
     }
     await setWeekStartSnapshot({

@@ -8,7 +8,7 @@ Backend and frontend are both complete; build + lint pass clean.
 
 **Working:**
 
-- `/api/trigger` (auth via `x-trigger-secret` header — or legacy `?key=` query param) → `fetchPrices` (smart: skips closed-market tickers and reuses their cached prices) → optional `analyzeStocks` (gated by smart-skip logic) → `saveStockData` → `maybeArchiveWeekStart` (Monday-only) → optional brief generation (morning at 08:30 CET, evening at 22:00 CET, weekend wire Friday 22:45 CET; all idempotent). A GitHub Actions workflow fires every 15 min on weekdays; off-hours fires are near-instant since they're pure cache passthrough.
+- `/api/trigger` (auth via `x-trigger-secret` header — or legacy `?key=` query param) → `fetchPrices` (smart: skips closed-market tickers and reuses their cached prices) → optional `analyzeStocks` (gated by smart-skip logic) → `saveStockData` → `maybeArchiveWeekStart` (writes the week baseline on the first trigger of any weekday that doesn't already have one — resilient to Monday holidays / Monday cron failures) → optional brief generation (morning at 08:30 CET, evening at 22:00 CET, weekend wire Friday 22:45 CET; all idempotent). A GitHub Actions workflow fires every 15 min on weekdays; off-hours fires are near-instant since they're pure cache passthrough.
 - `/api/data` (public) reads the latest snapshot + all three briefs + a compact `weekStartPrices` map from KV; CDN-cached via `Cache-Control: public, s-maxage=60, stale-while-revalidate=300` so the polling client doesn't drain Upstash
 - `/` server component fetches `/api/data` on the server with `revalidate: 60`, then hands the data to a `'use client'` Dashboard
 - Dashboard sub-components: one-time boot-sequence splash (CRT-style boot log, gated by sessionStorage so it plays once per browser session), ticker tape, masthead header (I$KBETS wordmark + date/issue dateline), market-status bar (5 markets — Tokyo, Hong Kong, Stockholm, London, NYC — real timezones via `Intl`; collapses to pill+code on mobile), brief card (most-recent of morning / evening / weekend), mood banner, friend leaderboard (per-friend today% + WTD%), winner/loser featured cards, responsive grid, last-updated footer
@@ -49,7 +49,7 @@ Backend and frontend are both complete; build + lint pass clean.
        ├─ AI run        analyzeStocks()  lib/analyzeStocks.ts
        └─ AI skipped    reuse last analysis from existing snapshot
   → saveStockData()      lib/storage.ts (Upstash Redis)
-  → maybeArchiveWeekStart() (Monday only, idempotent — archives the week's baseline snapshot)
+  → maybeArchiveWeekStart() (idempotent — writes the week's baseline on the first trigger of any weekday that doesn't already have it; resilient to Monday holidays / Monday cron outages)
   → maybeGenerateBriefs() (idempotent, time-windowed)
        ├─ inMorningBriefWindow → generateMorningBrief() (reads yesterday)
        ├─ inEveningBriefWindow → archive yesterday + generateEveningBrief()
@@ -80,7 +80,7 @@ Long-form analyst messages generated on a recurring cadence:
 
 - **Morning Wire** — fires once between 08:30–09:00 Stockholm time (30 min before market open). Reads from `iskbets:yesterday` (the snapshot archived at the previous evening's brief) and reflects on yesterday's close + sets up today. Idempotent per Stockholm calendar day.
 - **Evening Wrap** — fires once between 22:00–22:45 Stockholm time (after NY close). Wraps up today's action and archives the current snapshot to `iskbets:yesterday` for tomorrow's morning brief. Idempotent per Stockholm calendar day.
-- **Weekend Wire** — fires once Friday 22:45–23:30 Stockholm time. Recaps the WHOLE WEEK using `iskbets:weekStart` (the snapshot archived on Monday's first trigger) as the baseline. Idempotent per *week* — keyed on the Monday's date. Lives there until Monday's morning wire takes over.
+- **Weekend Wire** — fires once Friday 22:45–23:30 Stockholm time. Recaps the WHOLE WEEK using `iskbets:weekStart` (the snapshot archived on the first trigger of any weekday this week) as the baseline. Idempotent per *week* — keyed on the Monday's date. Lives there until Monday's morning wire takes over.
 
 All three are stored under separate Redis keys; each stores its own `date`, and the BriefCard rotates to whichever was most recently generated. Morning is gold, evening is cyan, weekend is purple. Brief generation is wrapped in try/catch in the trigger route — a brief failure never breaks the snapshot save.
 
@@ -116,8 +116,11 @@ Ten Redis keys (two are hashes), all under the `iskbets:` namespace:
 // iskbets:weekendWire   — same shape; `date` is the week's Monday (YYYY-MM-DD)
 // iskbets:yesterday — copy of the snapshot at evening-brief time, used by next morning's brief
 // iskbets:weekStart — { weekStart: "YYYY-MM-DD" (Monday), stocks: StockPrice[] }
-//                     archived on the first Monday trigger; baseline for the leaderboard
-//                     WTD column and the Weekend Wire's week-over-week recap
+//                     archived on the first weekday trigger of the week that
+//                     doesn't already have a baseline (typically Monday morning;
+//                     falls forward to Tue+ if Monday is a holiday or cron failed).
+//                     Baseline for the leaderboard WTD column and the Weekend
+//                     Wire's week-over-week recap.
 
 // iskbets:archive — Redis HASH. Field name = weekStart (YYYY-MM-DD).
 //                   Field value = WeeklyResult (compact: per-stock weekChangePct,

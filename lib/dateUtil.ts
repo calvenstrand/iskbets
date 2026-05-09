@@ -61,12 +61,6 @@ export function inWeekendWireWindow(d: Date): boolean {
   return minutes >= 22 * 60 + 45 && minutes < 23 * 60 + 30;
 }
 
-/** True if the Stockholm weekday is Monday. Used to gate the
- * once-per-week weekStart archive. */
-export function isStockholmMonday(d: Date): boolean {
-  return partsInStockholm(d).weekday === "Mon";
-}
-
 /** Returns YYYY-MM-DD of the Monday in the same Stockholm week as `d`.
  * Used as the idempotency key for both the weekStart snapshot and the
  * Weekend Wire — every brief / archive in week W shares the same value. */
