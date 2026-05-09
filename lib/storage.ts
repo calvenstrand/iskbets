@@ -1,5 +1,6 @@
 import { Redis } from "@upstash/redis";
 import { stockholmMondayOfWeek } from "./dateUtil";
+import type { MockMode } from "./mockData";
 import type {
   AnalysisPayload,
   Brief,
@@ -303,7 +304,19 @@ export async function listDailyResults(
  * Returns null only if the live snapshot is missing — everything else
  * is best-effort.
  */
-export async function getDashboardData(): Promise<DashboardData | null> {
+export async function getDashboardData(opts?: {
+  /** Dev-only preview mode; only honored when the storage layer is in
+   * mock mode (no Redis creds in non-prod, or USE_MOCK_DATA=true).
+   * Production calls ignore this param. */
+  mode?: MockMode;
+}): Promise<DashboardData | null> {
+  // Mock branch: route the whole assembly through the aggregator so
+  // the mode-driven preview is consistent across all pieces.
+  if (shouldUseMock().use) {
+    const { getMockDashboardData } = await import("./mockData");
+    return getMockDashboardData(opts?.mode ?? "default");
+  }
+
   const [
     snapshot,
     morningBrief,

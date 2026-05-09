@@ -123,7 +123,13 @@ export function Dashboard({
 
     async function refresh() {
       try {
-        const res = await fetch("/api/data", { cache: "no-store" });
+        // Forward the page's search params (e.g. `?mode=weekend`) so the
+        // polled data stays consistent with the initial server render.
+        // Production: query string is empty, behavior unchanged.
+        const url = new URL("/api/data", window.location.origin);
+        const liveParams = new URL(window.location.href).searchParams;
+        for (const [k, v] of liveParams) url.searchParams.set(k, v);
+        const res = await fetch(url.toString(), { cache: "no-store" });
         if (!res.ok) return;
         const fresh = (await res.json()) as DashboardData;
         if (cancelled) return;

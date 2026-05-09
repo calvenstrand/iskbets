@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { parseMockMode } from "@/lib/mockData";
 import { getDashboardData } from "@/lib/storage";
 
 export const runtime = "nodejs";
@@ -13,8 +14,16 @@ export const runtime = "nodejs";
 // background refresh.
 const CACHE_HEADER = "public, s-maxage=60, stale-while-revalidate=300";
 
-export async function GET(): Promise<NextResponse> {
-  const data = await getDashboardData();
+export async function GET(request: Request): Promise<NextResponse> {
+  // Dev-only `?mode=X` preview support — see lib/mockData.ts MockMode.
+  // In production the storage layer ignores the param (mock branch
+  // never fires when Redis is configured), so this is safe to read
+  // unconditionally. CDN cache key already includes the query string,
+  // so different modes get separate cache entries.
+  const mode = parseMockMode(
+    new URL(request.url).searchParams.get("mode") ?? undefined,
+  );
+  const data = await getDashboardData({ mode });
   if (!data) {
     return NextResponse.json(
       { error: "No data yet, trigger a fetch first" },

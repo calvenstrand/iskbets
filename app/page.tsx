@@ -1,4 +1,5 @@
 import { Dashboard } from "@/components/Dashboard";
+import { type MockMode, parseMockMode } from "@/lib/mockData";
 import { getDashboardData } from "@/lib/storage";
 import type { DashboardData } from "@/lib/types";
 
@@ -7,9 +8,11 @@ import type { DashboardData } from "@/lib/types";
 // passes, Next.js regenerates server-side.
 export const revalidate = 60;
 
-async function safeGetDashboardData(): Promise<DashboardData | null> {
+async function safeGetDashboardData(
+  mode: MockMode,
+): Promise<DashboardData | null> {
   try {
-    return await getDashboardData();
+    return await getDashboardData({ mode });
   } catch (err) {
     // At build time there are no Redis creds, so getDashboardData throws.
     // Treat as "no data" — ISR will replace this with real data on the
@@ -20,8 +23,16 @@ async function safeGetDashboardData(): Promise<DashboardData | null> {
   }
 }
 
-export default async function Home() {
-  const data = await safeGetDashboardData();
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const params = await searchParams;
+  const mode = parseMockMode(params.mode);
+  const data = await safeGetDashboardData(mode);
 
   if (!data) {
     return (

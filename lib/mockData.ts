@@ -3,6 +3,7 @@ import { stockholmDate, stockholmMondayOfWeek } from "./dateUtil";
 import type {
   Brief,
   DailyResult,
+  DashboardData,
   StockAnalysis,
   StockPrice,
   StoredData,
@@ -10,6 +11,33 @@ import type {
   WeeklyResult,
   WeekStartSnapshot,
 } from "./types";
+
+/** Local-only preview modes driven by `?mode=X` on the URL. Pure dev
+ * affordance — has no effect in production (mock branch never fires
+ * with real Redis configured). */
+export type MockMode =
+  | "default" // Tuesday afternoon: morning wire pinned, everything else populated
+  | "weekend" // Sat/Sun view: weekend wire pinned
+  | "morning" // morning wire pinned (same as default but explicit)
+  | "evening" // evening wrap pinned
+  | "fresh" // first-deploy: no week-start baseline → no WTD, no weekly champion
+  | "empty"; // null dashboard data → "NO DATA YET" state
+
+const VALID_MODES: ReadonlySet<string> = new Set([
+  "default",
+  "weekend",
+  "morning",
+  "evening",
+  "fresh",
+  "empty",
+]);
+
+/** Parse a query param value into a MockMode. Falls back to "default" for
+ * unknown values so a typo doesn't blow up. */
+export function parseMockMode(raw: string | string[] | undefined): MockMode {
+  if (typeof raw !== "string") return "default";
+  return VALID_MODES.has(raw) ? (raw as MockMode) : "default";
+}
 
 const STOCKS: StockPrice[] = [
   // ============== US — WSB darlings ==============
@@ -484,28 +512,22 @@ const EVENING_BRIEF_TEXT =
 const WEEKEND_BRIEF_TEXT =
   "What a week, apes. Chris's NET printed +9.4% for the syndicate's biggest tendies of the year, dragging his bag to the top of the leaderboard. Eric's industrials traded sideways — Volvo and Atlas held the line, but Viaplay continues its slow-motion seppuku at -8% WTD. Oskar's Dicot lost another 18% because of course it did. Johan's QBTS quantum-printed +12% on the week and he hasn't shut up about it. Stockholm rings the bell again Monday — be ready.";
 
-/**
- * Dev-only override: pin one of "morning" | "evening" | "weekend" as the
- * BriefCard's "current" brief. Whatever you pick gets `generatedAt = now`,
- * so the BriefCard's most-recent rotation rule shows it. Without the var,
- * the natural offsets below put morning on top (matching the typical
- * weekday-morning state).
- *
- *   MOCK_BRIEF_LATEST=weekend npm run dev
- */
-function offsetFor(kind: "morning" | "evening" | "weekend"): number {
-  if (process.env.MOCK_BRIEF_LATEST === kind) return 0;
-  if (kind === "morning") return 2 * 60 * 60 * 1000; // 2h ago
-  if (kind === "evening") return 12 * 60 * 60 * 1000; // 12h ago
-  return 36 * 60 * 60 * 1000; // weekend → 36h ago
-}
+/** Default age offsets so the BriefCard's most-recent rotation has a
+ * sensible default state (morning wire on top — matches a typical
+ * weekday-morning view). The mode-aware aggregator below overrides
+ * the chosen kind to `now` to pin it as the freshest. */
+const DEFAULT_OFFSET = {
+  morning: 2 * 60 * 60 * 1000, // 2h ago
+  evening: 12 * 60 * 60 * 1000, // 12h ago
+  weekend: 36 * 60 * 60 * 1000, // 36h ago
+} as const;
 
 export function getMockMorningBrief(): Brief {
   const now = Date.now();
   return {
     date: stockholmDate(new Date(now)),
     text: MORNING_BRIEF_TEXT,
-    generatedAt: now - offsetFor("morning"),
+    generatedAt: now - DEFAULT_OFFSET.morning,
   };
 }
 
@@ -514,7 +536,7 @@ export function getMockEveningBrief(): Brief {
   return {
     date: stockholmDate(new Date(now - 24 * 60 * 60 * 1000)), // yesterday
     text: EVENING_BRIEF_TEXT,
-    generatedAt: now - offsetFor("evening"),
+    generatedAt: now - DEFAULT_OFFSET.evening,
   };
 }
 
@@ -524,7 +546,7 @@ export function getMockWeekendBrief(): Brief {
   return {
     date: monday,
     text: WEEKEND_BRIEF_TEXT,
-    generatedAt: now - offsetFor("weekend"),
+    generatedAt: now - DEFAULT_OFFSET.weekend,
   };
 }
 
@@ -579,6 +601,61 @@ export function getMockWeekStartSnapshot(): WeekStartSnapshot {
     };
   });
   return { weekStart: monday, stocks };
+}
+
+// ============== Mock dashboard aggregator (driven by ?mode=X) ==============
+
+/**
+ * One-stop mock for `getDashboardData`. Reads the requested preview
+ * mode and assembles the full DashboardData accordingly. Pure dev
+ * affordance — only ever called from the mock branch in storage.ts.
+ *
+ * Modes:
+ *  - "default" / "morning"  → morning wire pinned, all sections populated
+ *  - "weekend"              → weekend wire pinned (the post-Friday view)
+ *  - "evening"              → evening wrap pinned
+ *  - "fresh"                → no week-start, no weekly champion (first deploy)
+ *  - "empty"                → returns null (NO DATA YET state)
+ */
+export function getMockDashboardData(mode: MockMode): DashboardData | null {
+  if (mode === "empty") return null;
+
+  const snapshot = getMockData();
+
+  // Brief rotation — bump the chosen kind to "now" so it wins the
+  // BriefCard's most-recent rule, leave the others at their default ages.
+  const now = Date.now();
+  const morningBrief = getMockMorningBrief();
+  const eveningBrief = getMockEveningBrief();
+  const weekendBrief = getMockWeekendBrief();
+  if (mode === "morning") morningBrief.generatedAt = now;
+  if (mode === "evening") eveningBrief.generatedAt = now;
+  if (mode === "weekend") weekendBrief.generatedAt = now;
+
+  // "fresh" hides the week-baseline data so the dashboard renders the
+  // pre-Monday-archive fallback state: leaderboard hides WTD column,
+  // featured cards fall back to today's biggest mover, no champion-of-
+  // week card. Useful for previewing first-deploy / missed-archive UX.
+  const includeWeekData = mode !== "fresh";
+
+  let weekStartPrices: Record<string, number> | undefined;
+  if (includeWeekData) {
+    const ws = getMockWeekStartSnapshot();
+    weekStartPrices = Object.fromEntries(
+      ws.stocks.map((s) => [s.ticker, s.regularMarketPrice]),
+    );
+  }
+
+  const weeklyChampion = includeWeekData ? getMockWeeklyChampion() : null;
+
+  return {
+    snapshot,
+    morningBrief,
+    eveningBrief,
+    weekendBrief,
+    ...(weeklyChampion ? { weeklyChampion } : {}),
+    ...(weekStartPrices ? { weekStartPrices } : {}),
+  };
 }
 
 /** Mock weekly champion for dev mode. Targets the WTD leader given
