@@ -3,6 +3,7 @@ import { Bebas_Neue, Share_Tech_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { BootSequence } from "@/components/BootSequence";
+import { DrawerFooter } from "@/components/DrawerFooter";
 import "./globals.css";
 
 const bebas = Bebas_Neue({
@@ -114,6 +115,10 @@ export default function RootLayout({
         <meta property="og:logo" content={LOGO_URL} />
         <BootSequence />
         {children}
+        {/* Drawer footer renders OUTSIDE/BELOW main so the reveal-on-scroll
+            mechanism works. Sits at z-index: 0 with main at z-index: 1
+            covering it until you scroll past main's content. */}
+        <DrawerFooter />
         <Analytics />
         <SpeedInsights />
         {/* No-JS fallback: BootSequence never gets to remove the

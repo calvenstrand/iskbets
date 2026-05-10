@@ -9,6 +9,10 @@
   --green-dim: #00b32d;
   --green-deep: #033a14;
   --green-glow: rgba(0, 230, 118, 0.12);
+
+  /* Drawer footer height. Adjust to match content, then main's
+     margin-bottom (set off this same var) keeps the reveal in sync. */
+  --drawer-footer-height: 360px;
   --gold: #f5c842;
   --gold-dim: #b08e1f;
   --red: #ff2244;
@@ -1503,4 +1507,133 @@ html.booting .boot-overlay,
   font-size: 0.85rem;
   margin-top: 1.5rem;
   letter-spacing: 0.15em;
+}
+
+/* ============= Drawer footer (reveal-on-scroll) =============
+   Pure-CSS reveal mechanism:
+     1. <footer.drawer-footer> is position:fixed at viewport bottom
+        with z-index:0, so it's always painted there but BEHIND main.
+     2. <main> gets position:relative, z-index:1, an OPAQUE background
+        (var(--bg)) — it covers the entire viewport whenever main has
+        content there, hiding the fixed footer.
+     3. main also gets margin-bottom: var(--drawer-footer-height) — at
+        the bottom of the document there's a gap of exactly that
+        height where main has no content. The fixed footer sits in
+        that gap, naturally appearing as the user scrolls past main.
+
+   To resize the drawer: change --drawer-footer-height (root). Both
+   the footer height AND main's margin-bottom track off it. */
+
+main {
+  position: relative;
+  z-index: 1;
+  background: var(--bg);
+  margin-bottom: var(--drawer-footer-height);
+  /* Hairline at the bottom edge so the seam between main and the
+     drawer is visible at full scroll instead of looking like a void. */
+  border-bottom: 1px solid var(--border);
+}
+
+.drawer-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--drawer-footer-height);
+  z-index: 0;
+  background: linear-gradient(
+    180deg,
+    #060807 0%,
+    #030504 100%
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem clamp(1rem, 4vw, 3rem);
+  font-family: var(--font-mono);
+  /* Don't intercept clicks/scroll while hidden behind main. The
+     pointer-events: auto kicks in when content lands in the drawer
+     (the inner block sets it back). */
+  pointer-events: none;
+}
+
+.drawer-footer-inner {
+  max-width: 700px;
+  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.1rem;
+  pointer-events: auto;
+}
+
+.drawer-footer-brand {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 5vw, 3rem);
+  letter-spacing: 0.08em;
+  color: var(--text);
+  line-height: 1;
+}
+
+.drawer-footer-brand .dollar {
+  color: var(--gold);
+  text-shadow: 0 0 14px rgba(245, 200, 66, 0.45);
+}
+
+.drawer-footer-tagline {
+  margin: 0;
+  font-size: 0.85rem;
+  letter-spacing: 0.18em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  max-width: 60ch;
+}
+
+.drawer-footer-links {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.drawer-footer-links a {
+  color: var(--green);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.18s ease;
+}
+
+.drawer-footer-links a:hover,
+.drawer-footer-links a:focus-visible {
+  border-bottom-color: var(--green);
+  outline: none;
+}
+
+.drawer-footer-links span {
+  color: var(--text-faint);
+}
+
+.drawer-footer-meta {
+  margin: 0;
+  font-size: 0.65rem;
+  letter-spacing: 0.22em;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+
+/* Mobile: shorten the drawer so it doesn't eat too much of the
+   viewport on small screens. The same --drawer-footer-height knob
+   still drives main's margin-bottom — they stay in sync. */
+@media (max-width: 640px) {
+  :root {
+    --drawer-footer-height: 280px;
+  }
+  .drawer-footer-inner {
+    gap: 0.85rem;
+  }
 }
