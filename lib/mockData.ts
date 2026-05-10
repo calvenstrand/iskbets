@@ -236,6 +236,19 @@ const STOCKS: StockPrice[] = [
     fiftyTwoWeekLow: 0,
     marketState: "REGULAR",
   },
+  {
+    ticker: "IONQ",
+    name: "IonQ",
+    currency: "USD",
+    regularMarketPrice: 38.6,
+    regularMarketChange: 2.85,
+    regularMarketChangePercent: 7.97,
+    regularMarketVolume: 18_400_000,
+    averageDailyVolume3Month: 14_200_000,
+    fiftyTwoWeekHigh: 0,
+    fiftyTwoWeekLow: 0,
+    marketState: "REGULAR",
+  },
   // ============== Sweden — ISK staples ==============
   {
     ticker: "INVE-B.ST",
@@ -457,6 +470,7 @@ const COMMENTS: Record<string, string> = {
   DFTX: "Oskar's DFTX -8%, biotech bagholder gets another lesson",
   "HACK.ST": "Chris's Hacksaw +3.5%, slot machines printing tendies",
   JOBY: "Johan's Joby +3.8%, flying cars actually printing",
+  IONQ: "Johan's IonQ +8%, quantum gang in full degen mode",
 };
 
 const OVERALL_MOOD =
@@ -593,6 +607,7 @@ const WEEK_DELTA: Record<string, number> = {
   PLTR: 0.078,
   QBTS: 0.124,
   JOBY: 0.062,
+  IONQ: 0.142,
   // Unowned, just for color
   NVDA: 0.099,
   TSLA: 0.045,
