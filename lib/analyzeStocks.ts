@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { deriveRating, deriveSentiment } from "./derive";
 import { pickWeekWinnerLoser } from "./leaderboard";
+import { isMarketLive } from "./marketHours";
 import { PEOPLE, TICKERS } from "./tickers";
 import type {
   AnalysisPayload,
@@ -25,11 +26,18 @@ You receive structured price data for a small portfolio. The badges, sentiment, 
   1. A short list of one-liner WSB COMMENTS for the stocks worth roasting
   2. ONE dramatic sentence for the overall portfolio MOOD
 
+MARKET LIVENESS — READ THIS FIRST:
+Each price entry has a \`marketLive\` boolean.
+- \`marketLive: true\` → the ticker's market is currently in its live trading window. \`regularMarketChangePercent\` is today's intraday move. Comment freely as "today's" / "this morning's" / "right now" action.
+- \`marketLive: false\` → the market is currently CLOSED (overnight, weekend, or this region's session hasn't started yet today). \`regularMarketChangePercent\` is FROZEN from the last completed trading session — DO NOT call it "today's" or "this morning's" move. Stockholm trades 09:00–17:30 STO; NY trades 15:30–22:00 STO. Outside those windows, that region's tickers are stale.
+
+For \`marketLive: false\` tickers, skip the today-based inclusion criteria below. Only include them via MUST COMMENT (their WEEK move is what matters then) or 3+ owner consensus. If you do mention one, frame it without claiming it moved today — e.g. "NET still bagholder territory at -8% since Friday close" or just describe its standing without temporal claims.
+
 WHEN TO INCLUDE A STOCK IN YOUR \`stocks\` ARRAY:
 - The user message lists tickers under "MUST COMMENT (week's biggest mover/dragger)" — ALWAYS include those, regardless of today's move. They drive the dashboard's featured cards and need a line, OR
 - The stock has 3+ owners (a group-consensus pick) — ALWAYS include, regardless of move size, OR
-- Today's regularMarketChangePercent is >+3% or <-3% (big mover), OR
-- The stock has 1 or 2 owners AND today's move is >+1.5% or <-1.5%
+- \`marketLive: true\` AND today's regularMarketChangePercent is >+3% or <-3% (big mover), OR
+- \`marketLive: true\` AND the stock has 1 or 2 owners AND today's move is >+1.5% or <-1.5%
 
 If none of these apply, OMIT that stock from your \`stocks\` array entirely. Boring stocks should be skipped — silence is better than filler.
 
@@ -51,7 +59,7 @@ COMMENT RULES:
 - For MUST COMMENT tickers (week's mover/dragger), reference the WEEK'S move not today's — e.g. "Hacksaw +8% on the week, slot machines printing"
 
 OVERALL MOOD:
-ONE dramatic WSB sentence about the whole portfolio. Reference friends when something dramatic is happening with their picks — same naming rule as comments (first name for 1-owner picks, a collective phrase like "the gang" / "the syndicate" / "<count> apes" / "<count> degens" for 2+ owners).`;
+ONE dramatic WSB sentence about the whole portfolio. Reference friends when something dramatic is happening with their picks — same naming rule as comments (first name for 1-owner picks, a collective phrase like "the gang" / "the syndicate" / "<count> apes" / "<count> degens" for 2+ owners). Anchor the line to whichever market(s) are actually live right now: if only Stockholm is open, talk about the SE side without pretending US tickers are doing anything; if only NY is open, the inverse. Don't claim portfolio-wide moves when half the data is frozen from the previous session.`;
 
 const ANALYSIS_SCHEMA = {
   type: "object",
@@ -162,11 +170,22 @@ export async function analyzeStocks(
   const client = new Anthropic();
 
   // Enrich prices with owner names so Claude can reference the friend
-  // when something dramatic happens with their pick.
+  // when something dramatic happens with their pick. Also tag each
+  // ticker with `marketLive`: if its market isn't currently in the
+  // live trading window, regularMarketChangePercent is frozen from the
+  // last completed session and Claude should not call it "today's"
+  // move. The MARKET LIVENESS rule in the prompt explains the
+  // semantics; this flag is what it reads off.
   const ownersMap = ownersByTickerSymbol();
+  const tickerMeta = new Map(TICKERS.map((t) => [t.symbol, t]));
+  const now = new Date();
   const enriched = prices.map((p) => {
+    const meta = tickerMeta.get(p.ticker);
+    const marketLive = meta ? isMarketLive(meta.market, now) : false;
     const owners = ownersMap.get(p.ticker) ?? [];
-    return owners.length > 0 ? { ...p, owners } : p;
+    return owners.length > 0
+      ? { ...p, marketLive, owners }
+      : { ...p, marketLive };
   });
 
   // Force-include the week's biggest mover + dragger so the featured
