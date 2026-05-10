@@ -1693,6 +1693,13 @@ main {
   padding: 0;
   background: transparent;
   color: var(--text);
+  /* `inset: 0; margin: auto` is the canonical center-a-dialog
+     incantation — works regardless of width/height because the
+     auto margins distribute remaining space equally on all sides.
+     `width: 100%` alone breaks default browser centering on some
+     implementations (Chrome puts it at left: 0). */
+  inset: 0;
+  margin: auto;
   max-width: min(640px, calc(100vw - 2rem));
   width: 100%;
   max-height: calc(100vh - 4rem);
