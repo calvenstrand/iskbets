@@ -8,34 +8,27 @@ import { DisclaimerDialog } from "./DisclaimerDialog";
  * The drawer mechanism is pure CSS — see globals.css under
  * "Drawer footer". Adjust `--drawer-footer-height` there if this
  * component grows; main's margin-bottom syncs off the same var.
+ *
+ * Design intent: the footer "bookends" the page with a smaller
+ * echo of the masthead wordmark, the tagline answers "what is this",
+ * inline links cover the practical asks (source, disclaimer, contact),
+ * and the dev byline at the bottom is deliberately understated — the
+ * "christoffer älvenstrand" name is the link, findable on hover but
+ * not shouting.
  */
 export function DrawerFooter() {
   return (
     <footer className="drawer-footer" aria-label="Site footer">
       <div className="drawer-footer-inner">
-        <h2 className="drawer-footer-name">CHRISTOFFER ÄLVENSTRAND</h2>
+        <h2 className="drawer-footer-brand">
+          I<span className="dollar">$</span>KBETS
+        </h2>
 
         <p className="drawer-footer-tagline">
-          ISKBets is a WSB-flavored stock tracker I built for a small group of
-          friends — Chris, Eric, Johan, Oskar. Live prices, AI commentary, and
-          a leaderboard. Greed is good. Diamond hands. Not financial advice.
+          A WSB-flavored stock tracker for a small group of friends. Live
+          prices, AI commentary, leaderboard. Greed is good. Diamond hands.
+          Not financial advice.
         </p>
-
-        <a
-          className="drawer-footer-pill"
-          href="https://riverbeach.se"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          RIVERBEACH.SE
-        </a>
-
-        <a
-          className="drawer-footer-email"
-          href="mailto:christoffer.alvenstrand@gmail.com"
-        >
-          christoffer.alvenstrand@gmail.com
-        </a>
 
         <nav className="drawer-footer-links" aria-label="Footer links">
           <a
@@ -48,11 +41,20 @@ export function DrawerFooter() {
           <span aria-hidden="true">·</span>
           <DisclaimerDialog />
           <span aria-hidden="true">·</span>
-          <span className="drawer-footer-flag">MADE IN SWEDEN 🇸🇪</span>
+          <a href="mailto:hello@iskbets.se">CONTACT</a>
         </nav>
 
-        <p className="drawer-footer-meta">
-          DATA: FINNHUB · AVANZA · COMMENTARY: CLAUDE · BUILT WITH NEXT.JS
+        <p className="drawer-footer-byline">
+          Built in Sweden by{" "}
+          <a
+            href="https://riverbeach.se"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="drawer-footer-credit"
+          >
+            christoffer älvenstrand
+          </a>{" "}
+          <span aria-hidden="true">🦍</span>
         </p>
       </div>
     </footer>
