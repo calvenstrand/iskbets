@@ -41,7 +41,7 @@ export function DrawerFooter() {
           <span aria-hidden="true">·</span>
           <DisclaimerDialog />
           <span aria-hidden="true">·</span>
-          <a href="mailto:hello@iskbets.se">CONTACT</a>
+          <a href="mailto:christoffer.alvenstrand@gmail.com">CONTACT</a>
         </nav>
 
         <p className="drawer-footer-byline">
