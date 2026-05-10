@@ -223,6 +223,19 @@ const STOCKS: StockPrice[] = [
     fiftyTwoWeekLow: 0,
     marketState: "REGULAR",
   },
+  {
+    ticker: "JOBY",
+    name: "Joby Aviation",
+    currency: "USD",
+    regularMarketPrice: 8.42,
+    regularMarketChange: 0.31,
+    regularMarketChangePercent: 3.8,
+    regularMarketVolume: 12_400_000,
+    averageDailyVolume3Month: 9_800_000,
+    fiftyTwoWeekHigh: 0,
+    fiftyTwoWeekLow: 0,
+    marketState: "REGULAR",
+  },
   // ============== Sweden — ISK staples ==============
   {
     ticker: "INVE-B.ST",
@@ -443,6 +456,7 @@ const COMMENTS: Record<string, string> = {
   DDOG: "Chris's DDOG +2.2%, observability bag fed",
   DFTX: "Oskar's DFTX -8%, biotech bagholder gets another lesson",
   "HACK.ST": "Chris's Hacksaw +3.5%, slot machines printing tendies",
+  JOBY: "Johan's Joby +3.8%, flying cars actually printing",
 };
 
 const OVERALL_MOOD =
@@ -578,6 +592,7 @@ const WEEK_DELTA: Record<string, number> = {
   "INTRUM.ST": -0.04,
   PLTR: 0.078,
   QBTS: 0.124,
+  JOBY: 0.062,
   // Unowned, just for color
   NVDA: 0.099,
   TSLA: 0.045,
