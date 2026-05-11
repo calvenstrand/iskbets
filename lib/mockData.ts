@@ -472,6 +472,19 @@ const STOCKS: StockPrice[] = [
     marketState: "REGULAR",
   },
   {
+    ticker: "SES.ST",
+    name: "Scandinavian Enviro Systems",
+    currency: "SEK",
+    regularMarketPrice: 1.42,
+    regularMarketChange: -0.08,
+    regularMarketChangePercent: -5.3,
+    regularMarketVolume: 2_400_000,
+    averageDailyVolume3Month: 1_800_000,
+    fiftyTwoWeekHigh: 0,
+    fiftyTwoWeekLow: 0,
+    marketState: "REGULAR",
+  },
+  {
     ticker: "HACK.ST",
     name: "Hacksaw Gaming",
     currency: "SEK",
@@ -513,6 +526,7 @@ const COMMENTS: Record<string, string> = {
   "BETS-B.ST": "Eric's Betsson +1%, casino prints in any weather",
   "LUND-B.ST": "Eric's Lundbergs napping, old-money patience",
   "LATO-B.ST": "Eric's Latour grinding +0.8%, industrial discipline",
+  "SES.ST": "Oskar's Enviro Systems -5%, ESG dream burning fossil",
 };
 
 const OVERALL_MOOD =
@@ -649,6 +663,7 @@ const WEEK_DELTA: Record<string, number> = {
   "SWED-A.ST": -0.015,
   "DICOT.ST": -0.184,
   DFTX: -0.142,
+  "SES.ST": -0.078,
   // Johan — quantum chads
   "INTRUM.ST": -0.04,
   PLTR: 0.078,

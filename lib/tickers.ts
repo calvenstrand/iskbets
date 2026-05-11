@@ -53,6 +53,7 @@ export const TICKERS: Ticker[] = [
   { symbol: "BETS-B.ST", name: "Betsson B", market: "SE", avanzaId: 5482, owners: ["eric"] },
   { symbol: "LUND-B.ST", name: "Lundbergs B", market: "SE", avanzaId: 5375, owners: ["eric"] },
   { symbol: "LATO-B.ST", name: "Latour B", market: "SE", avanzaId: 5321, owners: ["eric"] },
+  { symbol: "SES.ST", name: "Scandinavian Enviro Systems", market: "SE", avanzaId: 487396, owners: ["oskar"] },
   // WSB darlings — fetched via Finnhub
   { symbol: "NVDA", name: "Nvidia", market: "US" },
   { symbol: "TSLA", name: "Tesla", market: "US" },
