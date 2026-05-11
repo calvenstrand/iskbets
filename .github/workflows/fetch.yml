@@ -2,11 +2,18 @@ name: ISKBets — stock fetch
 
 on:
   schedule:
-    # Every 15 min on weekdays, UTC. Same window we used to fire from
-    # vercel.json — covers ~07:00–00:00 CET / ~08:00–01:00 CEST so the
-    # morning brief (08:30 CET) and evening brief (22:00 CET) windows
-    # always have at least one cron fire inside them in either DST mode.
-    - cron: "*/15 6-22 * * 1-5"
+    # Every 15 min on weekdays, UTC. Window covers ~07:00–00:00 CET /
+    # ~08:00–01:00 CEST so the morning brief (08:30 CET) and evening
+    # brief (22:00 CET) windows always have at least one cron fire
+    # inside them in either DST mode.
+    #
+    # Minutes deliberately offset to 7/22/37/52 instead of 0/15/30/45.
+    # GitHub Actions schedule is a known-unreliable best-effort service
+    # — their docs explicitly warn the :00 mark gets queued behind heavy
+    # workflow traffic. Off-hour minutes get noticeably better delivery.
+    # Empirical baseline before the offset: ~12% delivery rate.
+    # Tracked plan to migrate to cron-job.org for proper reliability.
+    - cron: "7,22,37,52 6-22 * * 1-5"
   # Manual fallback so we can fire one off from the Actions tab without
   # waiting for the next 15-min slot.
   workflow_dispatch:
