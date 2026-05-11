@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { inRecapWindow } from "@/lib/dateUtil";
-import { pickWeekWinnerLoser } from "@/lib/leaderboard";
+import {
+  pickTodayWinnerLoser,
+  pickWeekWinnerLoser,
+} from "@/lib/leaderboard";
 import { TICKERS } from "@/lib/tickers";
 import type {
   Brief,
@@ -35,6 +38,12 @@ type DashboardProps = {
    * the UI flips automatically when the window opens / closes — but
    * seeding from the server keeps the first paint correct. */
   initialInRecap: boolean;
+  /** Server-computed today-winner ticker filtered to markets that have
+   * actually opened in this Stockholm calendar day. Re-derived on the
+   * client every minute and on every poll refresh. Undefined when no
+   * eligible market has opened (e.g. early Mon morning). */
+  initialTodayWinner?: string;
+  initialTodayLoser?: string;
 };
 
 const POLL_MS = 5 * 60 * 1000; // 5 min — comfortably below the 15-min cron cadence
@@ -83,6 +92,8 @@ export function Dashboard({
   weeklyChampion: initialWeeklyChampion,
   weekStartPrices: initialWeekStart,
   initialInRecap,
+  initialTodayWinner,
+  initialTodayLoser,
 }: DashboardProps) {
   const [snapshot, setSnapshot] = useState<StoredData>(initialData);
   const [morningBrief, setMorningBrief] = useState<Brief | undefined>(
@@ -101,19 +112,48 @@ export function Dashboard({
     Record<string, number> | undefined
   >(initialWeekStart);
 
-  // Recap window — Friday 22:00 STO → Monday 09:00 STO. Seeded from
-  // the server-rendered prop (matches first paint, no hydration
-  // mismatch); re-checked every minute after mount so the dashboard
-  // flips automatically when the boundary is crossed without a
-  // page reload.
+  // Time-dependent state. Seeded from server-rendered props so first
+  // paint matches reality (no hydration mismatch), then re-evaluated
+  // every minute on the client. `clockTick` exists purely to force
+  // useMemo recomputation of today's winner/loser at minute boundaries
+  // — at 15:30 STO when NY opens, the pool of eligible tickers
+  // expands; we want the featured cards to flip without waiting on
+  // the 5-min poll.
   const [inRecap, setInRecap] = useState(initialInRecap);
+  const [clockTick, setClockTick] = useState(0);
 
   useEffect(() => {
-    const tick = () => setInRecap(inRecapWindow(new Date()));
-    tick(); // re-check immediately post-hydration in case clocks differ
+    const tick = () => {
+      const now = new Date();
+      setInRecap(inRecapWindow(now));
+      setClockTick((t) => t + 1);
+    };
+    tick(); // re-check immediately post-hydration
     const id = setInterval(tick, 60_000);
     return () => clearInterval(id);
   }, []);
+
+  // Today's winner/loser, computed live from the latest snapshot AND
+  // current Stockholm time. Filters out tickers whose market hasn't
+  // opened in this STO calendar day (e.g. US tickers on Mon afternoon
+  // before NY opens at 15:30 STO).
+  // - clockTick dependency forces recompute on the minute interval
+  // - snapshot dependency forces recompute on poll refresh
+  // First render uses server-passed initial values to keep SSR/CSR
+  // in sync; the useMemo overrides on the next tick.
+  const liveTodayMovers = useMemo(() => {
+    if (clockTick === 0) {
+      return {
+        winner: initialTodayWinner ? { ticker: initialTodayWinner } : undefined,
+        loser: initialTodayLoser ? { ticker: initialTodayLoser } : undefined,
+      };
+    }
+    const movers = pickTodayWinnerLoser(snapshot.stocks, new Date());
+    return {
+      winner: movers.winner ? { ticker: movers.winner.ticker } : undefined,
+      loser: movers.loser ? { ticker: movers.loser.ticker } : undefined,
+    };
+  }, [clockTick, snapshot, initialTodayWinner, initialTodayLoser]);
 
   // Visual flash state — set on poll diff, cleared after FLASH_MS.
   const [flashedTickers, setFlashedTickers] = useState<Set<string>>(
@@ -253,19 +293,22 @@ export function Dashboard({
   //   inside (Fri 22:00 → Mon 09:00 STO): WEEK's biggest mover, computed
   //     from the weekStartPrices baseline.
   //   outside (live trading hours of weekdays): TODAY's biggest mover
-  //     from the analyzer's pickBiggestWinnerLoser.
-  // Also falls back to "day" when no week baseline exists at all
-  // (very first deploy / Monday archive missed) so the slot is never
-  // empty regardless of timing.
+  //     filtered to markets that have actually opened today (so a US
+  //     ticker frozen at Friday's +1.8% can't beat live SE moves on a
+  //     Monday afternoon before NY opens).
+  // Final fallback: snapshot.analysis.biggestWinner from the AI run.
+  // Used only when neither week nor today filtering yields a pick
+  // (e.g. very first deploy + overnight on a weekday with no market
+  // having opened yet today).
   const weekMovers = pickWeekWinnerLoser(snapshot.stocks, weekStartPrices);
   const useWeekFraming = inRecap && !!weekMovers.winner;
   const featuredScope: "week" | "day" = useWeekFraming ? "week" : "day";
   const winnerTicker = useWeekFraming
     ? (weekMovers.winner?.ticker ?? snapshot.analysis.biggestWinner)
-    : snapshot.analysis.biggestWinner;
+    : (liveTodayMovers.winner?.ticker ?? snapshot.analysis.biggestWinner);
   const loserTicker = useWeekFraming
     ? (weekMovers.loser?.ticker ?? snapshot.analysis.biggestLoser)
-    : snapshot.analysis.biggestLoser;
+    : (liveTodayMovers.loser?.ticker ?? snapshot.analysis.biggestLoser);
 
   const winner = snapshot.stocks.find((s) => s.ticker === winnerTicker);
   const loser = snapshot.stocks.find((s) => s.ticker === loserTicker);

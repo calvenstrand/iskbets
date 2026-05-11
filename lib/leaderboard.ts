@@ -1,3 +1,4 @@
+import { marketHasOpenedToday } from "./marketHours";
 import { PEOPLE, type Person, TICKERS } from "./tickers";
 import type { StockPrice } from "./types";
 
@@ -132,6 +133,49 @@ export type WeekMover = {
   ticker: string;
   weekChangePct: number;
 };
+
+export type DayMover = {
+  ticker: string;
+  changePct: number;
+};
+
+/**
+ * Pick today's biggest winner / loser by intraday change %, but ONLY
+ * among stocks whose market has actually opened during this Stockholm
+ * calendar day. Without this filter, a US ticker frozen at +1.8% from
+ * Friday's close would beat any SE stock currently moving on a Monday
+ * afternoon — labeled "TODAY'S BIGGEST WINNER" while NY hasn't even
+ * opened yet.
+ *
+ * Returns undefined for either side when no eligible stocks exist
+ * (e.g. overnight on a weekday before any market has opened, or
+ * weekend) — caller should fall back to a less-filtered pick or hide.
+ *
+ * Owner of the TICKERS-list lookup matters here: each StockPrice carries
+ * just the symbol, not its market. We bridge via the canonical TICKERS
+ * map.
+ */
+export function pickTodayWinnerLoser(
+  stocks: StockPrice[],
+  now: Date,
+): { winner?: DayMover; loser?: DayMover } {
+  const tickerMeta = new Map(TICKERS.map((t) => [t.symbol, t]));
+  let winner: DayMover | undefined;
+  let loser: DayMover | undefined;
+  for (const s of stocks) {
+    const meta = tickerMeta.get(s.ticker);
+    if (!meta) continue;
+    if (!marketHasOpenedToday(meta.market, now)) continue;
+    if (!Number.isFinite(s.regularMarketChangePercent)) continue;
+    const pct = s.regularMarketChangePercent;
+    if (!winner || pct > winner.changePct) winner = { ticker: s.ticker, changePct: pct };
+    if (!loser || pct < loser.changePct) loser = { ticker: s.ticker, changePct: pct };
+  }
+  return {
+    ...(winner ? { winner } : {}),
+    ...(loser ? { loser } : {}),
+  };
+}
 
 /**
  * Pick the week's biggest winner and loser by week-over-week change.

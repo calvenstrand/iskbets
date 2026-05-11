@@ -61,6 +61,28 @@ export function hongKongStatus(now: Date): Status {
 }
 
 /**
+ * Whether a market has opened at any point during the current Stockholm
+ * calendar day. Used by the Dashboard's TODAY winner/loser pick — a US
+ * stock sitting at +1.8% from Friday's close shouldn't beat a Stockholm
+ * stock that's actually moving today.
+ *
+ * Both checks key off the Stockholm clock so "today" means the same
+ * thing as everywhere else in the app. NY's 09:30 ET open is always
+ * 15:30 STO regardless of DST (both regions transition the same
+ * weekend in the same direction).
+ */
+export function marketHasOpenedToday(
+  market: "SE" | "US",
+  now: Date,
+): boolean {
+  const { isWeekend, minutes } = partsFor(now, "Europe/Stockholm");
+  if (isWeekend) return false;
+  if (market === "SE") return minutes >= 9 * 60;
+  // US opens 09:30 ET = 15:30 STO (winter and summer alike).
+  return minutes >= 15 * 60 + 30;
+}
+
+/**
  * Whether a market is in its "live data" window — open for trading or
  * within ~30 min of close (so the closing print gets captured by the
  * cron). Outside this window, prices are static and re-fetching just

@@ -1,5 +1,6 @@
 import { Dashboard } from "@/components/Dashboard";
 import { inRecapWindow } from "@/lib/dateUtil";
+import { pickTodayWinnerLoser } from "@/lib/leaderboard";
 import { type MockMode, parseMockMode } from "@/lib/mockData";
 import { getDashboardData } from "@/lib/storage";
 import type { DashboardData } from "@/lib/types";
@@ -45,12 +46,12 @@ export default async function Home({
     );
   }
 
-  // Compute the recap-window flag at render time. Dashboard re-checks
-  // it client-side every minute so the UI flips automatically when the
-  // window opens / closes without a page reload — but having a
-  // server-rendered seed keeps the initial paint correct (no flash of
-  // wrong state, no hydration mismatch).
-  const inRecap = inRecapWindow(new Date());
+  // Time-dependent state computed server-side at render time, then
+  // re-checked client-side every minute by Dashboard so the UI flips
+  // automatically without a page reload.
+  const now = new Date();
+  const inRecap = inRecapWindow(now);
+  const todayMovers = pickTodayWinnerLoser(data.snapshot.stocks, now);
 
   return (
     <Dashboard
@@ -61,6 +62,8 @@ export default async function Home({
       weeklyChampion={data.weeklyChampion}
       weekStartPrices={data.weekStartPrices}
       initialInRecap={inRecap}
+      initialTodayWinner={todayMovers.winner?.ticker}
+      initialTodayLoser={todayMovers.loser?.ticker}
     />
   );
 }
