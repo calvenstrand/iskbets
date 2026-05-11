@@ -8,13 +8,24 @@ type Props = {
 
 type Liveness = "fresh" | "stale" | "dead";
 
-function formatTime(iso: string): string {
+// Month abbreviations match the masthead's date style ("MAY 9").
+const MONTH_ABBR = [
+  "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+  "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
+] as const;
+
+function formatDateTime(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  // 24-hour HH:MM, no locale variance
+  // 24-hour, locale-independent. Comma between date and time so the
+  // separator stays distinct from the outer bullet (·) characters in
+  // the footer line — otherwise "MAY 11 · 14:32 · DATA MAY..."
+  // reads as 3 equal-weight items instead of "date, then advisory".
+  const month = MONTH_ABBR[d.getMonth()];
+  const day = d.getDate();
   const hh = String(d.getHours()).padStart(2, "0");
   const mm = String(d.getMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
+  return `${month} ${day}, ${hh}:${mm}`;
 }
 
 function liveness(updatedAt: string, now: number): Liveness {
@@ -43,8 +54,8 @@ export function UpdatedFooter({ updatedAt }: Props) {
   }, []);
 
   // SSR: render the raw ISO + no pip. After mount, swap to formatted
-  // time + liveness pip.
-  const display = now === null ? updatedAt : formatTime(updatedAt);
+  // date+time + liveness pip.
+  const display = now === null ? updatedAt : formatDateTime(updatedAt);
   const live = now === null ? null : liveness(updatedAt, now);
 
   return (
