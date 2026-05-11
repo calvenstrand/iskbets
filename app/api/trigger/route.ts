@@ -51,7 +51,16 @@ const COOLDOWN_MS = 60 * 1000; // 1 minute
 
 // AI gating thresholds. Prices refresh on every trigger; the AI only
 // runs when something genuinely changed (or enough time has passed).
-const AI_FLOOR_MS = 30 * 60 * 1000; // 30 min — minimum gap between AI runs
+//
+// Floor is intentionally 29 min, not 30. Cron fires every 15 min, and
+// the design wants the 30-min cron tick to reliably pass the floor.
+// But `analyzedAt` is set ~100-500ms AFTER the previous cron's tick
+// (Vercel processing time), and `Date.now()` on the next cron's tick
+// is also offset by some processing time — net result, `elapsed` at
+// the "30-min cron" can read 29:59.x, just under the floor. A 1-min
+// buffer absorbs that jitter without meaningfully changing the
+// "AI no more than every ~30 min" intent.
+const AI_FLOOR_MS = 29 * 60 * 1000; // ~30 min with jitter margin
 const AI_CEILING_MS = 4 * 60 * 60 * 1000; // 4 hr — re-run AI even on a flat day
 const SIGNIFICANT_DELTA_PCT = 1.0; // any ticker moved ≥1pp since last AI
 
