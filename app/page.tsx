@@ -1,4 +1,5 @@
 import { Dashboard } from "@/components/Dashboard";
+import { inRecapWindow } from "@/lib/dateUtil";
 import { type MockMode, parseMockMode } from "@/lib/mockData";
 import { getDashboardData } from "@/lib/storage";
 import type { DashboardData } from "@/lib/types";
@@ -44,6 +45,13 @@ export default async function Home({
     );
   }
 
+  // Compute the recap-window flag at render time. Dashboard re-checks
+  // it client-side every minute so the UI flips automatically when the
+  // window opens / closes without a page reload — but having a
+  // server-rendered seed keeps the initial paint correct (no flash of
+  // wrong state, no hydration mismatch).
+  const inRecap = inRecapWindow(new Date());
+
   return (
     <Dashboard
       data={data.snapshot}
@@ -52,6 +60,7 @@ export default async function Home({
       weekendBrief={data.weekendBrief}
       weeklyChampion={data.weeklyChampion}
       weekStartPrices={data.weekStartPrices}
+      initialInRecap={inRecap}
     />
   );
 }

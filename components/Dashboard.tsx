@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { inRecapWindow } from "@/lib/dateUtil";
 import { pickWeekWinnerLoser } from "@/lib/leaderboard";
 import { TICKERS } from "@/lib/tickers";
 import type {
@@ -29,6 +30,11 @@ type DashboardProps = {
   weekendBrief?: Brief;
   weeklyChampion?: WeeklyChampion;
   weekStartPrices?: Record<string, number>;
+  /** Server-computed initial value for the recap window (Fri 22:00 STO →
+   * Mon 09:00 STO). Dashboard re-checks every minute on the client so
+   * the UI flips automatically when the window opens / closes — but
+   * seeding from the server keeps the first paint correct. */
+  initialInRecap: boolean;
 };
 
 const POLL_MS = 5 * 60 * 1000; // 5 min — comfortably below the 15-min cron cadence
@@ -76,6 +82,7 @@ export function Dashboard({
   weekendBrief: initialWeekend,
   weeklyChampion: initialWeeklyChampion,
   weekStartPrices: initialWeekStart,
+  initialInRecap,
 }: DashboardProps) {
   const [snapshot, setSnapshot] = useState<StoredData>(initialData);
   const [morningBrief, setMorningBrief] = useState<Brief | undefined>(
@@ -93,6 +100,20 @@ export function Dashboard({
   const [weekStartPrices, setWeekStartPrices] = useState<
     Record<string, number> | undefined
   >(initialWeekStart);
+
+  // Recap window — Friday 22:00 STO → Monday 09:00 STO. Seeded from
+  // the server-rendered prop (matches first paint, no hydration
+  // mismatch); re-checked every minute after mount so the dashboard
+  // flips automatically when the boundary is crossed without a
+  // page reload.
+  const [inRecap, setInRecap] = useState(initialInRecap);
+
+  useEffect(() => {
+    const tick = () => setInRecap(inRecapWindow(new Date()));
+    tick(); // re-check immediately post-hydration in case clocks differ
+    const id = setInterval(tick, 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   // Visual flash state — set on poll diff, cleared after FLASH_MS.
   const [flashedTickers, setFlashedTickers] = useState<Set<string>>(
@@ -228,16 +249,23 @@ export function Dashboard({
     snapshot.analysis.stocks.map((a) => [a.ticker, a]),
   );
 
-  // Featured cards now showcase the WEEK's biggest mover/dragger using
-  // the weekStartPrices baseline. Falls back to the analyzer's daily
-  // pick when no baseline is available yet (fresh deploy / Monday
-  // archive missed) so the featured slot is never empty.
+  // Featured cards swap framing based on the recap window:
+  //   inside (Fri 22:00 → Mon 09:00 STO): WEEK's biggest mover, computed
+  //     from the weekStartPrices baseline.
+  //   outside (live trading hours of weekdays): TODAY's biggest mover
+  //     from the analyzer's pickBiggestWinnerLoser.
+  // Also falls back to "day" when no week baseline exists at all
+  // (very first deploy / Monday archive missed) so the slot is never
+  // empty regardless of timing.
   const weekMovers = pickWeekWinnerLoser(snapshot.stocks, weekStartPrices);
-  const winnerTicker =
-    weekMovers.winner?.ticker ?? snapshot.analysis.biggestWinner;
-  const loserTicker =
-    weekMovers.loser?.ticker ?? snapshot.analysis.biggestLoser;
-  const featuredScope: "week" | "day" = weekMovers.winner ? "week" : "day";
+  const useWeekFraming = inRecap && !!weekMovers.winner;
+  const featuredScope: "week" | "day" = useWeekFraming ? "week" : "day";
+  const winnerTicker = useWeekFraming
+    ? (weekMovers.winner?.ticker ?? snapshot.analysis.biggestWinner)
+    : snapshot.analysis.biggestWinner;
+  const loserTicker = useWeekFraming
+    ? (weekMovers.loser?.ticker ?? snapshot.analysis.biggestLoser)
+    : snapshot.analysis.biggestLoser;
 
   const winner = snapshot.stocks.find((s) => s.ticker === winnerTicker);
   const loser = snapshot.stocks.find((s) => s.ticker === loserTicker);
@@ -264,12 +292,20 @@ export function Dashboard({
       <TickerTape stocks={snapshot.stocks} />
       <Header />
       <MarketStatus />
-      {weeklyChampion && <WeeklyChampionCard champion={weeklyChampion} />}
+      {/* Champion of the Week + Friend Leaderboard are recap-window
+          content — they only earn screen real estate when there's a
+          full week to recap (Fri 22:00 STO → Mon 09:00 STO). During
+          live trading, the dashboard tightens up around today's data. */}
+      {inRecap && weeklyChampion && (
+        <WeeklyChampionCard champion={weeklyChampion} />
+      )}
 
-      <Leaderboard
-        stocks={snapshot.stocks}
-        weekStartPrices={weekStartPrices}
-      />
+      {inRecap && (
+        <Leaderboard
+          stocks={snapshot.stocks}
+          weekStartPrices={weekStartPrices}
+        />
+      )}
 
       <MoodBanner
         mood={snapshot.analysis.overallMood}
@@ -293,7 +329,7 @@ export function Dashboard({
                 analysis={analysisByTicker.get(winner.ticker)}
                 featured="winner"
                 featuredScope={featuredScope}
-                {...(weekMovers.winner
+                {...(useWeekFraming && weekMovers.winner
                   ? { featuredWeekChangePct: weekMovers.winner.weekChangePct }
                   : {})}
                 index={0}
@@ -306,7 +342,7 @@ export function Dashboard({
                 analysis={analysisByTicker.get(loser.ticker)}
                 featured="loser"
                 featuredScope={featuredScope}
-                {...(weekMovers.loser
+                {...(useWeekFraming && weekMovers.loser
                   ? { featuredWeekChangePct: weekMovers.loser.weekChangePct }
                   : {})}
                 index={1}

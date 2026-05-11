@@ -51,6 +51,30 @@ export function inEveningBriefWindow(d: Date): boolean {
   return minutes >= 22 * 60 && minutes < 22 * 60 + 45;
 }
 
+/**
+ * "Recap window" — the stretch of the week when looking back at last
+ * week's action makes more sense than tracking today's. Spans from
+ * Friday's NY close (22:00 STO) through to Monday's Stockholm open
+ * (09:00 STO), covering the full Sat/Sun gap.
+ *
+ * Inside this window: featured cards say "WEEK'S BIGGEST WINNER",
+ * the leaderboard + Champion of the Week card render, the WTD column
+ * is meaningful.
+ *
+ * Outside (Mon 09:00 → Fri 22:00 STO): live trading is active
+ * somewhere, "today" framing dominates, the leaderboard hides until
+ * Friday close, the featured cards switch to "TODAY'S BIGGEST WINNER".
+ */
+export function inRecapWindow(d: Date): boolean {
+  const { weekday, minutes } = partsInStockholm(d);
+  if (weekday === "Sat" || weekday === "Sun") return true;
+  // Friday after NY close (22:00 STO) — whole portfolio done for the week.
+  if (weekday === "Fri" && minutes >= 22 * 60) return true;
+  // Monday before Stockholm opens (09:00 STO) — week hasn't started yet.
+  if (weekday === "Mon" && minutes < 9 * 60) return true;
+  return false;
+}
+
 /** Window for the Weekend Wire: Friday 22:45 – 23:30 Stockholm time.
  * Fires immediately after the evening wrap window closes — same "after
  * the bell" energy but for the whole week. Cron runs every 15 min so
