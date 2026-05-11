@@ -8,7 +8,7 @@ Backend and frontend are both complete; build + lint pass clean.
 
 **Working:**
 
-- `/api/trigger` (auth via `x-trigger-secret` header — or legacy `?key=` query param) → `fetchPrices` (smart: skips closed-market tickers and reuses their cached prices) → optional `analyzeStocks` (gated by smart-skip logic) → `saveStockData` → `maybeArchiveWeekStart` (writes the week baseline on the first trigger of any weekday that doesn't already have one — resilient to Monday holidays / Monday cron failures) → optional brief generation (morning at 08:30 CET, evening at 22:00 CET, weekend wire Friday 22:45 CET; all idempotent). A GitHub Actions workflow fires every 15 min on weekdays; off-hours fires are near-instant since they're pure cache passthrough.
+- `/api/trigger` (auth via `x-trigger-secret` header — or legacy `?key=` query param) → `fetchPrices` (smart: skips closed-market tickers and reuses their cached prices) → optional `analyzeStocks` (gated by smart-skip logic) → `saveStockData` → `maybeArchiveWeekStart` (writes the week baseline on the first trigger of any weekday that doesn't already have one — resilient to Monday holidays / Monday cron failures) → optional brief generation (morning at 08:30 CET, evening at 22:00 CET, weekend wire Friday 22:45 CET; all idempotent). A cron-job.org scheduled job pings the endpoint every 15 min on weekdays; off-hours fires are near-instant since they're pure cache passthrough.
 - `/api/data` (public) reads the latest snapshot + all three briefs + a compact `weekStartPrices` map from KV; CDN-cached via `Cache-Control: public, s-maxage=60, stale-while-revalidate=300` so the polling client doesn't drain Upstash
 - `/` server component fetches `/api/data` on the server with `revalidate: 60`, then hands the data to a `'use client'` Dashboard
 - Dashboard sub-components: one-time boot-sequence splash (CRT-style boot log, gated by sessionStorage so it plays once per browser session), ticker tape, masthead header (I$KBETS wordmark + date/issue dateline), market-status bar (5 markets — Tokyo, Hong Kong, Stockholm, London, NYC — real timezones via `Intl`; collapses to pill+code on mobile), brief card (most-recent of morning / evening / weekend), mood banner, friend leaderboard (per-friend today% + WTD%), winner/loser featured cards, responsive grid, last-updated footer
@@ -70,7 +70,11 @@ The Anthropic call only fires when at least one of these is true:
 
 Otherwise prices are refreshed but the existing analysis is carried forward. This decouples price freshness (every 15 min) from AI cost (only when there's something new to say).
 
-**Cron schedule** lives in `.github/workflows/fetch.yml`: `*/15 6-22 * * 1-5` UTC (every 15 min, weekdays, covers ~07:00–00:00 CET / ~08:00–01:00 CEST). The window is wide enough to catch both DST modes for the morning brief (08:30 CET) and evening brief (22:00 CET). The workflow `curl`s `https://www.iskbets.se/api/trigger` with the `x-trigger-secret` header set from the `TRIGGER_SECRET` GitHub Actions repo secret. Migrated off Vercel Cron because it's free on GitHub Actions and the workflow has a manual `workflow_dispatch` trigger so we can fire one off from the Actions tab without waiting.
+**Cron schedule** lives at [cron-job.org](https://cron-job.org): `7,22,37,52 6-22 * * 1-5` UTC (every 15 min on weekdays, off the heavy `:00` minute mark for better delivery). The window covers ~07:00–00:00 CET / ~08:00–01:00 CEST so the morning brief (08:30 CET) and evening brief (22:00 CET) windows always have at least one fire inside them in either DST mode. The job sends GET to `https://www.iskbets.se/api/trigger` with the `x-trigger-secret` header set from a private cron-job.org config (timeout 90s, response logged to job history).
+
+Migration history: Vercel Cron → GitHub Actions (free, but ~12% delivery rate during business hours due to scheduling backlog) → cron-job.org (proper second-level reliability, free tier, web dashboard with manual fire button).
+
+`.github/workflows/fetch.yml` still exists as a `workflow_dispatch`-only fallback: lets us fire a trigger from the GitHub Actions tab if cron-job.org is ever down or we need a quick manual run. No `schedule:` block on it anymore.
 
 **Live-window gating in `fetchPrices`** (`isMarketLive` in `lib/marketHours.ts`): for each ticker, check whether its market is currently in a "live data" window — open + 30 min post-close buffer. Inside the window: fetch fresh from Finnhub/Avanza. Outside: reuse the cached price from the previous snapshot, no API call. Bootstrap edge case: if a ticker has no cached price yet (very first cron run, or a newly added ticker), fetch regardless of window. Result: cron fires outside market hours are essentially free no-ops; only the markets actually trading hit the network.
 
@@ -157,7 +161,7 @@ Documented in `.env.example`:
 
 - `ANTHROPIC_API_KEY` — Claude SDK
 - `FINNHUB_API_KEY` — Finnhub quote endpoint (US)
-- `TRIGGER_SECRET` — auth for `/api/trigger`. Send via the `x-trigger-secret` header (preferred) or the legacy `?key=` query param. Set as a GitHub Actions repo secret with the same name so the scheduled workflow can authenticate.
+- `TRIGGER_SECRET` — auth for `/api/trigger`. Send via the `x-trigger-secret` header (preferred) or the legacy `?key=` query param. Configured as a custom request header in the cron-job.org job config (also pasteable into the GitHub Actions workflow if we ever need the manual `workflow_dispatch` fallback to authenticate).
 - (Avanza needs no key — orderbookIds are hardcoded in `lib/tickers.ts`)
 - `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` — Upstash Redis; auto-injected in production via the Vercel Marketplace integration, manual for local dev. Legacy `KV_REST_API_URL` / `KV_REST_API_TOKEN` names are also supported as a fallback.
 
