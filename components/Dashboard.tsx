@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { inRecapWindow } from "@/lib/dateUtil";
 import {
+  detectSweep,
   pickTodayWinnerLoser,
   pickWeekWinnerLoser,
+  type SweepResult,
 } from "@/lib/leaderboard";
 import { marketHasOpenedToday } from "@/lib/marketHours";
 import { TICKERS } from "@/lib/tickers";
@@ -17,6 +19,7 @@ import type {
   WeeklyChampion,
 } from "@/lib/types";
 import { BriefCard } from "./Brief";
+import { CelebrationCard } from "./CelebrationCard";
 import { Header } from "./Header";
 import { Leaderboard } from "./Leaderboard";
 import { MarketStatus } from "./MarketStatus";
@@ -315,6 +318,41 @@ export function Dashboard({
   const winner = snapshot.stocks.find((s) => s.ticker === winnerTicker);
   const loser = snapshot.stocks.find((s) => s.ticker === loserTicker);
 
+  // Sweep detection: when EVERY eligible stock is the same direction,
+  // swap the empty featured slot (no real loser / no real winner) for
+  // a celebration card. Eligibility matches the featured-card framing:
+  //   - week framing: stocks that have a Monday baseline (weekChangePct)
+  //   - day framing: stocks whose market has opened in this STO day
+  // Anything else gets the regular winner+loser pair.
+  const sweep: SweepResult = useWeekFraming
+    ? detectSweep(
+        weekStartPrices
+          ? snapshot.stocks
+              .map((s) => {
+                const baseline = weekStartPrices[s.ticker];
+                if (
+                  !baseline ||
+                  baseline <= 0 ||
+                  !Number.isFinite(s.regularMarketPrice)
+                ) {
+                  return null;
+                }
+                return {
+                  pct: ((s.regularMarketPrice - baseline) / baseline) * 100,
+                };
+              })
+              .filter((x): x is { pct: number } => x !== null)
+          : [],
+      )
+    : detectSweep(
+        snapshot.stocks
+          .filter((s) => {
+            const market = TICKER_MARKETS.get(s.ticker);
+            return market ? marketHasOpenedToday(market, now) : false;
+          })
+          .map((s) => ({ pct: s.regularMarketChangePercent })),
+      );
+
   const featuredTickers = new Set<string>();
   if (winner) featuredTickers.add(winner.ticker);
   if (loser) featuredTickers.add(loser.ticker);
@@ -369,31 +407,54 @@ export function Dashboard({
       <section className="px-4 md:px-8 lg:px-12 mt-8 mb-12">
         {(winner || loser) && (
           <div className="stock-grid-featured gap-3 mb-6">
-            {winner && (
-              <StockCard
-                stock={winner}
-                analysis={analysisByTicker.get(winner.ticker)}
-                featured="winner"
-                featuredScope={featuredScope}
-                {...(useWeekFraming && weekMovers.winner
-                  ? { featuredWeekChangePct: weekMovers.winner.weekChangePct }
-                  : {})}
-                index={0}
-                flashing={flashedTickers.has(winner.ticker)}
+            {/* WINNER slot — replaced by a 🩸 BLOODBATH celebration when
+                every eligible stock is red, otherwise the regular
+                biggest-winner StockCard. */}
+            {sweep.type === "bloodbath" ? (
+              <CelebrationCard
+                kind="bloodbath"
+                count={sweep.count}
+                avgPct={sweep.avgPct}
+                scope={featuredScope}
               />
+            ) : (
+              winner && (
+                <StockCard
+                  stock={winner}
+                  analysis={analysisByTicker.get(winner.ticker)}
+                  featured="winner"
+                  featuredScope={featuredScope}
+                  {...(useWeekFraming && weekMovers.winner
+                    ? { featuredWeekChangePct: weekMovers.winner.weekChangePct }
+                    : {})}
+                  index={0}
+                  flashing={flashedTickers.has(winner.ticker)}
+                />
+              )
             )}
-            {loser && (
-              <StockCard
-                stock={loser}
-                analysis={analysisByTicker.get(loser.ticker)}
-                featured="loser"
-                featuredScope={featuredScope}
-                {...(useWeekFraming && weekMovers.loser
-                  ? { featuredWeekChangePct: weekMovers.loser.weekChangePct }
-                  : {})}
-                index={1}
-                flashing={flashedTickers.has(loser.ticker)}
+            {/* LOSER slot — replaced by a 💎 CLEAN SWEEP celebration when
+                every eligible stock is green. */}
+            {sweep.type === "clean-sweep" ? (
+              <CelebrationCard
+                kind="clean-sweep"
+                count={sweep.count}
+                avgPct={sweep.avgPct}
+                scope={featuredScope}
               />
+            ) : (
+              loser && (
+                <StockCard
+                  stock={loser}
+                  analysis={analysisByTicker.get(loser.ticker)}
+                  featured="loser"
+                  featuredScope={featuredScope}
+                  {...(useWeekFraming && weekMovers.loser
+                    ? { featuredWeekChangePct: weekMovers.loser.weekChangePct }
+                    : {})}
+                  index={1}
+                  flashing={flashedTickers.has(loser.ticker)}
+                />
+              )
             )}
           </div>
         )}

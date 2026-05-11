@@ -139,6 +139,47 @@ export type DayMover = {
   changePct: number;
 };
 
+export type SweepResult =
+  | { type: "clean-sweep"; count: number; avgPct: number }
+  | { type: "bloodbath"; count: number; avgPct: number }
+  | { type: null };
+
+/**
+ * Detect a "clean sweep" (all positive) or "bloodbath" (all negative)
+ * across a set of stocks. Only fires with ≥2 eligible stocks so we
+ * don't celebrate when one lonely SE ticker is up at 09:01.
+ *
+ * For "today" framing: pass stocks pre-filtered to markets that have
+ * opened in this Stockholm calendar day (otherwise stale US data
+ * frozen at Friday's close would skew the count Mon morning).
+ *
+ * For "week" framing: pass stocks paired with their week change %.
+ *
+ * Caller decides which mode by what `pct` value it puts in the entries.
+ */
+export function detectSweep(
+  entries: ReadonlyArray<{ pct: number }>,
+): SweepResult {
+  const finite = entries.filter((e) => Number.isFinite(e.pct));
+  if (finite.length < 2) return { type: null };
+  let positive = 0;
+  let negative = 0;
+  let sum = 0;
+  for (const e of finite) {
+    if (e.pct > 0) positive++;
+    else if (e.pct < 0) negative++;
+    sum += e.pct;
+  }
+  const avgPct = sum / finite.length;
+  if (negative === 0 && positive > 0) {
+    return { type: "clean-sweep", count: finite.length, avgPct };
+  }
+  if (positive === 0 && negative > 0) {
+    return { type: "bloodbath", count: finite.length, avgPct };
+  }
+  return { type: null };
+}
+
 /**
  * Pick today's biggest winner / loser by intraday change %, but ONLY
  * among stocks whose market has actually opened during this Stockholm

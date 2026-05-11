@@ -1455,6 +1455,116 @@ html.booting .boot-overlay,
   color: var(--red);
 }
 
+/* ============= Celebration card (clean-sweep / bloodbath) =============
+   Drop-in replacement for a featured StockCard slot when there's no
+   real loser to show (clean sweep) or no real winner (bloodbath). Same
+   ~footprint as a featured card so the .stock-grid-featured layout is
+   unchanged. Reuses the existing pulse-green / pulse-red keyframes
+   from the featured cards above for visual continuity. */
+
+.celebration-card {
+  padding: 1.15rem 1.15rem 1.2rem;
+  border: 1px solid var(--border);
+  border-top-width: 2px;
+  font-family: var(--font-mono);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.55rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  animation: card-in 0.45s ease-out backwards;
+}
+
+.celebration-clean-sweep {
+  background: linear-gradient(
+    180deg,
+    rgba(0, 230, 118, 0.18) 0%,
+    rgba(0, 230, 118, 0.05) 50%,
+    var(--bg-elev) 100%
+  );
+  border-color: rgba(0, 230, 118, 0.55);
+  border-top-color: var(--green);
+  box-shadow: 0 0 26px rgba(0, 230, 118, 0.18);
+  animation:
+    card-in 0.45s ease-out backwards,
+    pulse-green 3.2s ease-in-out infinite 0.45s;
+}
+
+.celebration-bloodbath {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 34, 68, 0.18) 0%,
+    rgba(255, 34, 68, 0.05) 50%,
+    var(--bg-elev) 100%
+  );
+  border-color: rgba(255, 34, 68, 0.55);
+  border-top-color: var(--red);
+  box-shadow: 0 0 26px rgba(255, 34, 68, 0.18);
+  animation:
+    card-in 0.45s ease-out backwards,
+    pulse-red 3.2s ease-in-out infinite 0.45s;
+}
+
+.celebration-badge {
+  font-family: var(--font-display);
+  font-size: clamp(0.95rem, 2vw, 1.15rem);
+  letter-spacing: 0.22em;
+  color: var(--text);
+}
+
+.celebration-clean-sweep .celebration-badge {
+  color: var(--green);
+  text-shadow: 0 0 10px rgba(0, 230, 118, 0.45);
+}
+
+.celebration-bloodbath .celebration-badge {
+  color: var(--red);
+  text-shadow: 0 0 10px rgba(255, 34, 68, 0.45);
+}
+
+.celebration-headline {
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 4.5vw, 2.6rem);
+  letter-spacing: 0.04em;
+  line-height: 1.05;
+  color: var(--text);
+}
+
+.celebration-stat {
+  font-family: var(--font-mono);
+  font-size: clamp(0.8rem, 1.4vw, 0.95rem);
+  letter-spacing: 0.12em;
+  color: var(--text);
+  text-transform: uppercase;
+}
+
+.celebration-clean-sweep .celebration-stat {
+  color: var(--green);
+}
+
+.celebration-bloodbath .celebration-stat {
+  color: var(--red);
+}
+
+.celebration-subtitle {
+  margin: 0.2rem 0 0;
+  font-style: italic;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: #c5d3c9;
+  max-width: 32ch;
+  align-self: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .celebration-clean-sweep,
+  .celebration-bloodbath {
+    animation: card-in 0.45s ease-out backwards;
+  }
+}
+
 .featured-label {
   font-family: var(--font-display);
   font-size: 1rem;
