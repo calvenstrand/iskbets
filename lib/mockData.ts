@@ -522,7 +522,7 @@ const COMMENTS: Record<string, string> = {
   DFTX: "Oskar's DFTX -8%, biotech bagholder gets another lesson",
   "HACK.ST": "Chris's Hacksaw +3.5%, slot machines printing tendies",
   JOBY: "Johan's Joby +3.8%, flying cars actually printing",
-  IONQ: "Johan's IonQ +8%, quantum gang in full degen mode",
+  IONQ: "two apes' IonQ +8%, quantum bag printing",
   "BETS-B.ST": "Eric's Betsson +1%, casino prints in any weather",
   "LUND-B.ST": "Eric's Lundbergs napping, old-money patience",
   "LATO-B.ST": "Eric's Latour grinding +0.8%, industrial discipline",

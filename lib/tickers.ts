@@ -70,5 +70,5 @@ export const TICKERS: Ticker[] = [
   { symbol: "DDOG", name: "Datadog", market: "US", owners: ["chris"] },
   { symbol: "DFTX", name: "Definium Therapeutics", market: "US", owners: ["oskar"] },
   { symbol: "JOBY", name: "Joby Aviation", market: "US", owners: ["johan"] },
-  { symbol: "IONQ", name: "IonQ", market: "US", owners: ["johan"] },
+  { symbol: "IONQ", name: "IonQ", market: "US", owners: ["chris", "johan"] },
 ];
