@@ -1,6 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { deriveRating, deriveSentiment } from "./derive";
-import { pickWeekWinnerLoser } from "./leaderboard";
+import {
+  pickTodayWinnerLoser,
+  pickWeekWinnerLoser,
+} from "./leaderboard";
 import { isMarketLive } from "./marketHours";
 import { PEOPLE, TICKERS } from "./tickers";
 import type {
@@ -34,7 +37,7 @@ Each price entry has a \`marketLive\` boolean.
 For \`marketLive: false\` tickers, skip the today-based inclusion criteria below. Only include them via MUST COMMENT (their WEEK move is what matters then) or 3+ owner consensus. If you do mention one, frame it without claiming it moved today — e.g. "NET still bagholder territory at -8% since Friday close" or just describe its standing without temporal claims.
 
 WHEN TO INCLUDE A STOCK IN YOUR \`stocks\` ARRAY:
-- The user message lists tickers under "MUST COMMENT (week's biggest mover/dragger)" — ALWAYS include those, regardless of today's move. They drive the dashboard's featured cards and need a line, OR
+- The user message lists tickers under "MUST COMMENT" — ALWAYS include those, regardless of move size. Each entry is tagged with whether to comment on the WEEK'S move or TODAY'S move (see arrow hint at end of line). These tickers drive the dashboard's featured cards and need to never be silent, OR
 - The stock has 3+ owners (a group-consensus pick) — ALWAYS include, regardless of move size, OR
 - \`marketLive: true\` AND today's regularMarketChangePercent is >+3% or <-3% (big mover), OR
 - \`marketLive: true\` AND the stock has 1 or 2 owners AND today's move is >+1.5% or <-1.5%
@@ -56,7 +59,8 @@ COMMENT RULES:
 - ≤ 10 words
 - Punchy, slang-heavy, no filler
 - Refer to owners by first name (1 owner) or a collective phrase (2+ owners) — never list multiple names
-- For MUST COMMENT tickers (week's mover/dragger), reference the WEEK'S move not today's — e.g. "Hacksaw +8% on the week, slot machines printing"
+- For MUST COMMENT entries marked "→ comment on the WEEK'S move", reference the WEEK'S % — e.g. "Hacksaw +8% on the week, slot machines printing"
+- For MUST COMMENT entries marked "→ comment on TODAY'S move", reference today's % even if the move is small — e.g. "Volvo grinding +0.4% on a slow Monday, industrial discipline"
 
 OVERALL MOOD:
 ONE dramatic WSB sentence about the whole portfolio. Reference friends when something dramatic is happening with their picks — same naming rule as comments (first name for 1-owner picks, a collective phrase like "the gang" / "the syndicate" / "<count> apes" / "<count> degens" for 2+ owners). Anchor the line to whichever market(s) are actually live right now: if only Stockholm is open, talk about the SE side without pretending US tickers are doing anything; if only NY is open, the inverse. Don't claim portfolio-wide moves when half the data is frozen from the previous session.`;
@@ -188,25 +192,55 @@ export async function analyzeStocks(
       : { ...p, marketLive };
   });
 
-  // Force-include the week's biggest mover + dragger so the featured
-  // cards always have a comment. These tickers may be quiet today but
-  // led / dragged the week — the prompt tells Claude to write about
-  // their week move, not today's.
+  // Force-include the week's AND today's biggest mover/dragger so the
+  // dashboard's featured cards always have a comment underneath, even
+  // on a flat day when the today winner moved +0.4%. Each entry is
+  // tagged with an arrow hint telling Claude which timeframe to
+  // reference in its comment. Dedupes:
+  //   - same ticker as both today's winner AND week's winner → only
+  //     keep the week entry (week framing implies more context)
+  //   - same ticker as today's winner AND today's loser (only one
+  //     stock has finite data) → drop the loser
   const weekMovers = pickWeekWinnerLoser(prices, weekStartPrices);
+  const todayMovers = pickTodayWinnerLoser(prices, new Date());
+  const weekTickers = new Set<string>();
   const mustCommentBlock: string[] = [];
   if (weekMovers.winner) {
+    weekTickers.add(weekMovers.winner.ticker);
     mustCommentBlock.push(
-      `- ${weekMovers.winner.ticker} (week's biggest WINNER, ${weekMovers.winner.weekChangePct.toFixed(2)}% WTD)`,
+      `- ${weekMovers.winner.ticker} (week's biggest WINNER, ${weekMovers.winner.weekChangePct.toFixed(2)}% WTD) → comment on the WEEK'S move`,
     );
   }
   if (weekMovers.loser) {
+    weekTickers.add(weekMovers.loser.ticker);
     mustCommentBlock.push(
-      `- ${weekMovers.loser.ticker} (week's biggest LOSER, ${weekMovers.loser.weekChangePct.toFixed(2)}% WTD)`,
+      `- ${weekMovers.loser.ticker} (week's biggest LOSER, ${weekMovers.loser.weekChangePct.toFixed(2)}% WTD) → comment on the WEEK'S move`,
+    );
+  }
+  const todayWinnerTicker = todayMovers.winner?.ticker;
+  const todayLoserTicker = todayMovers.loser?.ticker;
+  if (
+    todayMovers.winner &&
+    todayWinnerTicker &&
+    !weekTickers.has(todayWinnerTicker)
+  ) {
+    mustCommentBlock.push(
+      `- ${todayMovers.winner.ticker} (today's biggest WINNER, ${todayMovers.winner.changePct.toFixed(2)}% today) → comment on TODAY'S move`,
+    );
+  }
+  if (
+    todayMovers.loser &&
+    todayLoserTicker &&
+    todayLoserTicker !== todayWinnerTicker &&
+    !weekTickers.has(todayLoserTicker)
+  ) {
+    mustCommentBlock.push(
+      `- ${todayMovers.loser.ticker} (today's biggest LOSER, ${todayMovers.loser.changePct.toFixed(2)}% today) → comment on TODAY'S move`,
     );
   }
   const mustCommentSection =
     mustCommentBlock.length > 0
-      ? `MUST COMMENT (week's biggest mover/dragger — ALWAYS include, comment on the WEEK'S move):\n${mustCommentBlock.join("\n")}\n\n`
+      ? `MUST COMMENT — these tickers ALWAYS get a comment regardless of move size. The arrow hint at the end tells you which timeframe to reference.\n${mustCommentBlock.join("\n")}\n\n`
       : "";
 
   const userMessage = `Here is today's price data for ${prices.length} stocks. Pick the ones worth a comment, write the overallMood.\n\n${mustCommentSection}ALL PRICE DATA:\n${JSON.stringify(enriched, null, 2)}`;
