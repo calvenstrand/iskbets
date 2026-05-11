@@ -1357,6 +1357,33 @@ html.booting .boot-overlay,
   );
 }
 
+/* Stale-market card. Applied when the ticker's market hasn't opened
+   in this Stockholm calendar day (US tickers Mon morning before NY
+   opens, etc). Two-class selector wins specificity over any single
+   .glow-X — sentiment color washes out, replaced by neutral gray.
+   Reduced opacity completes the "this is yesterday's data, deal with
+   it later" treatment without removing the card entirely. */
+.stock-card.market-closed {
+  border-color: rgba(120, 130, 125, 0.25);
+  box-shadow: none;
+  background: linear-gradient(
+    180deg,
+    rgba(20, 25, 22, 0.55) 0%,
+    rgba(8, 11, 10, 0.55) 100%
+  );
+  opacity: 0.55;
+  filter: saturate(0.55);
+  transition:
+    opacity 0.2s ease,
+    filter 0.2s ease;
+}
+
+.stock-card.market-closed:hover,
+.stock-card.market-closed:focus-within {
+  opacity: 0.9;
+  filter: saturate(0.85);
+}
+
 /* Featured (winner / loser) cards */
 .stock-card.featured {
   padding: 1.15rem 1.15rem 1.2rem;

@@ -20,6 +20,11 @@ type StockCardProps = {
   /** Set true momentarily when the AI comment for this stock just changed.
    * Triggers a one-shot glow animation on the card. */
   flashing?: boolean;
+  /** True when this ticker's market hasn't opened in the current
+   * Stockholm calendar day. Drives the dimmed "market-closed" treatment
+   * — gray border, neutral bg, reduced opacity — so live cards stand
+   * out against the stale ones. */
+  marketStale?: boolean;
 };
 
 function formatPrice(value: number, currency: string): string {
@@ -75,6 +80,7 @@ export function StockCard({
   featuredScope = "week",
   featuredWeekChangePct,
   flashing,
+  marketStale,
 }: StockCardProps) {
   const glow = sentimentGlow(analysis?.sentiment);
   const featuredClass = featured ? `featured ${featured}` : "";
@@ -83,6 +89,9 @@ export function StockCard({
     featuredClass,
     glow,
     flashing ? "ai-update" : null,
+    // Stale-market wins over the sentiment glow visually because its
+    // CSS rule has 2-class specificity (.stock-card.market-closed).
+    marketStale ? "market-closed" : null,
   ]
     .filter(Boolean)
     .join(" ");

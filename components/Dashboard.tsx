@@ -6,6 +6,7 @@ import {
   pickTodayWinnerLoser,
   pickWeekWinnerLoser,
 } from "@/lib/leaderboard";
+import { marketHasOpenedToday } from "@/lib/marketHours";
 import { TICKERS } from "@/lib/tickers";
 import type {
   Brief,
@@ -38,29 +39,43 @@ type DashboardProps = {
    * the UI flips automatically when the window opens / closes — but
    * seeding from the server keeps the first paint correct. */
   initialInRecap: boolean;
-  /** Server-computed today-winner ticker filtered to markets that have
-   * actually opened in this Stockholm calendar day. Re-derived on the
-   * client every minute and on every poll refresh. Undefined when no
-   * eligible market has opened (e.g. early Mon morning). */
-  initialTodayWinner?: string;
-  initialTodayLoser?: string;
+  /** Server's wall-clock time (epoch ms) at render. Dashboard seeds its
+   * `now` state from this so the first client render matches the
+   * server (no hydration mismatch in time-dependent logic — sort,
+   * stale flags, today-winner pick). useEffect then takes over with
+   * real client time. */
+  initialNowMs: number;
 };
 
 const POLL_MS = 5 * 60 * 1000; // 5 min — comfortably below the 15-min cron cadence
 const FLASH_MS = 1800;
 
-// Pre-built lookup so the grid sort doesn't scan TICKERS for every card.
+// Pre-built lookups so the grid sort doesn't scan TICKERS for every card.
 const OWNED_TICKERS = new Set(
   TICKERS.filter((t) => (t.owners?.length ?? 0) > 0).map((t) => t.symbol),
 );
+const TICKER_MARKETS = new Map(TICKERS.map((t) => [t.symbol, t.market]));
 
-// Owners' picks bubble to the top, then everyone else.
-// Within each group, biggest gainers first.
-function sortGridStocks(stocks: StockPrice[]): StockPrice[] {
+/**
+ * Three-tier sort for the dashboard grid:
+ *   1. Stale-market tickers go LAST (their market hasn't opened in this
+ *      Stockholm calendar day, so the change% is from the previous
+ *      session and uninteresting next to live action).
+ *   2. Within each group: owners' picks first.
+ *   3. Within each owner-status group: biggest gainers first.
+ */
+function sortGridStocks(stocks: StockPrice[], now: Date): StockPrice[] {
   return [...stocks].sort((a, b) => {
+    const aMarket = TICKER_MARKETS.get(a.ticker);
+    const bMarket = TICKER_MARKETS.get(b.ticker);
+    const aStale = aMarket ? !marketHasOpenedToday(aMarket, now) : false;
+    const bStale = bMarket ? !marketHasOpenedToday(bMarket, now) : false;
+    if (aStale !== bStale) return aStale ? 1 : -1;
+
     const aOwned = OWNED_TICKERS.has(a.ticker);
     const bOwned = OWNED_TICKERS.has(b.ticker);
     if (aOwned !== bOwned) return aOwned ? -1 : 1;
+
     return b.regularMarketChangePercent - a.regularMarketChangePercent;
   });
 }
@@ -92,8 +107,7 @@ export function Dashboard({
   weeklyChampion: initialWeeklyChampion,
   weekStartPrices: initialWeekStart,
   initialInRecap,
-  initialTodayWinner,
-  initialTodayLoser,
+  initialNowMs,
 }: DashboardProps) {
   const [snapshot, setSnapshot] = useState<StoredData>(initialData);
   const [morningBrief, setMorningBrief] = useState<Brief | undefined>(
@@ -112,48 +126,36 @@ export function Dashboard({
     Record<string, number> | undefined
   >(initialWeekStart);
 
-  // Time-dependent state. Seeded from server-rendered props so first
-  // paint matches reality (no hydration mismatch), then re-evaluated
-  // every minute on the client. `clockTick` exists purely to force
-  // useMemo recomputation of today's winner/loser at minute boundaries
-  // — at 15:30 STO when NY opens, the pool of eligible tickers
-  // expands; we want the featured cards to flip without waiting on
-  // the 5-min poll.
+  // Unified time state. Seeded from server-rendered initialNowMs so
+  // the first client render uses the same timestamp as the server
+  // (no hydration mismatch in any time-dependent logic — sort, stale
+  // flags, today-winner pick, recap window). useEffect then ticks
+  // every minute, keeping the dashboard in sync with real time
+  // without page reloads. All time-dependent derivations below pull
+  // from this single `now`.
+  const [now, setNow] = useState<Date>(() => new Date(initialNowMs));
   const [inRecap, setInRecap] = useState(initialInRecap);
-  const [clockTick, setClockTick] = useState(0);
 
   useEffect(() => {
     const tick = () => {
-      const now = new Date();
-      setInRecap(inRecapWindow(now));
-      setClockTick((t) => t + 1);
+      const newNow = new Date();
+      setNow(newNow);
+      setInRecap(inRecapWindow(newNow));
     };
-    tick(); // re-check immediately post-hydration
+    tick(); // re-check immediately post-hydration in case clocks differ
     const id = setInterval(tick, 60_000);
     return () => clearInterval(id);
   }, []);
 
-  // Today's winner/loser, computed live from the latest snapshot AND
-  // current Stockholm time. Filters out tickers whose market hasn't
-  // opened in this STO calendar day (e.g. US tickers on Mon afternoon
-  // before NY opens at 15:30 STO).
-  // - clockTick dependency forces recompute on the minute interval
-  // - snapshot dependency forces recompute on poll refresh
-  // First render uses server-passed initial values to keep SSR/CSR
-  // in sync; the useMemo overrides on the next tick.
-  const liveTodayMovers = useMemo(() => {
-    if (clockTick === 0) {
-      return {
-        winner: initialTodayWinner ? { ticker: initialTodayWinner } : undefined,
-        loser: initialTodayLoser ? { ticker: initialTodayLoser } : undefined,
-      };
-    }
-    const movers = pickTodayWinnerLoser(snapshot.stocks, new Date());
-    return {
-      winner: movers.winner ? { ticker: movers.winner.ticker } : undefined,
-      loser: movers.loser ? { ticker: movers.loser.ticker } : undefined,
-    };
-  }, [clockTick, snapshot, initialTodayWinner, initialTodayLoser]);
+  // Today's winner/loser, recomputed whenever `now` ticks or the
+  // snapshot refreshes. Filters out tickers whose market hasn't opened
+  // in this STO calendar day. SSR-safe because server and client
+  // first-render with identical inputs (snapshot from props, now from
+  // initialNowMs).
+  const liveTodayMovers = useMemo(
+    () => pickTodayWinnerLoser(snapshot.stocks, now),
+    [snapshot, now],
+  );
 
   // Visual flash state — set on poll diff, cleared after FLASH_MS.
   const [flashedTickers, setFlashedTickers] = useState<Set<string>>(
@@ -319,6 +321,7 @@ export function Dashboard({
 
   const gridStocks: StockPrice[] = sortGridStocks(
     snapshot.stocks.filter((s) => !featuredTickers.has(s.ticker)),
+    now,
   );
 
   const totalChangePct = snapshot.stocks.reduce(
@@ -396,15 +399,22 @@ export function Dashboard({
         )}
 
         <div className="stock-grid gap-3">
-          {gridStocks.map((stock, i) => (
-            <StockCard
-              key={stock.ticker}
-              stock={stock}
-              analysis={analysisByTicker.get(stock.ticker)}
-              index={i + 2}
-              flashing={flashedTickers.has(stock.ticker)}
-            />
-          ))}
+          {gridStocks.map((stock, i) => {
+            const market = TICKER_MARKETS.get(stock.ticker);
+            const stale = market
+              ? !marketHasOpenedToday(market, now)
+              : false;
+            return (
+              <StockCard
+                key={stock.ticker}
+                stock={stock}
+                analysis={analysisByTicker.get(stock.ticker)}
+                index={i + 2}
+                flashing={flashedTickers.has(stock.ticker)}
+                marketStale={stale}
+              />
+            );
+          })}
         </div>
       </section>
 
