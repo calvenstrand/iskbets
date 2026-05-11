@@ -50,6 +50,9 @@ export const TICKERS: Ticker[] = [
   { symbol: "VPLAY-B.ST", name: "Viaplay Group B", market: "SE", avanzaId: 945460, owners: ["eric"] },
   { symbol: "INTRUM.ST", name: "Intrum", market: "SE", avanzaId: 5583, owners: ["johan"] },
   { symbol: "HACK.ST", name: "Hacksaw Gaming", market: "SE", avanzaId: 2094659, owners: ["chris"] },
+  { symbol: "BETS-B.ST", name: "Betsson B", market: "SE", avanzaId: 5482, owners: ["eric"] },
+  { symbol: "LUND-B.ST", name: "Lundbergs B", market: "SE", avanzaId: 5375, owners: ["eric"] },
+  { symbol: "LATO-B.ST", name: "Latour B", market: "SE", avanzaId: 5321, owners: ["eric"] },
   // WSB darlings — fetched via Finnhub
   { symbol: "NVDA", name: "Nvidia", market: "US" },
   { symbol: "TSLA", name: "Tesla", market: "US" },
