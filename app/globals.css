@@ -1198,9 +1198,9 @@ html.booting .boot-overlay,
     letter-spacing: 0.04em;
   }
   .stock-card .comment {
-    font-size: 0.7rem;
-    line-height: 1.35;
-    padding-left: 0.45rem;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    padding-left: 0.55rem;
   }
   .stock-card .meta {
     font-size: 0.6rem;
@@ -1279,11 +1279,16 @@ html.booting .boot-overlay,
 
 .stock-card .comment {
   font-style: italic;
-  color: var(--text-dim);
-  font-size: 0.8rem;
-  line-height: 1.4;
+  /* Was var(--text-dim) (#6b7d72) — sat right at 4.2:1 contrast on
+     the dark card bg, technically AA but strained for italic body
+     text. This shade lands ~9:1 against #0d1110 while still reading
+     as "supportive prose" rather than competing with the bigger
+     name/price/rating elements above. */
+  color: #c5d3c9;
+  font-size: 0.86rem;
+  line-height: 1.5;
   border-left: 2px solid var(--border-bright);
-  padding-left: 0.55rem;
+  padding-left: 0.65rem;
 }
 
 .stock-card .meta {
