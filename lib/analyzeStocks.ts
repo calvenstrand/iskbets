@@ -4,7 +4,7 @@ import {
   pickTodayWinnerLoser,
   pickWeekWinnerLoser,
 } from "./leaderboard";
-import { isMarketLive } from "./marketHours";
+import { isMarketInRegularSession } from "./marketHours";
 import { PEOPLE, TICKERS } from "./tickers";
 import type {
   AnalysisPayload,
@@ -31,8 +31,10 @@ You receive structured price data for a small portfolio. The badges, sentiment, 
 
 MARKET LIVENESS — READ THIS FIRST:
 Each price entry has a \`marketLive\` boolean.
-- \`marketLive: true\` → the ticker's market is currently in its live trading window. \`regularMarketChangePercent\` is today's intraday move. Comment freely as "today's" / "this morning's" / "right now" action.
-- \`marketLive: false\` → the market is currently CLOSED (overnight, weekend, or this region's session hasn't started yet today). \`regularMarketChangePercent\` is FROZEN from the last completed trading session — DO NOT call it "today's" or "this morning's" move. Stockholm trades 09:00–17:30 STO; NY trades 15:30–22:00 STO. Outside those windows, that region's tickers are stale.
+- \`marketLive: true\` → the ticker's market is currently in its REGULAR trading session right now (orderbook open, normal liquidity). \`regularMarketChangePercent\` is today's live intraday move. Comment freely as "today's" / "this morning's" / "right now" action.
+- \`marketLive: false\` → the market is NOT in its regular session right now. This includes overnight, weekend, the OTHER region's session, AND pre-market / post-market hours of this ticker's own region. \`regularMarketChangePercent\` is either FROZEN from the last completed regular session OR a thin pre/post-market print that we don't trust. Stockholm regular session is 09:00–17:30 STO; NY regular session is 15:30–22:00 STO. Outside those exact windows, that region's tickers are not live.
+
+CRITICAL: pre-market and post-market quotes on illiquid stocks (especially the smaller US tickers like JOBY, IONQ, QBTS, DFTX) can print misleading values from a single small trade. NEVER cite a pre-market or after-hours number as "today's move" or describe it as "premarket pumping/crashing X%" — even if the number looks dramatic, treat it as not-yet-happened until the regular session opens. If the data shows a US ticker at -23% and marketLive is false, that number reflects either Friday's close OR a thin overnight print; do NOT write commentary around it.
 
 For \`marketLive: false\` tickers, skip the today-based inclusion criteria below. Only include them via MUST COMMENT (their WEEK move is what matters then) or 3+ owner consensus. If you do mention one, frame it without claiming it moved today — e.g. "NET still bagholder territory at -8% since Friday close" or just describe its standing without temporal claims.
 
@@ -175,17 +177,27 @@ export async function analyzeStocks(
 
   // Enrich prices with owner names so Claude can reference the friend
   // when something dramatic happens with their pick. Also tag each
-  // ticker with `marketLive`: if its market isn't currently in the
-  // live trading window, regularMarketChangePercent is frozen from the
-  // last completed session and Claude should not call it "today's"
-  // move. The MARKET LIVENESS rule in the prompt explains the
-  // semantics; this flag is what it reads off.
+  // ticker with `marketLive` — true ONLY when the market is in its
+  // regular orderbook session right now, NOT pre-market or post-market.
+  //
+  // Why strict (isMarketInRegularSession) and not the broader
+  // isMarketLive used by fetchPrices: pre-market quotes from Finnhub
+  // on thin US-stock volume can print absurd values (e.g. -23% on a
+  // single small order that disappears within minutes). Treating
+  // those as "today's intraday" produced AI commentary that contradicts
+  // observable reality — Claude wrote "NET evaporate -23% premarket"
+  // while the actual orderbook sat near 0. By gating marketLive to the
+  // regular session, pre-market data falls under the prompt's "frozen
+  // from last session" rule and Claude stays appropriately conservative.
+  // See lib/marketHours.ts for the function pair.
   const ownersMap = ownersByTickerSymbol();
   const tickerMeta = new Map(TICKERS.map((t) => [t.symbol, t]));
   const now = new Date();
   const enriched = prices.map((p) => {
     const meta = tickerMeta.get(p.ticker);
-    const marketLive = meta ? isMarketLive(meta.market, now) : false;
+    const marketLive = meta
+      ? isMarketInRegularSession(meta.market, now)
+      : false;
     const owners = ownersMap.get(p.ticker) ?? [];
     return owners.length > 0
       ? { ...p, marketLive, owners }

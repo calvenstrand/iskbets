@@ -83,11 +83,49 @@ export function marketHasOpenedToday(
 }
 
 /**
- * Whether a market is in its "live data" window — open for trading or
- * within ~30 min of close (so the closing print gets captured by the
- * cron). Outside this window, prices are static and re-fetching just
- * burns API calls. Used by fetchPrices to decide which tickers to skip
- * (and reuse their cached price).
+ * Strict regular-trading-session check. True only during the official
+ * orderbook hours, NOT pre-market or post-market.
+ *
+ * Used by analyzeStocks to set the `marketLive` flag we pass to Claude.
+ * Claude treats marketLive=true as "this number reflects today's
+ * intraday move". Pre-market quotes from Finnhub on thin volume can
+ * print absurd values (e.g. -23% on a single small order that
+ * disappears within minutes) — calling those "today's move" leads to
+ * embarrassing AI commentary. Confining marketLive to regular hours
+ * means pre-market data falls under the prompt's "frozen from last
+ * session" rule and Claude stays appropriately conservative.
+ *
+ * Distinct from isMarketLive (below) which is intentionally broader so
+ * fetchPrices can capture the closing print + any actual pre-market
+ * action without trusting it as "today's intraday".
+ */
+export function isMarketInRegularSession(
+  market: "SE" | "US",
+  now: Date,
+): boolean {
+  if (market === "SE") {
+    const { isWeekend, minutes } = partsFor(now, "Europe/Stockholm");
+    if (isWeekend) return false;
+    return minutes >= 9 * 60 && minutes < 17 * 60 + 30;
+  }
+  const { isWeekend, minutes } = partsFor(now, "America/New_York");
+  if (isWeekend) return false;
+  return minutes >= 9 * 60 + 30 && minutes < 16 * 60;
+}
+
+/**
+ * Whether a market is in its "live data" window — open for trading,
+ * including pre-market for US, or within ~30 min of close (so the
+ * closing print gets captured by the cron). Outside this window,
+ * prices are static and re-fetching just burns API calls. Used by
+ * fetchPrices to decide which tickers to skip (and reuse their cached
+ * price).
+ *
+ * NOTE: this is broader than isMarketInRegularSession on purpose. We
+ * want to FETCH during pre-market in case a genuine event-driven
+ * pre-market move happens, but the analyzer should NOT treat that
+ * data as authoritative "today's intraday". See isMarketInRegularSession
+ * for the stricter check used in AI commentary.
  */
 export function isMarketLive(market: "SE" | "US", now: Date): boolean {
   if (market === "SE") {
