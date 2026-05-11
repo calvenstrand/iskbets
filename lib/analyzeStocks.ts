@@ -295,9 +295,10 @@ export async function analyzeStocks(
   );
   const stocks: StockAnalysis[] = prices.map((p) => {
     const comment = commentByTicker.get(p.ticker);
+    const rating = deriveRating(p.regularMarketChangePercent);
     return {
       ticker: p.ticker,
-      rating: deriveRating(p.regularMarketChangePercent),
+      ...(rating ? { rating } : {}),
       sentiment: deriveSentiment(p.regularMarketChangePercent),
       ...(comment ? { comment } : {}),
     };

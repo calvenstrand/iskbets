@@ -132,7 +132,7 @@ export function StockCard({
           <div className="name">{stock.name}</div>
           <div className="ticker">{displayTicker(stock.ticker)}</div>
         </div>
-        {analysis && <div className="rating">{analysis.rating}</div>}
+        {analysis?.rating && <div className="rating">{analysis.rating}</div>}
       </div>
 
       <div className="mt-3 flex items-baseline gap-2 flex-wrap">

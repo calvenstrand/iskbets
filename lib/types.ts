@@ -29,7 +29,10 @@ export type Sentiment = (typeof SENTIMENTS)[number];
 
 export type StockAnalysis = {
   ticker: string;
-  rating: Rating;
+  /** Optional. Only present when the move is big enough to warrant a
+   * badge. Quiet stocks in the -0.5% to +0.5% band get no rating so
+   * the badge isn't reduced to wallpaper. See lib/derive.ts. */
+  rating?: Rating;
   sentiment: Sentiment;
   /** Optional. Only present for stocks the analyzer thought were worth a one-liner. */
   comment?: string;

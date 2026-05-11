@@ -546,9 +546,10 @@ export function getMockData(): StoredData {
 
   const analysis: StockAnalysis[] = STOCKS.map((s) => {
     const comment = COMMENTS[s.ticker];
+    const rating = deriveRating(s.regularMarketChangePercent);
     return {
       ticker: s.ticker,
-      rating: deriveRating(s.regularMarketChangePercent),
+      ...(rating ? { rating } : {}),
       sentiment: deriveSentiment(s.regularMarketChangePercent),
       ...(comment ? { comment } : {}),
     };
