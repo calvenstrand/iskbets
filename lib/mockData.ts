@@ -457,7 +457,7 @@ const COMMENTS: Record<string, string> = {
   QBTS: "Johan's QBTS qubits printing +14%, quantum chads",
   "INTRUM.ST": "Johan's Intrum sliding, debt-collection bagholders rekt",
   "HM-B.ST": "Fast fashion fading, paper bag holders eternal",
-  "BINV.ST": "Biotech rollercoaster, FDA gods unhappy today",
+  "BINV.ST": "Eric's BioInvent on the FDA rollercoaster, bagholders praying",
   NET: "Chris's Cloudflare ripping faces, AI infra moon",
   SHOP: "Chris's Shopify printing tendies, ATH in sight",
   "THULE.ST": "Eric's roof boxes printing, Volvo dad approves",

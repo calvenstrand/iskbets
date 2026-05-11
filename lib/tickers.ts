@@ -35,14 +35,14 @@ export type Ticker = {
 
 export const TICKERS: Ticker[] = [
   // Swedish stocks — fetched via Avanza unofficial API by orderbookId
-  { symbol: "INVE-B.ST", name: "Investor B", market: "SE", avanzaId: 5247, owners: ["chris", "eric", "johan", "oskar"] },
-  { symbol: "VOLV-B.ST", name: "Volvo B", market: "SE", avanzaId: 5269, owners: ["eric"] },
+  { symbol: "INVE-B.ST", name: "Investor B", market: "SE", avanzaId: 5247, owners: ["chris", "johan", "oskar"] },
+  { symbol: "VOLV-B.ST", name: "Volvo B", market: "SE", avanzaId: 5269 },
   { symbol: "SWED-A.ST", name: "Swedbank A", market: "SE", avanzaId: 5241, owners: ["oskar"] },
   { symbol: "SHB-B.ST", name: "Handelsbanken B", market: "SE", avanzaId: 5265, owners: ["chris"] },
-  { symbol: "ATCO-B.ST", name: "Atlas Copco B", market: "SE", avanzaId: 5235, owners: ["eric"] },
+  { symbol: "ATCO-B.ST", name: "Atlas Copco B", market: "SE", avanzaId: 5235 },
   { symbol: "HM-B.ST", name: "H&M B", market: "SE", avanzaId: 5364 },
   { symbol: "DOM.ST", name: "Dometic Group", market: "SE", avanzaId: 611718, owners: ["eric"] },
-  { symbol: "BINV.ST", name: "BioInvent", market: "SE", avanzaId: 5505 },
+  { symbol: "BINV.ST", name: "BioInvent", market: "SE", avanzaId: 5505, owners: ["eric"] },
   { symbol: "THULE.ST", name: "Thule Group", market: "SE", avanzaId: 521491, owners: ["eric"] },
   { symbol: "CAST.ST", name: "Castellum", market: "SE", avanzaId: 5353 },
   { symbol: "NIBE-B.ST", name: "Nibe Industrier B", market: "SE", avanzaId: 5325, owners: ["eric"] },
