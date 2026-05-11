@@ -1293,26 +1293,68 @@ html.booting .boot-overlay,
   text-transform: uppercase;
 }
 
-/* Sentiment-driven card border + glow + bg tint. Featured cards
-   (.stock-card.featured.winner / .loser) have higher specificity so
-   they keep their dedicated styling — only the regular grid cards
-   pick this up. */
-.glow-moon,
+/* Sentiment-driven card border + glow + bg tint. Three intensity tiers
+   per direction so >5% movers stand out from merely-up/down ones.
+   Buckets defined in lib/derive.ts:
+     moon  > +5%      — strongest green
+     up    +0.5..+5%  — mild green
+     neutral          — gold border, no glow
+     down  -0.5..-5%  — mild red
+     rekt  < -5%      — strongest red
+
+   Featured cards (.stock-card.featured.winner / .loser) have higher
+   specificity (2 classes) so they keep their dedicated styling — only
+   regular grid cards pick this up. */
+
+/* Mild up — small/medium gain. Subtle border, faint glow, 2% bg tint. */
 .glow-up {
   border-color: rgba(0, 230, 118, 0.35);
   box-shadow: 0 0 20px rgba(0, 230, 118, 0.08);
   background: rgba(0, 230, 118, 0.02);
 }
+
+/* Big up — flex the glow. Brighter border (~2x alpha), bigger outer
+   spread + inset glow for the "lit from within" feel, and a vertical
+   gradient bg that fades from a noticeable green at the top down to
+   near-transparent so the card has visual depth. */
+.glow-moon {
+  border-color: rgba(0, 230, 118, 0.7);
+  box-shadow:
+    0 0 32px rgba(0, 230, 118, 0.28),
+    0 0 16px rgba(0, 230, 118, 0.12) inset;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 230, 118, 0.1) 0%,
+    rgba(0, 230, 118, 0.025) 60%,
+    rgba(0, 230, 118, 0.01) 100%
+  );
+}
+
 .glow-neutral {
   border-color: rgba(245, 200, 66, 0.2);
   box-shadow: none;
   background: transparent;
 }
-.glow-down,
-.glow-rekt {
+
+/* Mild down — symmetric to .glow-up. */
+.glow-down {
   border-color: rgba(255, 34, 68, 0.35);
   box-shadow: 0 0 20px rgba(255, 34, 68, 0.08);
   background: rgba(255, 34, 68, 0.02);
+}
+
+/* Big down — symmetric to .glow-moon. The bleeding card. */
+.glow-rekt {
+  border-color: rgba(255, 34, 68, 0.7);
+  box-shadow:
+    0 0 32px rgba(255, 34, 68, 0.28),
+    0 0 16px rgba(255, 34, 68, 0.12) inset;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 34, 68, 0.1) 0%,
+    rgba(255, 34, 68, 0.025) 60%,
+    rgba(255, 34, 68, 0.01) 100%
+  );
 }
 
 /* Featured (winner / loser) cards */
