@@ -36,11 +36,14 @@ function partsInStockholm(d: Date): Parts {
   };
 }
 
-/** Window for the morning brief: 08:30 – 09:00 Stockholm time, weekdays. */
+/** Window for the morning brief: 08:00 – 08:30 Stockholm time, weekdays.
+ * Fires a full hour before Stockholm market open (09:00 STO) so readers
+ * have time to digest yesterday's recap and today's setup before
+ * trading kicks off. */
 export function inMorningBriefWindow(d: Date): boolean {
   const { isWeekend, minutes } = partsInStockholm(d);
   if (isWeekend) return false;
-  return minutes >= 8 * 60 + 30 && minutes < 9 * 60;
+  return minutes >= 8 * 60 && minutes < 8 * 60 + 30;
 }
 
 /** Window for the evening brief: 22:00 – 22:45 Stockholm time, weekdays.
