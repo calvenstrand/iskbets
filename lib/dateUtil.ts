@@ -46,6 +46,23 @@ export function inMorningBriefWindow(d: Date): boolean {
   return minutes >= 8 * 60 && minutes < 8 * 60 + 30;
 }
 
+/**
+ * Mon–Fri 09:00 → 22:00 STO. The dashboard hides the BriefCard entirely
+ * during this window: once Stockholm opens, the morning wire becomes
+ * stale and the live data (leaderboard, featured cards, grid, mood
+ * banner) is the actual news. Briefs return at 22:00 when the evening
+ * wrap fires and there's something fresh to read again.
+ *
+ * Weekends always show the most recent brief (typically the weekend
+ * wire). Overnight (22:00 → 08:00 STO weekdays) shows the previous
+ * evening's wrap until the next morning wire takes over.
+ */
+export function briefHiddenDuringTrading(d: Date): boolean {
+  const { isWeekend, minutes } = partsInStockholm(d);
+  if (isWeekend) return false;
+  return minutes >= 9 * 60 && minutes < 22 * 60;
+}
+
 /** Window for the evening brief: 22:00 – 22:45 Stockholm time, weekdays.
  * NY closes at 22:00 CET (15-min gap to settle), then we have 30+ min to fire. */
 export function inEveningBriefWindow(d: Date): boolean {

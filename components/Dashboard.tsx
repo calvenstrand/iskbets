@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { inRecapWindow } from "@/lib/dateUtil";
+import { briefHiddenDuringTrading, inRecapWindow } from "@/lib/dateUtil";
 import {
   detectSweep,
   pickTodayWinnerLoser,
@@ -397,12 +397,18 @@ export function Dashboard({
         flash={moodFlash}
       />
 
-      <BriefCard
-        morningBrief={morningBrief}
-        eveningBrief={eveningBrief}
-        weekendBrief={weekendBrief}
-        flash={briefFlash}
-      />
+      {/* Brief disappears Mon-Fri 09:00 → 22:00 STO. Once Stockholm
+          opens the morning wire is stale, and the dashboard's live
+          data takes over the news role. Briefs return at 22:00 when
+          the evening wrap fires. */}
+      {!briefHiddenDuringTrading(now) && (
+        <BriefCard
+          morningBrief={morningBrief}
+          eveningBrief={eveningBrief}
+          weekendBrief={weekendBrief}
+          flash={briefFlash}
+        />
+      )}
 
       <section className="px-4 md:px-8 lg:px-12 mt-8 mb-12">
         {(winner || loser) && (
