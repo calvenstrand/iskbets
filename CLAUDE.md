@@ -8,7 +8,7 @@ Backend and frontend are both complete; build + lint pass clean.
 
 **Working:**
 
-- `/api/trigger` (auth via `x-trigger-secret` header — or legacy `?key=` query param) → `fetchPrices` (smart: skips closed-market tickers and reuses their cached prices) → optional `analyzeStocks` (gated by smart-skip logic) → `saveStockData` → `maybeArchiveWeekStart` (writes the week baseline on the first trigger of any weekday that doesn't already have one — resilient to Monday holidays / Monday cron failures) → optional brief generation (morning at 08:00 CET, evening at 22:00 CET, weekend wire Friday 22:45 CET; all idempotent). A cron-job.org scheduled job pings the endpoint every 15 min on weekdays; off-hours fires are near-instant since they're pure cache passthrough.
+- `/api/trigger` (auth via `x-trigger-secret` header — or legacy `?key=` query param) → `fetchPrices` (smart: skips closed-market tickers and reuses their cached prices) → optional `analyzeStocks` (gated by smart-skip logic) → `saveStockData` → `maybeArchiveWeekStart` (writes the week baseline on the first trigger of any weekday that doesn't already have one — resilient to Monday holidays / Monday cron failures) → optional brief generation (morning at 08:00 CET, evening at 22:00 CET, weekend wire Friday 22:45 CET; all idempotent). A cron-job.org scheduled job pings the endpoint every 10 min on weekdays; off-hours fires are near-instant since they're pure cache passthrough.
 - `/api/data` (public) reads the latest snapshot + all three briefs + a compact `weekStartPrices` map from KV; CDN-cached via `Cache-Control: public, s-maxage=60, stale-while-revalidate=300` so the polling client doesn't drain Upstash
 - `/` server component fetches `/api/data` on the server with `revalidate: 60`, then hands the data to a `'use client'` Dashboard
 - Dashboard sub-components: one-time boot-sequence splash (CRT-style boot log, gated by sessionStorage so it plays once per browser session), ticker tape, masthead header (I$KBETS wordmark + date/issue dateline), market-status bar (5 markets — Tokyo, Hong Kong, Stockholm, London, NYC — real timezones via `Intl`; collapses to pill+code on mobile), brief card (most-recent of morning / evening / weekend), mood banner, friend leaderboard (per-friend today% + WTD%), winner/loser featured cards, responsive grid, last-updated footer
@@ -68,9 +68,11 @@ The Anthropic call only fires when at least one of these is true:
 2. **> 4 hours** since the last AI run (freshness ceiling — the `overallMood` shouldn't go stale on a flat day).
 3. No prior analysis exists.
 
-Otherwise prices are refreshed but the existing analysis is carried forward. This decouples price freshness (every 15 min) from AI cost (only when there's something new to say).
+Otherwise prices are refreshed but the existing analysis is carried forward. This decouples price freshness (every 10 min) from AI cost (only when there's something new to say).
 
-**Cron schedule** lives at [cron-job.org](https://cron-job.org): `1,16,31,46 6-22 * * 1-5` UTC (every 15 min on weekdays, offset by 1 min so the tick lands ~1 min after each quarter-hour). The offsets are chosen to land closely after market opens — Stockholm opens at 09:00 STO (= 08:00 UTC winter / 07:00 UTC summer), so the `:01` tick fires 1 min after open and refreshes the snapshot immediately. Same for NY's 15:30 STO open. The window covers ~07:00–00:00 CET / ~08:00–01:00 CEST so the morning brief (08:00 CET), evening brief (22:00 CET), and weekend wire (Fri 22:45 CET) windows always have at least one fire inside them in either DST mode. The job sends GET to `https://www.iskbets.se/api/trigger` with the `x-trigger-secret` header set from a private cron-job.org config (timeout 90s, response logged to job history).
+**Cron schedule** lives at [cron-job.org](https://cron-job.org): `3,13,23,33,43,53 6-22 * * 1-5` UTC (every 10 min on weekdays, `:03`-style offset so each tick lands ~3 min after each ten-minute mark). The offsets are chosen to land shortly after market opens — Stockholm opens at 09:00 STO (= 08:00 UTC winter / 07:00 UTC summer), so the `:03` tick fires 3 min after open. 3 min vs 1 min gives the opening auction time to settle and Finnhub/Avanza time to start returning sensible intraday `dp` values instead of zero. Same logic for NY's 15:30 STO open → 15:33 STO tick. The window covers ~07:00–00:00 CET / ~08:00–01:00 CEST so the morning brief (08:00 CET), evening brief (22:00 CET), and weekend wire (Fri 22:45 CET) windows always have multiple fires inside them in either DST mode. The job sends GET to `https://www.iskbets.se/api/trigger` with the `x-trigger-secret` header set from a private cron-job.org config (timeout 90s, response logged to job history).
+
+Cadence history: 15 min → 10 min (bumped 2026-05-12 — more headroom for fresher data without straining Upstash quotas; client polling stays at 5 min so users see at most one cron cycle of staleness).
 
 Migration history: Vercel Cron → GitHub Actions (free, but ~12% delivery rate during business hours due to scheduling backlog) → cron-job.org (proper second-level reliability, free tier, web dashboard with manual fire button).
 
@@ -92,7 +94,7 @@ All three are stored under separate Redis keys; each stores its own `date`, and 
 
 **Champion of the Week**: separate gold card pinned above the leaderboard. Generated once a week alongside the Weekend Wire (Friday 22:45–23:30 STO) by a dedicated Anthropic call. Targets the friend with the highest **WTD%** at end of week — the actual week champion, which can differ from today's #1. Persists through the weekend until next Friday's call overwrites it. Title shows the date range so it's always clear which week it covers.
 
-**Cooldown gate** (`iskbets:lastAttempt`) is intentionally written **before** the pipeline runs — so a partial failure (provider flake, Anthropic rate limit) still consumes the cooldown. It's now 1 min (was 30) — just spam-prevention for manual clicks; cron fires every 15 min so it's never blocked.
+**Cooldown gate** (`iskbets:lastAttempt`) is intentionally written **before** the pipeline runs — so a partial failure (provider flake, Anthropic rate limit) still consumes the cooldown. It's now 1 min (was 30) — just spam-prevention for manual clicks; cron fires every 10 min so it's never blocked.
 
 ## KV shape
 
