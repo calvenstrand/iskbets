@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { deriveRating, deriveSentiment } from "@/lib/derive";
 import { displayTicker } from "@/lib/tickers";
 import type { Sentiment, StockAnalysis, StockPrice } from "@/lib/types";
 
@@ -82,7 +83,18 @@ export function StockCard({
   flashing,
   marketStale,
 }: StockCardProps) {
-  const glow = sentimentGlow(analysis?.sentiment);
+  // Rating + sentiment are pure functions of regularMarketChangePercent
+  // — recompute LIVE from the current snapshot price instead of using
+  // analysis.rating / analysis.sentiment from cache. Otherwise these
+  // get frozen at the value derived during the last AI run (~every
+  // 45 min) and drift out of sync as prices refresh every 10 min via
+  // the cron: a card whose live change% is -0.5% can end up tagged
+  // DIAMOND HANDS with a green border because that's what it was 30
+  // min ago when the AI last ran.
+  const livePct = stock.regularMarketChangePercent;
+  const liveRating = deriveRating(livePct);
+  const liveSentiment = deriveSentiment(livePct);
+  const glow = sentimentGlow(liveSentiment);
   const featuredClass = featured ? `featured ${featured}` : "";
   const cardClass = [
     "stock-card",
@@ -132,7 +144,7 @@ export function StockCard({
           <div className="name">{stock.name}</div>
           <div className="ticker">{displayTicker(stock.ticker)}</div>
         </div>
-        {analysis?.rating && <div className="rating">{analysis.rating}</div>}
+        {liveRating && <div className="rating">{liveRating}</div>}
       </div>
 
       <div className="mt-3 flex items-baseline gap-2 flex-wrap">
