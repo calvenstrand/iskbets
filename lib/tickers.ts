@@ -31,6 +31,14 @@ export type Ticker = {
   avanzaId?: number;
   /** Friends who own / care about this ticker. Used to render owner chips. */
   owners?: Person[];
+  /** Optional terse business context for the analyzer to weave into
+   * WSB-style comments. Use for stocks where the story matters beyond
+   * the price move (single-drug biotechs, imminent catalysts,
+   * mechanism-of-action specifics, ownership structure, etc).
+   * Keep terse — the comment is ≤12 words, so context just needs to
+   * give Claude the hooks. Refresh when company status changes
+   * (e.g. update after a Phase 2b readout, M&A, etc). */
+  context?: string;
 };
 
 export const TICKERS: Ticker[] = [
@@ -46,7 +54,15 @@ export const TICKERS: Ticker[] = [
   { symbol: "THULE.ST", name: "Thule Group", market: "SE", avanzaId: 521491, owners: ["eric"] },
   { symbol: "CAST.ST", name: "Castellum", market: "SE", avanzaId: 5353 },
   { symbol: "NIBE-B.ST", name: "Nibe Industrier B", market: "SE", avanzaId: 5325, owners: ["eric"] },
-  { symbol: "DICOT.ST", name: "Dicot Pharma", market: "SE", avanzaId: 861798, owners: ["oskar"] },
+  {
+    symbol: "DICOT.ST",
+    name: "Dicot Pharma",
+    market: "SE",
+    avanzaId: 861798,
+    owners: ["oskar"],
+    context:
+      "Single-drug Swedish ED biotech. LIB-01 is a long-acting alternative to Viagra/Cialis — effect lasts weeks not hours, MC4 receptor mechanism instead of PDE5. Phase 2a positive Oct 2025 (25/50mg doses, sustained effect 8 weeks after 3-day course). Phase 2b due H2 2026, funded by a 210 MSEK rights issue announced May 2026 → heavy dilution dragging the share price. Penny-stock valuation; binary catalyst on Phase 2b readout.",
+  },
   { symbol: "VPLAY-B.ST", name: "Viaplay Group B", market: "SE", avanzaId: 945460, owners: ["eric"] },
   { symbol: "INTRUM.ST", name: "Intrum", market: "SE", avanzaId: 5583, owners: ["johan"] },
   { symbol: "HACK.ST", name: "Hacksaw Gaming", market: "SE", avanzaId: 2094659, owners: ["chris"] },

@@ -58,11 +58,23 @@ Some stocks have an "owners" array — those are the friends in the group (${FRI
 - Vary the collective phrase across comments — don't reuse the same one every time.
 
 COMMENT RULES:
-- ≤ 10 words
+- ≤ 10 words (≤ 14 for tickers with a \`context\` field — see TICKER CONTEXT below)
 - Punchy, slang-heavy, no filler
 - Refer to owners by first name (1 owner) or a collective phrase (2+ owners) — never list multiple names
 - For MUST COMMENT entries marked "→ comment on the WEEK'S move", reference the WEEK'S % — e.g. "Hacksaw +8% on the week, slot machines printing"
 - For MUST COMMENT entries marked "→ comment on TODAY'S move", reference today's % even if the move is small — e.g. "Volvo grinding +0.4% on a slow Monday, industrial discipline"
+
+TICKER CONTEXT:
+Some tickers carry a \`context\` field with terse business background — what the company does, what stage of development, imminent catalysts, ownership structure, mechanism specifics, etc. When a ticker has \`context\`, weave one of those specifics into the comment INSTEAD of generic "stonks go up" phrasing. The context is what makes the line useful instead of wallpaper.
+
+Pick the angle that fits the day's move:
+- Big down day + dilution context → "Oskar's Dicot -7%, ED biotech speedrunning the 210M rights-issue dump"
+- Quiet day + catalyst context → "Oskar's Dicot grinding sideways, all eyes on Phase 2b readout"
+- Positive trial news + mechanism context → "Oskar's Dicot +12%, LIB-01 Phase 2a data smashing Viagra paradigm"
+
+Do NOT just paste the context verbatim. Distill ONE relevant detail. Stay in WSB voice. If the context mentions multiple things (mechanism + catalyst + dilution + valuation), pick the one most relevant to what the price is doing today.
+
+For tickers without \`context\`, fall back to generic WSB framing using the friend's name + the magnitude of the move.
 
 OVERALL MOOD:
 ONE dramatic WSB sentence about the whole portfolio. Reference friends when something dramatic is happening with their picks — same naming rule as comments (first name for 1-owner picks, a collective phrase like "the gang" / "the syndicate" / "<count> apes" / "<count> degens" for 2+ owners). Anchor the line to whichever market(s) are actually live right now: if only Stockholm is open, talk about the SE side without pretending US tickers are doing anything; if only NY is open, the inverse. Don't claim portfolio-wide moves when half the data is frozen from the previous session.`;
@@ -199,9 +211,13 @@ export async function analyzeStocks(
       ? isMarketInRegularSession(meta.market, now)
       : false;
     const owners = ownersMap.get(p.ticker) ?? [];
-    return owners.length > 0
-      ? { ...p, marketLive, owners }
-      : { ...p, marketLive };
+    const context = meta?.context;
+    return {
+      ...p,
+      marketLive,
+      ...(owners.length > 0 ? { owners } : {}),
+      ...(context ? { context } : {}),
+    };
   });
 
   // Force-include the week's AND today's biggest mover/dragger so the
