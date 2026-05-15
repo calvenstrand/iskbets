@@ -51,6 +51,36 @@ const LABELS: Record<Kind, string> = {
   weekend: "WEEKEND WIRE",
 };
 
+/** Build a NewsArticle JSON-LD payload for the currently-displayed brief.
+ * Real fresh content with a timestamp + an author — this is the kind of
+ * thing Google's freshness ranking actually rewards on a single-page
+ * site. Keep fields minimal but accurate. */
+function buildBriefStructuredData(kind: Kind, brief: Brief): string {
+  const headline = `ISKBets ${LABELS[kind]} — ${formatBriefDate(brief.date)}`;
+  const datePublished = new Date(brief.generatedAt).toISOString();
+  return JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    headline,
+    datePublished,
+    dateModified: datePublished,
+    inLanguage: "en",
+    articleBody: brief.text,
+    isPartOf: { "@id": "https://www.iskbets.se/#website" },
+    mainEntityOfPage: "https://www.iskbets.se",
+    author: {
+      "@type": "Organization",
+      name: "ISKBets",
+      url: "https://www.iskbets.se",
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "ISKBets",
+      url: "https://www.iskbets.se",
+    },
+  });
+}
+
 export function BriefCard({
   morningBrief,
   eveningBrief,
@@ -83,6 +113,15 @@ export function BriefCard({
 
   return (
     <section className={className}>
+      {/* NewsArticle JSON-LD for the active brief. React 19 hoists this
+          script tag into <head> at render. Inlined via dangerouslySet…
+          because React escapes characters inside <script> children. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: buildBriefStructuredData(current.kind, current.brief),
+        }}
+      />
       <header className="brief-header">
         <h2 className="brief-kind">{LABELS[current.kind]}</h2>
         <span className="brief-date">{dateLabel}</span>
