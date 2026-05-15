@@ -76,9 +76,20 @@ export type WeeklyChampion = {
   generatedAt: number;
 };
 
+/** Snapshot shape exposed to the frontend / public /api/data. Drops the
+ * trigger-route bookkeeping fields (`lastFetch`, `analyzedAt`,
+ * `pricesAtLastAnalysis`) so they don't leak in the public payload —
+ * `pricesAtLastAnalysis` in particular duplicates the entire stocks
+ * array and reveals the AI gating logic. The frontend only consumes
+ * `stocks`, `analysis`, and `updatedAt`. */
+export type PublicStoredData = Omit<
+  StoredData,
+  "lastFetch" | "analyzedAt" | "pricesAtLastAnalysis"
+>;
+
 /** What the dashboard reads. Bundles snapshot + briefs from separate Redis keys. */
 export type DashboardData = {
-  snapshot: StoredData;
+  snapshot: PublicStoredData;
   morningBrief?: Brief;
   eveningBrief?: Brief;
   weekendBrief?: Brief;

@@ -13,9 +13,9 @@ import { TICKERS } from "@/lib/tickers";
 import type {
   Brief,
   DashboardData,
+  PublicStoredData,
   StockAnalysis,
   StockPrice,
-  StoredData,
   WeeklyChampion,
 } from "@/lib/types";
 import { BriefCard } from "./Brief";
@@ -31,7 +31,7 @@ import { UpdatedFooter } from "./UpdatedFooter";
 import { WeeklyChampionCard } from "./WeeklyChampion";
 
 type DashboardProps = {
-  data: StoredData;
+  data: PublicStoredData;
   morningBrief?: Brief;
   eveningBrief?: Brief;
   weekendBrief?: Brief;
@@ -85,8 +85,8 @@ function sortGridStocks(stocks: StockPrice[], now: Date): StockPrice[] {
 
 /** Tickers whose AI comment changed between two snapshots. */
 function findCommentChanges(
-  prev: StoredData,
-  next: StoredData,
+  prev: PublicStoredData,
+  next: PublicStoredData,
 ): Set<string> {
   const oldComments = new Map(
     prev.analysis.stocks.map((s) => [s.ticker, s.comment ?? ""]),
@@ -112,7 +112,7 @@ export function Dashboard({
   initialInRecap,
   initialNowMs,
 }: DashboardProps) {
-  const [snapshot, setSnapshot] = useState<StoredData>(initialData);
+  const [snapshot, setSnapshot] = useState<PublicStoredData>(initialData);
   const [morningBrief, setMorningBrief] = useState<Brief | undefined>(
     initialMorning,
   );

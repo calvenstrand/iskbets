@@ -164,7 +164,13 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(STRUCTURED_DATA),
+            // Escape `<` so any future addition containing `</script>`
+            // (or `<!--`) can't break out of the script tag. Currently
+            // safe — STRUCTURED_DATA is hardcoded — but defense in depth.
+            __html: JSON.stringify(STRUCTURED_DATA).replace(
+              /</g,
+              "\\u003c",
+            ),
           }}
         />
         <BootSequence />

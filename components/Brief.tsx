@@ -54,11 +54,16 @@ const LABELS: Record<Kind, string> = {
 /** Build a NewsArticle JSON-LD payload for the currently-displayed brief.
  * Real fresh content with a timestamp + an author — this is the kind of
  * thing Google's freshness ranking actually rewards on a single-page
- * site. Keep fields minimal but accurate. */
+ * site. Keep fields minimal but accurate.
+ *
+ * `brief.text` is AI-generated, so the JSON output is escaped through
+ * `safeJsonForScript` to defend against `</script>` injection — even
+ * though Claude has no reason to produce that string, defense-in-depth
+ * for any value embedded in a <script> tag. */
 function buildBriefStructuredData(kind: Kind, brief: Brief): string {
   const headline = `ISKBets ${LABELS[kind]} — ${formatBriefDate(brief.date)}`;
   const datePublished = new Date(brief.generatedAt).toISOString();
-  return JSON.stringify({
+  return safeJsonForScript({
     "@context": "https://schema.org",
     "@type": "NewsArticle",
     headline,
@@ -79,6 +84,15 @@ function buildBriefStructuredData(kind: Kind, brief: Brief): string {
       url: "https://www.iskbets.se",
     },
   });
+}
+
+/** JSON.stringify + escape `<` so an embedded `</script>` (or `<!--`)
+ * in any string value can't break out of the surrounding `<script>` tag.
+ * The HTML parser only treats `</script` as a tag-end inside a raw-text
+ * script element, so escaping `<` is sufficient — `>` and `&` don't
+ * need it because they're harmless inside script context. */
+function safeJsonForScript(data: unknown): string {
+  return JSON.stringify(data).replace(/</g, "\\u003c");
 }
 
 export function BriefCard({

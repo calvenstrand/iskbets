@@ -6,6 +6,7 @@ import type {
   Brief,
   DailyResult,
   DashboardData,
+  PublicStoredData,
   StockPrice,
   StoredData,
   WeeklyChampion,
@@ -348,11 +349,26 @@ export async function getDashboardData(opts?: {
         )
       : undefined;
   return {
-    snapshot,
+    snapshot: toPublicSnapshot(snapshot),
     ...(morningBrief ? { morningBrief } : {}),
     ...(eveningBrief ? { eveningBrief } : {}),
     ...(weekendBrief ? { weekendBrief } : {}),
     ...(weeklyChampion ? { weeklyChampion } : {}),
     ...(weekStartPrices ? { weekStartPrices } : {}),
   };
+}
+
+/** Drop trigger-route bookkeeping fields before exposing the snapshot
+ * to the frontend / public API. See PublicStoredData docstring. */
+function toPublicSnapshot(snapshot: StoredData): PublicStoredData {
+  const {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    lastFetch: _lastFetch,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    analyzedAt: _analyzedAt,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    pricesAtLastAnalysis: _pricesAtLastAnalysis,
+    ...publicFields
+  } = snapshot;
+  return publicFields;
 }
