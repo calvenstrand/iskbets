@@ -159,19 +159,6 @@ const STOCKS: StockPrice[] = [
     marketState: "REGULAR",
   },
   {
-    ticker: "KLAR",
-    name: "Klarna Group",
-    currency: "USD",
-    regularMarketPrice: 48.2,
-    regularMarketChange: 0.71,
-    regularMarketChangePercent: 1.5,
-    regularMarketVolume: 4_200_000,
-    averageDailyVolume3Month: 5_100_000,
-    fiftyTwoWeekHigh: 0,
-    fiftyTwoWeekLow: 0,
-    marketState: "REGULAR",
-  },
-  {
     ticker: "QBTS",
     name: "D-Wave Quantum",
     currency: "USD",
@@ -485,6 +472,19 @@ const STOCKS: StockPrice[] = [
     marketState: "REGULAR",
   },
   {
+    ticker: "FLAT-B.ST",
+    name: "Flat Capital B",
+    currency: "SEK",
+    regularMarketPrice: 8.98,
+    regularMarketChange: 0.18,
+    regularMarketChangePercent: 2.0,
+    regularMarketVolume: 320_000,
+    averageDailyVolume3Month: 480_000,
+    fiftyTwoWeekHigh: 0,
+    fiftyTwoWeekLow: 0,
+    marketState: "REGULAR",
+  },
+  {
     ticker: "HACK.ST",
     name: "Hacksaw Gaming",
     currency: "SEK",
@@ -527,6 +527,7 @@ const COMMENTS: Record<string, string> = {
   "LUND-B.ST": "Eric's Lundbergs napping, old-money patience",
   "LATO-B.ST": "Eric's Latour grinding +0.8%, industrial discipline",
   "SES.ST": "Oskar's Enviro Systems -5%, ESG dream burning fossil",
+  "FLAT-B.ST": "two apes' Flat Capital +2%, OpenAI/SpaceX wrapper printing",
 };
 
 const OVERALL_MOOD =
@@ -589,7 +590,7 @@ export function getMockData(): StoredData {
 // ============== Mock briefs ==============
 
 const MORNING_BRIEF_TEXT =
-  "Yesterday Chris's Cloudflare ripped face off everyone and everything else, dragging the syndicate to +2.3% net. Eric's industrials held the line as always. Oskar's Dicot apes still haven't shown up to morning prayer — currency: copium. Stockholm rings the bell in 30, ape eyes on Klarna after that earnings beat last night.";
+  "Yesterday Chris's Cloudflare ripped face off everyone and everything else, dragging the syndicate to +2.3% net. Eric's industrials held the line as always. Oskar's Dicot apes still haven't shown up to morning prayer — currency: copium. Stockholm rings the bell in 30, two apes' Flat Capital catching bid on the SpaceX revaluation chatter.";
 
 const EVENING_BRIEF_TEXT =
   "What a session. NVDA printed +6.8%, hauling Chris's tech bag to +4.1% net while the rest of the gang grinded sideways. Stockholm closed mixed — Eric's roof boxes catching a bid, Oskar's Dicot continuing its slow death at 25 öre. NY rolled over into the close. Sleep tight, bagholders. Tomorrow we ride.";
@@ -644,7 +645,7 @@ const WEEK_DELTA: Record<string, number> = {
   "SHB-B.ST": 0.018,
   SHOP: 0.062,
   NET: 0.094,
-  KLAR: 0.041,
+  "FLAT-B.ST": 0.041,
   DDOG: 0.057,
   GOOG: 0.034,
   "HACK.ST": 0.082,
@@ -814,8 +815,8 @@ export function getMockDailyResults(): DailyResult[] {
     },
     {
       daysBack: 5,
-      mood: "Monday open. Klarna popped on earnings. Rest sideways.",
-      deltas: { KLAR: 6.4, "INVE-B.ST": 1.1, GOOG: 0.4, AMD: 1.8, "BINV.ST": -2.4 },
+      mood: "Monday open. Flat Capital popped on SpaceX revaluation. Rest sideways.",
+      deltas: { "FLAT-B.ST": 6.4, "INVE-B.ST": 1.1, GOOG: 0.4, AMD: 1.8, "BINV.ST": -2.4 },
     },
   ];
 

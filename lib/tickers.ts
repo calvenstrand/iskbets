@@ -210,6 +210,15 @@ export const TICKERS: Ticker[] = [
     context:
       "Swedish tire-pyrolysis tech — recycles end-of-life tires into recovered carbon black for new tire manufacturing. ESG / circular-economy play with Michelin as a strategic partner. Pre-scale, capital-intensive, slow commercial ramp. Penny-stock territory.",
   },
+  {
+    symbol: "FLAT-B.ST",
+    name: "Flat Capital B",
+    market: "SE",
+    avanzaId: 1292424,
+    owners: ["chris", "oskar"],
+    context:
+      "Swedish-listed investment holding company. Concentrated stakes in Klarna and Defensor Group, plus private-tech YOLOs in OpenAI / SpaceX / Cerebras Systems. Essentially a Stockholm-listed wrapper for AI/space/fintech exposure that's otherwise unreachable in public markets. Trading at meaningful discount to NAV (~35% as of Q4 2025: ~9 SEK price vs ~14 SEK NAV/share). Founded 2013. Klarna IPO + any private-tech revaluation are the main catalysts.",
+  },
   // WSB darlings — fetched via Finnhub
   {
     symbol: "NVDA",
@@ -276,14 +285,6 @@ export const TICKERS: Ticker[] = [
     owners: ["chris"],
     context:
       "CDN + edge security + Workers serverless platform + Vectorize / Workers AI. Growth SaaS with a GenAI tailwind. High-multiple valuation, hype-driven. Matthew Prince's blog posts move the stock.",
-  },
-  {
-    symbol: "KLAR",
-    name: "Klarna Group",
-    market: "US",
-    owners: ["chris"],
-    context:
-      "Swedish BNPL (buy-now-pay-later) fintech. Checkout option at 600k+ retailers worldwide. Recent NYSE IPO. Cyclical with consumer credit + e-commerce growth. Sebastian Siemiatkowski's baby. Swedish fintech pride.",
   },
   {
     symbol: "QBTS",
