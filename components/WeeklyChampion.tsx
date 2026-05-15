@@ -34,7 +34,7 @@ export function WeeklyChampionCard({ champion }: Props) {
   return (
     <section className="weekly-champion">
       <header className="weekly-champion-header">
-        <span className="weekly-champion-kind">👑 CHAMPION OF THE WEEK</span>
+        <h2 className="weekly-champion-kind">👑 CHAMPION OF THE WEEK</h2>
         <span className="weekly-champion-range">
           {formatDateRange(champion.weekStart, champion.weekEnd)}
         </span>

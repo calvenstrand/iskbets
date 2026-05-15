@@ -65,7 +65,7 @@ export function Leaderboard({ stocks, weekStartPrices }: Props) {
   return (
     <section className="leaderboard">
       <header className="leaderboard-header">
-        <span className="leaderboard-kind">FRIEND LEADERBOARD</span>
+        <h2 className="leaderboard-kind">FRIEND LEADERBOARD</h2>
         <span className="leaderboard-meta">
           {showWtd ? "TODAY · WEEK-TO-DATE" : "TODAY"}
         </span>

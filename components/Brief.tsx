@@ -84,7 +84,7 @@ export function BriefCard({
   return (
     <section className={className}>
       <header className="brief-header">
-        <span className="brief-kind">{LABELS[current.kind]}</span>
+        <h2 className="brief-kind">{LABELS[current.kind]}</h2>
         <span className="brief-date">{dateLabel}</span>
       </header>
       <p className="brief-body">{current.brief.text}</p>

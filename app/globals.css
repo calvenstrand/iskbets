@@ -718,6 +718,10 @@ html.booting .boot-overlay,
   font-size: clamp(0.95rem, 2vw, 1.15rem);
   letter-spacing: 0.18em;
   color: var(--text);
+  /* Neutralise <h2> default margins — was a <span> previously, promoted
+     to <h2> for SEO/semantic-headings reasons. */
+  margin: 0;
+  font-weight: 400;
 }
 
 .brief-morning .brief-kind {
@@ -828,6 +832,10 @@ html.booting .boot-overlay,
   letter-spacing: 0.22em;
   color: var(--gold);
   text-shadow: 0 0 10px rgba(245, 200, 66, 0.5);
+  /* Neutralise <h2> default margins — was a <span> previously, promoted
+     to <h2> for SEO/semantic-headings reasons. */
+  margin: 0;
+  font-weight: 400;
 }
 
 .weekly-champion-range {
@@ -901,6 +909,10 @@ html.booting .boot-overlay,
   letter-spacing: 0.18em;
   color: var(--gold);
   text-shadow: 0 0 12px rgba(245, 200, 66, 0.4);
+  /* Neutralise <h2> default margins — was a <span> previously, promoted
+     to <h2> for SEO/semantic-headings reasons. */
+  margin: 0;
+  font-weight: 400;
 }
 
 .leaderboard-meta {

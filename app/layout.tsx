@@ -32,7 +32,52 @@ function getMetadataBase(): URL {
 
 const TITLE = "ISKBets — Stockholm meets WallStreetBets. Diamond hands.";
 const DESCRIPTION =
-  "Wall Street meets WallStreetBets. AI-rated Stockholm stocks with WSB-flavored commentary. Greed is good. Diamond hands. Not financial advice.";
+  "Live stock dashboard for Stockholmsbörsen and US tickers with AI-rated WSB-style commentary, a friend-group leaderboard, and daily morning/evening market briefs. Diamond hands. Not financial advice.";
+
+// JSON-LD structured data — gives Google a machine-readable description of
+// what ISKBets is, who built it, and what it does. Helps with rich-result
+// eligibility (sitelinks, knowledge panel hints) and canonical entity
+// resolution. Keep schema fields minimal but accurate; lying to schema.org
+// is a manual-action footgun.
+const STRUCTURED_DATA = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebApplication",
+      "@id": "https://www.iskbets.se/#webapp",
+      name: "ISKBets",
+      url: "https://www.iskbets.se",
+      description: DESCRIPTION,
+      applicationCategory: "FinanceApplication",
+      operatingSystem: "Any",
+      browserRequirements: "Requires JavaScript",
+      inLanguage: "en",
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "SEK",
+      },
+      creator: {
+        "@type": "Person",
+        name: "Christoffer Alvenstrand",
+        url: "https://riverbeach.se",
+      },
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://www.iskbets.se/#website",
+      url: "https://www.iskbets.se",
+      name: "ISKBets",
+      description: DESCRIPTION,
+      inLanguage: "en",
+      publisher: {
+        "@type": "Person",
+        name: "Christoffer Alvenstrand",
+        url: "https://riverbeach.se",
+      },
+    },
+  ],
+};
 
 // LinkedIn (and some other crawlers) read og:logo with `property=`, but
 // Next.js's metadata.other always emits `name=`. Render the tag manually
@@ -113,6 +158,15 @@ export default function RootLayout({
     >
       <body>
         <meta property="og:logo" content={LOGO_URL} />
+        {/* JSON-LD: machine-readable site description for Google. Inlined
+            via dangerouslySetInnerHTML because React escapes characters
+            inside <script> tag children, which breaks JSON-LD parsing. */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(STRUCTURED_DATA),
+          }}
+        />
         <BootSequence />
         {children}
         {/* Drawer footer renders OUTSIDE/BELOW main so the reveal-on-scroll
