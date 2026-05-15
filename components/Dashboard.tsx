@@ -388,14 +388,22 @@ export function Dashboard({
         <Leaderboard
           stocks={snapshot.stocks}
           weekStartPrices={weekStartPrices}
+          recapMode
         />
       )}
 
-      <MoodBanner
-        mood={snapshot.analysis.overallMood}
-        avgChangePct={avgChangePct}
-        flash={moodFlash}
-      />
+      {/* Mood banner hides during the recap window — Friday's close
+          would otherwise masquerade as a live "today" mood on Sat/Sun,
+          and the Weekend Wire above already owns the editorial framing
+          for the whole weekend. Returns Monday at 09:00 STO when the
+          live trading day begins again. */}
+      {!inRecap && (
+        <MoodBanner
+          mood={snapshot.analysis.overallMood}
+          avgChangePct={avgChangePct}
+          flash={moodFlash}
+        />
+      )}
 
       {/* Brief disappears Mon-Fri 09:00 → 22:00 STO. Once Stockholm
           opens the morning wire is stale, and the dashboard's live

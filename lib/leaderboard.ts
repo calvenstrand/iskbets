@@ -30,6 +30,12 @@ export type LeaderboardEntry = {
    * undefined-when-empty rule. May equal topMover when only one ticker
    * has data — caller should de-dupe in render if needed. */
   bottomMover?: Mover;
+  /** Best week-over-week mover among this person's owned tickers. `pct`
+   * is the week change %. Undefined when no baseline exists for any
+   * owned ticker. */
+  topWeekMover?: Mover;
+  /** Worst week-over-week mover, same shape and undefined-rule. */
+  bottomWeekMover?: Mover;
 };
 
 /**
@@ -42,12 +48,17 @@ export type LeaderboardEntry = {
  * have a Monday baseline. Returns null when no owned ticker has a
  * baseline yet — caller hides the WTD column in that case.
  *
- * Sort: descending by todayPct, then by wtdPct (descending), then by name.
+ * Sort: defaults to descending by todayPct (then wtdPct, then name).
+ * Pass `sortBy: "wtd"` for the recap-window flip — friends ranked by
+ * the actual week story instead of today's intraday noise. Entries
+ * without a wtdPct sink to the bottom under WTD sort.
  */
 export function computeLeaderboard(
   stocks: StockPrice[],
   weekStartPrices: Record<string, number> | undefined,
+  opts?: { sortBy?: "today" | "wtd" },
 ): LeaderboardEntry[] {
+  const sortBy = opts?.sortBy ?? "today";
   const priceByTicker = new Map(stocks.map((s) => [s.ticker, s]));
   const ownersByPerson = new Map<Person, string[]>();
   for (const t of TICKERS) {
@@ -69,6 +80,8 @@ export function computeLeaderboard(
     let wtdCoverage = 0;
     let topMover: Mover | undefined;
     let bottomMover: Mover | undefined;
+    let topWeekMover: Mover | undefined;
+    let bottomWeekMover: Mover | undefined;
     for (const ticker of tickers) {
       const stock = priceByTicker.get(ticker);
       if (!stock) continue;
@@ -80,8 +93,16 @@ export function computeLeaderboard(
       if (!bottomMover || pct < bottomMover.pct) bottomMover = { ticker, pct };
       const baseline = weekStartPrices?.[ticker];
       if (baseline && baseline > 0 && Number.isFinite(stock.regularMarketPrice)) {
-        wtdSum += ((stock.regularMarketPrice - baseline) / baseline) * 100;
+        const weekPct =
+          ((stock.regularMarketPrice - baseline) / baseline) * 100;
+        wtdSum += weekPct;
         wtdCoverage++;
+        if (!topWeekMover || weekPct > topWeekMover.pct) {
+          topWeekMover = { ticker, pct: weekPct };
+        }
+        if (!bottomWeekMover || weekPct < bottomWeekMover.pct) {
+          bottomWeekMover = { ticker, pct: weekPct };
+        }
       }
     }
 
@@ -96,10 +117,22 @@ export function computeLeaderboard(
       wtdCoverage,
       ...(topMover ? { topMover } : {}),
       ...(bottomMover ? { bottomMover } : {}),
+      ...(topWeekMover ? { topWeekMover } : {}),
+      ...(bottomWeekMover ? { bottomWeekMover } : {}),
     });
   }
 
   entries.sort((a, b) => {
+    if (sortBy === "wtd") {
+      // Recap-window sort: rank by the actual week story. Friends
+      // without a baseline (wtdPct === null) sink to the bottom via
+      // -Infinity, then break ties on todayPct, then name.
+      const aw = a.wtdPct ?? -Infinity;
+      const bw = b.wtdPct ?? -Infinity;
+      if (aw !== bw) return bw - aw;
+      if (a.todayPct !== b.todayPct) return b.todayPct - a.todayPct;
+      return a.name.localeCompare(b.name);
+    }
     if (a.todayPct !== b.todayPct) return b.todayPct - a.todayPct;
     const aw = a.wtdPct ?? -Infinity;
     const bw = b.wtdPct ?? -Infinity;

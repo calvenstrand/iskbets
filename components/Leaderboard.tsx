@@ -9,6 +9,18 @@ import type { StockPrice } from "@/lib/types";
 type Props = {
   stocks: StockPrice[];
   weekStartPrices?: Record<string, number>;
+  /** Fri 22:00 → Mon 09:00 STO. When true the leaderboard becomes a
+   * week-recap surface:
+   *   - sort by WTD instead of today
+   *   - drop the TODAY column (markets are closed, today% would be
+   *     yesterday's close masquerading as live data)
+   *   - drop the standalone champion hero card — the WeeklyChampionCard
+   *     above already owns the "winner spotlight" role, so #1 here
+   *     just gets the same challenger treatment as everyone else
+   *   - top/bottom mover row pivots to week-based per-friend movers
+   *   - header relabels FRIEND LEADERBOARD → WEEK STANDINGS
+   */
+  recapMode?: boolean;
 };
 
 function formatPct(value: number | null): string {
@@ -53,34 +65,52 @@ function ImpactRow({
   );
 }
 
-export function Leaderboard({ stocks, weekStartPrices }: Props) {
-  const entries = computeLeaderboard(stocks, weekStartPrices);
+export function Leaderboard({ stocks, weekStartPrices, recapMode }: Props) {
+  const entries = computeLeaderboard(
+    stocks,
+    weekStartPrices,
+    recapMode ? { sortBy: "wtd" } : undefined,
+  );
   if (entries.length === 0) return null;
 
   const showWtd = entries.some((e) => e.wtdPct !== null);
-  const champion = entries[0];
-  if (!champion) return null;
-  const challengers = entries.slice(1);
+
+  // Recap mode: no champion hero, all entries get the challenger
+  // treatment so the gold weekly-champion card above stays the
+  // unambiguous "winner spotlight". Outside recap: champion hero #1,
+  // challengers from #2 onward.
+  const championEntry = !recapMode ? entries[0] : undefined;
+  const challengerEntries = !recapMode ? entries.slice(1) : entries;
+  if (!recapMode && !championEntry) return null;
 
   return (
     <section className="leaderboard">
       <header className="leaderboard-header">
-        <h2 className="leaderboard-kind">FRIEND LEADERBOARD</h2>
+        <h2 className="leaderboard-kind">
+          {recapMode ? "WEEK STANDINGS" : "FRIEND LEADERBOARD"}
+        </h2>
         <span className="leaderboard-meta">
-          {showWtd ? "TODAY · WEEK-TO-DATE" : "TODAY"}
+          {recapMode
+            ? "WEEK · RANKED"
+            : showWtd
+              ? "TODAY · WEEK-TO-DATE"
+              : "TODAY"}
         </span>
       </header>
 
-      <ChampionCard entry={champion} showWtd={showWtd} />
+      {championEntry && (
+        <ChampionCard entry={championEntry} showWtd={showWtd} />
+      )}
 
-      {challengers.length > 0 && (
+      {challengerEntries.length > 0 && (
         <div className="leaderboard-grid">
-          {challengers.map((e, i) => (
+          {challengerEntries.map((e, i) => (
             <ChallengerCard
               key={e.person}
               entry={e}
-              rank={i + 2}
+              rank={recapMode ? i + 1 : i + 2}
               showWtd={showWtd}
+              recapMode={recapMode}
             />
           ))}
         </div>
@@ -140,13 +170,18 @@ function ChallengerCard({
   entry,
   rank,
   showWtd,
+  recapMode,
 }: {
   entry: LeaderboardEntry;
   rank: number;
   showWtd: boolean;
+  recapMode?: boolean;
 }) {
   const todayClass = pctClass(entry.todayPct);
   const wtdClass = pctClass(entry.wtdPct);
+  // In recap mode the TODAY column would be Friday's close labelled as
+  // live data — drop it, and swap the mover row to week-based.
+  const showToday = !recapMode;
   return (
     <article className="leader-card">
       <div className="leader-row">
@@ -155,12 +190,14 @@ function ChallengerCard({
         <span className="leader-count">{entry.tickers.length} picks</span>
       </div>
       <div className="leader-stats">
-        <div className="leader-stat">
-          <span className="leader-stat-label">TODAY</span>
-          <span className={`leader-stat-value ${todayClass}`}>
-            {formatPct(entry.todayPct)}
-          </span>
-        </div>
+        {showToday && (
+          <div className="leader-stat">
+            <span className="leader-stat-label">TODAY</span>
+            <span className={`leader-stat-value ${todayClass}`}>
+              {formatPct(entry.todayPct)}
+            </span>
+          </div>
+        )}
         {showWtd && (
           <div className="leader-stat">
             <span className="leader-stat-label">WTD</span>
@@ -171,8 +208,8 @@ function ChallengerCard({
         )}
       </div>
       <ImpactRow
-        topMover={entry.topMover}
-        bottomMover={entry.bottomMover}
+        topMover={recapMode ? entry.topWeekMover : entry.topMover}
+        bottomMover={recapMode ? entry.bottomWeekMover : entry.bottomMover}
       />
     </article>
   );
