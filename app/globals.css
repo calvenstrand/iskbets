@@ -663,45 +663,56 @@ html.booting .boot-overlay,
 /* ============= Brief (Morning Wire / Evening Wrap) ============= */
 
 .brief {
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  padding: 1.5rem clamp(1rem, 4vw, 3rem);
+  /* Contained card matching .weekly-champion / .leaderboard so the brief
+     reads as a peer of the other sections instead of a banner. Side
+     margin + full border + kind-color glow give it the same visual
+     weight as the Champion card above. */
+  margin: 1.75rem clamp(1rem, 4vw, 3rem) 0;
+  padding: 1.4rem 1.5rem 1.5rem;
+  border: 1px solid var(--border);
   font-family: var(--font-mono);
   position: relative;
+  overflow: hidden;
   animation: card-in 0.5s ease-out;
 }
 
 .brief-morning {
+  border-color: rgba(245, 200, 66, 0.45);
   background: linear-gradient(
-    180deg,
-    rgba(245, 200, 66, 0.06) 0%,
-    transparent 100%
+    135deg,
+    rgba(245, 200, 66, 0.14) 0%,
+    rgba(245, 200, 66, 0.04) 50%,
+    var(--bg-elev) 100%
   );
-  /* Keep the gradient + borders full-bleed edge-to-edge, but cap the
-     inner content at 1000px by growing horizontal padding at wide
-     viewports. `max(...)` picks whichever is bigger: the existing
-     responsive padding (which wins on narrow screens) OR the calc
-     needed to center a 1000px content column (which wins on desktop). */
-  padding-inline: max(
-    clamp(1rem, 4vw, 3rem),
-    calc((100% - 1000px) / 2)
-  );
+  box-shadow:
+    0 0 24px rgba(245, 200, 66, 0.14),
+    0 0 12px rgba(245, 200, 66, 0.14) inset;
 }
 
 .brief-evening {
+  border-color: rgba(76, 201, 255, 0.4);
   background: linear-gradient(
-    180deg,
-    rgba(76, 201, 255, 0.06) 0%,
-    transparent 100%
+    135deg,
+    rgba(76, 201, 255, 0.12) 0%,
+    rgba(76, 201, 255, 0.04) 50%,
+    var(--bg-elev) 100%
   );
+  box-shadow:
+    0 0 24px rgba(76, 201, 255, 0.14),
+    0 0 12px rgba(76, 201, 255, 0.14) inset;
 }
 
 .brief-weekend {
+  border-color: rgba(196, 132, 255, 0.45);
   background: linear-gradient(
-    180deg,
-    rgba(196, 132, 255, 0.07) 0%,
-    transparent 100%
+    135deg,
+    rgba(196, 132, 255, 0.14) 0%,
+    rgba(196, 132, 255, 0.04) 50%,
+    var(--bg-elev) 100%
   );
+  box-shadow:
+    0 0 24px rgba(196, 132, 255, 0.16),
+    0 0 12px rgba(196, 132, 255, 0.16) inset;
 }
 
 .brief-header {
@@ -715,8 +726,8 @@ html.booting .boot-overlay,
 
 .brief-kind {
   font-family: var(--font-display);
-  font-size: clamp(0.95rem, 2vw, 1.15rem);
-  letter-spacing: 0.18em;
+  font-size: clamp(1rem, 2.2vw, 1.35rem);
+  letter-spacing: 0.22em;
   color: var(--text);
   /* Neutralise <h2> default margins — was a <span> previously, promoted
      to <h2> for SEO/semantic-headings reasons. */
@@ -726,17 +737,17 @@ html.booting .boot-overlay,
 
 .brief-morning .brief-kind {
   color: var(--gold);
-  text-shadow: 0 0 8px rgba(245, 200, 66, 0.35);
+  text-shadow: 0 0 10px rgba(245, 200, 66, 0.5);
 }
 
 .brief-evening .brief-kind {
   color: #4cc9ff;
-  text-shadow: 0 0 8px rgba(76, 201, 255, 0.35);
+  text-shadow: 0 0 10px rgba(76, 201, 255, 0.5);
 }
 
 .brief-weekend .brief-kind {
   color: #c484ff;
-  text-shadow: 0 0 8px rgba(196, 132, 255, 0.4);
+  text-shadow: 0 0 10px rgba(196, 132, 255, 0.55);
 }
 
 .brief-date {
