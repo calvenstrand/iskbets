@@ -809,6 +809,59 @@ html.booting .boot-overlay,
   text-shadow: 0 0 8px rgba(245, 200, 66, 0.3);
 }
 
+/* ============= Recap row (Champion + Standings side-by-side) ============= */
+/* Active only during the recap window (Fri 22:00 → Mon 09:00 STO) when
+ * both Champion of the Week and Week Standings are present. Lays them
+ * out 50/50 on desktop, stacked on narrow viewports. The children's own
+ * outer margin/width rules are overridden here so they sit inside the
+ * row's gutter instead of each defining their own. */
+.recap-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  width: min(1400px, calc(100% - 2 * clamp(1rem, 4vw, 3rem)));
+  margin: 1.75rem auto 0;
+  align-items: start;
+}
+
+/* Override children's standalone-layout margins so the row controls
+   positioning. The cards keep their internal padding + glow. */
+.recap-row > .weekly-champion,
+.recap-row > .leaderboard {
+  margin: 0;
+  width: 100%;
+  max-width: none;
+}
+
+/* Match the leaderboard's section padding to the champion card's so
+   the two columns visually align top + bottom. */
+.recap-row > .leaderboard {
+  padding: 1.4rem 1.5rem 1.5rem;
+}
+
+/* Inside the half-width column, stack the 4 standings vertically
+   instead of trying to fit 4 cards across ~450px. Single-column
+   makes each card readable and gives the right column a comparable
+   height to the Champion's prose paragraph on the left. */
+.recap-row > .leaderboard .leaderboard-grid {
+  grid-template-columns: 1fr;
+}
+
+/* Narrow viewports: fall back to vertical stack and let each child
+   restore its native horizontal layout (4-card grid for standings). */
+@media (max-width: 900px) {
+  .recap-row {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  .recap-row > .leaderboard {
+    padding: 1.75rem clamp(1rem, 4vw, 3rem) 0.5rem;
+  }
+  .recap-row > .leaderboard .leaderboard-grid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+}
+
 /* ============= Weekly champion (sits above the live leaderboard) ============= */
 
 .weekly-champion {

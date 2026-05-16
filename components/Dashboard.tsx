@@ -379,17 +379,28 @@ export function Dashboard({
       {/* Champion of the Week + Friend Leaderboard are recap-window
           content — they only earn screen real estate when there's a
           full week to recap (Fri 22:00 STO → Mon 09:00 STO). During
-          live trading, the dashboard tightens up around today's data. */}
-      {inRecap && weeklyChampion && (
-        <WeeklyChampionCard champion={weeklyChampion} />
-      )}
-
-      {inRecap && (
-        <Leaderboard
-          stocks={snapshot.stocks}
-          weekStartPrices={weekStartPrices}
-          recapMode
-        />
+          live trading, the dashboard tightens up around today's data.
+          When both are present, they sit side-by-side in a .recap-row
+          (50/50 on desktop, stacked on narrow). When only one is
+          available (e.g. weeklyChampion missing the first week after
+          deploy), it renders standalone with its native layout. */}
+      {inRecap && weeklyChampion ? (
+        <div className="recap-row">
+          <WeeklyChampionCard champion={weeklyChampion} />
+          <Leaderboard
+            stocks={snapshot.stocks}
+            weekStartPrices={weekStartPrices}
+            recapMode
+          />
+        </div>
+      ) : (
+        inRecap && (
+          <Leaderboard
+            stocks={snapshot.stocks}
+            weekStartPrices={weekStartPrices}
+            recapMode
+          />
+        )
       )}
 
       {/* Mood banner hides during the recap window — Friday's close
