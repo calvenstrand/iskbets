@@ -1,3 +1,4 @@
+import { deriveSentiment } from "@/lib/derive";
 import {
   computeLeaderboard,
   type LeaderboardEntry,
@@ -182,8 +183,16 @@ function ChallengerCard({
   // In recap mode the TODAY column would be Friday's close labelled as
   // live data — drop it, and swap the mover row to week-based.
   const showToday = !recapMode;
+  // Tint the whole card by WTD performance during the recap window so
+  // the standings read at a glance — same 5-tier scale as the stock
+  // cards (moon/up/neutral/down/rekt). Reuses the .glow-* classes for
+  // visual consistency across the app. Null wtdPct → neutral so cards
+  // without a baseline don't get a misleading color.
+  const cardClass = recapMode
+    ? `leader-card glow-${deriveSentiment(entry.wtdPct ?? 0)}`
+    : "leader-card";
   return (
-    <article className="leader-card">
+    <article className={cardClass}>
       <div className="leader-row">
         <span className="leader-rank">#{rank}</span>
         <span className="leader-name">{entry.name.toUpperCase()}</span>
