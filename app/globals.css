@@ -839,12 +839,13 @@ html.booting .boot-overlay,
   padding: 1.4rem 1.5rem 1.5rem;
 }
 
-/* Inside the half-width column, stack the 4 standings vertically
-   instead of trying to fit 4 cards across ~450px. Single-column
-   makes each card readable and gives the right column a comparable
-   height to the Champion's prose paragraph on the left. */
+/* Inside the half-width column, 2x2 grid for the 4 standings —
+   gives a denser block that visually balances the Champion's prose
+   paragraph on the left. Each card lands ~210px wide at 450px
+   container, still above the 220px auto-fit minmax used outside
+   the recap row but here we want a fixed 2-up layout. */
 .recap-row > .leaderboard .leaderboard-grid {
-  grid-template-columns: 1fr;
+  grid-template-columns: 1fr 1fr;
 }
 
 /* Narrow viewports: fall back to vertical stack and let each child
