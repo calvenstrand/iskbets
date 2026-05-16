@@ -1,5 +1,9 @@
 import type { CSSProperties } from "react";
-import { deriveRating, deriveSentiment } from "@/lib/derive";
+import {
+  deriveRating,
+  deriveSentiment,
+  deriveWeekBadge,
+} from "@/lib/derive";
 import { displayTicker } from "@/lib/tickers";
 import type { Sentiment, StockAnalysis, StockPrice } from "@/lib/types";
 
@@ -95,6 +99,18 @@ export function StockCard({
   const liveRating = deriveRating(livePct);
   const liveSentiment = deriveSentiment(livePct);
   const glow = sentimentGlow(liveSentiment);
+
+  // Featured cards during a week-scoped recap get a dedicated week
+  // badge instead of the live daily rating — otherwise a card labelled
+  // "WEEK'S BIGGEST WINNER +5.5%" can end up wearing 💀 LIQUIDATED
+  // because today's intraday print happened to dump. Falls back to the
+  // live daily rating outside the recap window or when the week change
+  // isn't available.
+  const weekBadge =
+    featured && featuredScope === "week" && featuredWeekChangePct !== undefined
+      ? deriveWeekBadge(featuredWeekChangePct, featured)
+      : null;
+  const displayRating = weekBadge ?? liveRating;
   const featuredClass = featured ? `featured ${featured}` : "";
   const cardClass = [
     "stock-card",
@@ -144,7 +160,7 @@ export function StockCard({
           <div className="name">{stock.name}</div>
           <div className="ticker">{displayTicker(stock.ticker)}</div>
         </div>
-        {liveRating && <div className="rating">{liveRating}</div>}
+        {displayRating && <div className="rating">{displayRating}</div>}
       </div>
 
       <div className="mt-3 flex items-baseline gap-2 flex-wrap">

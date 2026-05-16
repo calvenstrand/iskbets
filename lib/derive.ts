@@ -47,3 +47,41 @@ export function deriveSentiment(pct: number): Sentiment {
   if (pct > -5) return "down";
   return "rekt";
 }
+
+/**
+ * Dedicated badges for the WEEK'S BIGGEST WINNER / LOSER featured
+ * cards during the recap window. Distinct from the regular daily
+ * rating set so a card labelled "WEEK'S BIGGEST WINNER" can't end up
+ * wearing a 💀 LIQUIDATED badge derived from today's intraday dump
+ * (the actual scenario that prompted this).
+ *
+ * Thresholds are wider than the daily ratings since weekly moves are
+ * naturally larger. Winner badges escalate by magnitude; loser badges
+ * mirror on the negative side. The < +2% winner band falls through to
+ * "LAST APE STANDING" because if the week's BEST stock barely cleared
+ * green, the whole portfolio probably had a rough time.
+ *
+ * Returns null when the slot doesn't deserve a trophy — e.g. the
+ * "biggest loser" actually finished positive (everyone won; no real
+ * loser to crown).
+ */
+export function deriveWeekBadge(
+  weekPct: number,
+  slot: "winner" | "loser",
+): string | null {
+  if (!Number.isFinite(weekPct)) return null;
+  if (slot === "winner") {
+    if (weekPct >= 10) return "🏆 WEEK MVP";
+    if (weekPct >= 5) return "🚀 WEEK ROCKETSHIP";
+    if (weekPct >= 2) return "💎 WEEK DIAMOND";
+    // Negative or near-flat "winner" — best of a bad week.
+    return "🪖 LAST APE STANDING";
+  }
+  // slot === "loser"
+  if (weekPct <= -15) return "⚰️ WEEK REKT";
+  if (weekPct <= -7) return "💀 WEEK BAGHOLDER";
+  if (weekPct <= -3) return "📉 ROUGH WEEK";
+  if (weekPct <= 0) return "🩹 GRAZED";
+  // "Biggest loser" is actually positive — no real loser to crown.
+  return null;
+}
