@@ -415,6 +415,7 @@ export function Dashboard({
           eveningBrief={eveningBrief}
           weekendBrief={weekendBrief}
           flash={briefFlash}
+          inRecap={inRecap}
         />
       )}
 

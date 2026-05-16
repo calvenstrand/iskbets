@@ -26,9 +26,9 @@ const EVENING_SYSTEM = `${SHARED_VOICE}
 
 This is the EVENING WRAP. The NY closing bell just rang. You're delivering today's verdict — what happened, who won, who got rekt. Decisive, sometimes gloating, sometimes mournful. End with a one-beat "tomorrow" note or a sleep-tight goodnight to the bagholders.`;
 
-const WEEKEND_SYSTEM = `${SHARED_VOICE.replace("3 to 4 sentences.", "4 to 6 sentences.")}
+const WEEKEND_SYSTEM = `${SHARED_VOICE.replace("3 to 4 sentences.", "3 sentences max.")}
 
-This is the WEEKEND WIRE. NY just closed for the week. You're recapping the WHOLE WEEK — Monday's open to Friday's close. Use the per-stock weekChangePercent values to call out the week's biggest printers and the worst bagholders. Reference the friend group when their picks moved dramatically over the week. End with a glance toward Monday — what to watch, who needs to apologize, who's ready to YOLO again. Don't mention specific dates.`;
+This is the WEEKEND WIRE. NY just closed for the week — you're recapping Monday's open to Friday's close in 3 tight sentences. Lead with the week's biggest printer and worst bagholder by weekChangePercent. Reference the friend group when their picks moved meaningfully over the week. End with a one-beat Monday glance — what to watch or who's ready to YOLO. Don't mention specific dates. No filler — every sentence pulls weight.`;
 
 function ownersByTicker(): Map<string, string[]> {
   return new Map(

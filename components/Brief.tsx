@@ -7,6 +7,12 @@ type Props = {
   eveningBrief?: Brief;
   weekendBrief?: Brief;
   flash?: boolean;
+  /** Fri 22:00 → Mon 09:00 STO. When true and the most-recent brief is
+   * the Weekend Wire, hide the card entirely — the Champion of the
+   * Week recap already owns the weekend narrative, and the long wire
+   * paragraph below it was redundant. Morning + Friday-evening briefs
+   * still surface during their natural windows even when this is true. */
+  inRecap?: boolean;
 };
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -100,6 +106,7 @@ export function BriefCard({
   eveningBrief,
   weekendBrief,
   flash,
+  inRecap,
 }: Props) {
   const candidates: { kind: Kind; brief: Brief }[] = [];
   if (morningBrief) candidates.push({ kind: "morning", brief: morningBrief });
@@ -111,6 +118,13 @@ export function BriefCard({
   candidates.sort((a, b) => b.brief.generatedAt - a.brief.generatedAt);
   const current = candidates[0];
   if (!current) return null;
+
+  // Recap window + weekend wire = hide. Champion of the Week card above
+  // covers the same ground in tighter form. Wire still generates server-
+  // side so it lives in /api/data + future archive surfaces. We DON'T
+  // fall back to the next-most-recent (Friday evening wrap) here — by
+  // Saturday that's stale and a fallback would just defeat the hide.
+  if (inRecap && current.kind === "weekend") return null;
 
   const className = [
     "brief",
