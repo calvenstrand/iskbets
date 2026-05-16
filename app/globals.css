@@ -821,7 +821,9 @@ html.booting .boot-overlay,
   gap: 1.25rem;
   width: min(1400px, calc(100% - 2 * clamp(1rem, 4vw, 3rem)));
   margin: 1.75rem auto 0;
-  align-items: start;
+  /* align-items defaults to stretch — both columns end at the same
+     y-position even if Champion's prose is shorter than the 2x2
+     standings grid, so the row reads as a matched pair. */
 }
 
 /* Override children's standalone-layout margins so the row controls
@@ -833,10 +835,19 @@ html.booting .boot-overlay,
   max-width: none;
 }
 
-/* Match the leaderboard's section padding to the champion card's so
-   the two columns visually align top + bottom. */
+/* Quiet gold-tinted panel around the standings so it reads as a
+   matched container with the Champion on the left. Lower-opacity
+   gradient + border than Champion so the hero card still wins
+   visual hierarchy — this is the supporting column. */
 .recap-row > .leaderboard {
   padding: 1.4rem 1.5rem 1.5rem;
+  border: 1px solid rgba(245, 200, 66, 0.22);
+  background: linear-gradient(
+    135deg,
+    rgba(245, 200, 66, 0.05) 0%,
+    rgba(245, 200, 66, 0.015) 50%,
+    var(--bg-elev) 100%
+  );
 }
 
 /* Inside the half-width column, 2x2 grid for the 4 standings —
