@@ -819,7 +819,12 @@ html.booting .boot-overlay,
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1.25rem;
-  width: min(1400px, calc(100% - 2 * clamp(1rem, 4vw, 3rem)));
+  /* Same 1000px cap as .weekly-champion / .brief so the whole recap
+     stack (recap-row + brief below it) sits on a single vertical
+     axis on desktop. Was 1400px when each side could spread out —
+     1000px keeps the two columns at ~485px each, still readable for
+     the Champion prose and the 2x2 standings grid. */
+  width: min(1000px, calc(100% - 2 * clamp(1rem, 4vw, 3rem)));
   margin: 1.75rem auto 0;
   /* align-items defaults to stretch — both columns end at the same
      y-position even if Champion's prose is shorter than the 2x2
