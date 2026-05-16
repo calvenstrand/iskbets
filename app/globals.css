@@ -666,8 +666,10 @@ html.booting .boot-overlay,
   /* Contained card matching .weekly-champion / .leaderboard so the brief
      reads as a peer of the other sections instead of a banner. Side
      margin + full border + kind-color glow give it the same visual
-     weight as the Champion card above. */
-  margin: 1.75rem clamp(1rem, 4vw, 3rem) 0;
+     weight as the Champion card above. Width-cap + auto margins center
+     the card on desktop and keep the same vertical axis as Champion. */
+  margin: 1.75rem auto 0;
+  width: min(1000px, calc(100% - 2 * clamp(1rem, 4vw, 3rem)));
   padding: 1.4rem 1.5rem 1.5rem;
   border: 1px solid var(--border);
   font-family: var(--font-mono);
@@ -810,7 +812,12 @@ html.booting .boot-overlay,
 /* ============= Weekly champion (sits above the live leaderboard) ============= */
 
 .weekly-champion {
-  margin: 1.75rem clamp(1rem, 4vw, 3rem) 0;
+  /* Cap content column at 1000px and center on wide viewports. On
+     narrow screens the clamped gutter keeps the card from touching
+     the edges. Same recipe applied to .brief below so the two
+     sections sit on the same vertical axis. */
+  margin: 1.75rem auto 0;
+  width: min(1000px, calc(100% - 2 * clamp(1rem, 4vw, 3rem)));
   padding: 1.4rem 1.5rem 1.5rem;
   border: 1px solid rgba(245, 200, 66, 0.55);
   background: linear-gradient(
