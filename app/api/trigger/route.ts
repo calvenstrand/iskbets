@@ -3,7 +3,6 @@ import { analyzeStocks } from "@/lib/analyzeStocks";
 import {
   generateEveningBrief,
   generateMorningBrief,
-  generateWeekendWire,
   generateWeeklyChampion,
 } from "@/lib/briefs";
 import { computeLeaderboard, pickWeekChampion } from "@/lib/leaderboard";
@@ -21,7 +20,6 @@ import {
   getLastAttempt,
   getMorningBrief,
   getStockData,
-  getWeekendBrief,
   getWeeklyChampion,
   getWeeklyResult,
   getWeekStartSnapshot,
@@ -31,7 +29,6 @@ import {
   setDailyResult,
   setEveningBrief,
   setMorningBrief,
-  setWeekendBrief,
   setWeeklyChampion,
   setWeeklyResult,
   setWeekStartSnapshot,
@@ -52,15 +49,20 @@ const COOLDOWN_MS = 60 * 1000; // 1 minute
 // AI gating thresholds. Prices refresh on every trigger; the AI only
 // runs when something genuinely changed (or enough time has passed).
 //
-// Floor raised from 29 → 44 min (May 2026) to bring daily Anthropic
-// spend from ~$0.70 → ~$0.45 — about 35% reduction with no quality
-// hit per call, just slightly less frequent commentary refreshes on
-// volatile days. 44 (not 45) for the same jitter-margin reason as
-// before: cron at 10-min cadence means the closest tick to "45 min
-// since last AI" lands at exactly 45 min, and Vercel-processing
-// jitter can put `elapsed` at 44:59.x and miss the floor. 44-min
-// floor + 10-min cron → reliable triggering at the 45-min tick.
-const AI_FLOOR_MS = 44 * 60 * 1000; // ~45 min with jitter margin
+// Floor history:
+//   29 → 44 min (May 2026): bumped to cut daily Anthropic spend ~35%
+//     ($0.70 → $0.46 weekday baseline).
+//   44 → 59 min (May 2026): another ~25-30% cut. Friday spikes back
+//     up to $0.67 because the Weekend Wire + Weekly Champion both
+//     fire that night; this floor mostly affects Mon-Thu.
+//
+// 59 (not 60) for jitter margin. Cron ticks at :03 :13 :23 :33 :43 :53
+// — so the "60 min since last AI" mark lands EXACTLY when the next
+// eligible tick fires. Vercel processing jitter can put `elapsed` at
+// 59:59.x and fail the floor check, slipping AI to the +10-min tick
+// (effectively giving us a 70-min cadence instead of 60). 59-min floor
+// + 10-min cron → reliable triggering at the intended tick.
+const AI_FLOOR_MS = 59 * 60 * 1000; // ~60 min with jitter margin
 const AI_CEILING_MS = 4 * 60 * 60 * 1000; // 4 hr — re-run AI even on a flat day
 const SIGNIFICANT_DELTA_PCT = 1.0; // any ticker moved ≥1pp since last AI
 
@@ -102,7 +104,8 @@ function shouldRerunAI(
   }
   if (elapsed < AI_FLOOR_MS) {
     const min = Math.round(elapsed / 60_000);
-    return { rerun: false, reason: `${min}min since last AI (<30min floor)` };
+    const floorMin = Math.round(AI_FLOOR_MS / 60_000);
+    return { rerun: false, reason: `${min}min since last AI (<${floorMin}min floor)` };
   }
   // Find the biggest absolute change-percent shift across the portfolio.
   const baselineByTicker = new Map(baseline.map((p) => [p.ticker, p]));
@@ -208,55 +211,25 @@ async function maybeGenerateBriefs(
     await maybeArchiveDailyResult(todaySnapshot, now);
   }
 
-  // Weekend Wire: Friday 22:45–23:30 Stockholm. Fires once per week
-  // — the recap of Monday → Friday. Idempotency keyed on the week's
-  // Monday date. Reads today's snapshot (live, just-saved Friday close)
-  // and the weekStart snapshot (archived on the first Monday trigger).
-  // No cron fires Sat/Sun, so this is the last chance until next Monday.
+  // Weekend wire window: Friday 22:45–23:30 Stockholm. Fires the weekly
+  // archive + the Weekly Champion AI call. The Weekend Wire itself
+  // (paragraph-length recap) is no longer generated — the dashboard
+  // hides it during the recap window in favor of the Champion card,
+  // and that's the only surface that ever displayed it. Skipping the
+  // wire AI call saves ~$0.40/month. If a future feature wants the
+  // long-form wire back (e.g., archive page), re-enable by restoring
+  // the generateWeekendWire() block here.
   if (inWeekendWireWindow(now)) {
-    try {
-      const weekKey = stockholmMondayOfWeek(now);
-      const existing = await getWeekendBrief();
-      if (existing?.date === weekKey) {
-        console.log("[trigger] weekend wire already generated this week");
-      } else {
-        const weekStart = await getWeekStartSnapshot();
-        if (!weekStart) {
-          console.log(
-            "[trigger] weekend wire skipped — no week-start snapshot yet",
-          );
-        } else if (weekStart.weekStart !== weekKey) {
-          // Stale baseline (e.g., Monday's archive missed). Better to
-          // skip than reflect on the wrong week.
-          console.log(
-            `[trigger] weekend wire skipped — week-start is ${weekStart.weekStart}, expected ${weekKey}`,
-          );
-        } else {
-          const text = await generateWeekendWire(todaySnapshot, weekStart);
-          await setWeekendBrief({
-            date: weekKey,
-            text,
-            generatedAt: Date.now(),
-          });
-          console.log("[trigger] weekend wire generated");
-        }
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[trigger] weekend wire failed: ${msg}`);
-    }
-
-    // Weekly archive — runs in the same window as the wire so it
-    // captures Friday's close. Independent of wire success: even if
-    // Claude refused, we still snapshot the numbers. Idempotent per
-    // week, so spam-firing this branch is a no-op after the first
-    // archive lands.
+    // Weekly archive — captures Friday's close. Idempotent per week,
+    // so spam-firing this branch after the first archive lands is a
+    // no-op. wireText falls through as undefined now that the wire
+    // isn't generated; the archive type already allows that.
     await maybeArchiveWeeklyResult(todaySnapshot, now);
 
-    // Weekly champion — separate Anthropic call right after the wire,
-    // targeting the WTD leader (not today's #1). Pinned through the
-    // weekend until next Friday's call. Independent try/catch from
-    // the wire and archive.
+    // Weekly champion — separate Anthropic call targeting the WTD
+    // leader (not today's #1). Pinned through the weekend until next
+    // Friday's call. This is the surviving Friday-night AI call —
+    // the user-facing weekly narrative on the dashboard.
     await maybeGenerateWeeklyChampion(todaySnapshot, now);
   }
 }
@@ -321,22 +294,19 @@ async function maybeArchiveWeeklyResult(
       );
       return;
     }
-    // Pick up the wire text if the wire branch above succeeded.
-    // Re-reading after the write is intentional — the wire and archive
-    // are independent writes and we don't want to leak state between them.
-    const wire = await getWeekendBrief();
-    const wireText = wire?.date === weekKey ? wire.text : undefined;
-
+    // wireText is intentionally omitted — the Weekend Wire AI call was
+    // dropped for cost reasons (the dashboard never displayed it after
+    // the recap-window hide). Archive shape allows wireText to be
+    // undefined; future archive surfaces just won't have the long-form
+    // recap field. If you re-enable the wire, restore the read here.
     const result = computeWeeklyResult({
       fridaySnapshot: todaySnapshot,
       weekStart,
-      ...(wireText ? { wireText } : {}),
     });
     await setWeeklyResult(result);
     console.log(
       `[trigger] weekly result archived for ${weekKey} ` +
-        `(${result.stocks.length} stocks, ${result.friends.length} friends, ` +
-        `wire ${wireText ? "included" : "missing"})`,
+        `(${result.stocks.length} stocks, ${result.friends.length} friends)`,
     );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
