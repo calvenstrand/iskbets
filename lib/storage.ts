@@ -318,17 +318,19 @@ export async function getDashboardData(opts?: {
     return getMockDashboardData(opts?.mode ?? "default");
   }
 
+  // Evening brief intentionally not fetched — generation was removed
+  // (nobody read the after-close paragraph, and the AI call was
+  // ~$0.10/week with no observed engagement). Any orphaned eveningBrief
+  // value still in Redis from before the removal is silently ignored.
   const [
     snapshot,
     morningBrief,
-    eveningBrief,
     weekendBrief,
     weekStart,
     weeklyChampion,
   ] = await Promise.all([
     getStockData(),
     getMorningBrief(),
-    getEveningBrief(),
     getWeekendBrief(),
     getWeekStartSnapshot(),
     getWeeklyChampion(),
@@ -351,7 +353,6 @@ export async function getDashboardData(opts?: {
   return {
     snapshot: toPublicSnapshot(snapshot),
     ...(morningBrief ? { morningBrief } : {}),
-    ...(eveningBrief ? { eveningBrief } : {}),
     ...(weekendBrief ? { weekendBrief } : {}),
     ...(weeklyChampion ? { weeklyChampion } : {}),
     ...(weekStartPrices ? { weekStartPrices } : {}),

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { analyzeStocks } from "@/lib/analyzeStocks";
 import {
-  generateEveningBrief,
   generateMorningBrief,
   generateWeeklyChampion,
 } from "@/lib/briefs";
@@ -16,7 +15,6 @@ import {
 import { fetchPrices } from "@/lib/fetchPrices";
 import {
   getDailyResult,
-  getEveningBrief,
   getLastAttempt,
   getMorningBrief,
   getStockData,
@@ -27,7 +25,6 @@ import {
   markAttempt,
   saveStockData,
   setDailyResult,
-  setEveningBrief,
   setMorningBrief,
   setWeeklyChampion,
   setWeeklyResult,
@@ -176,33 +173,31 @@ async function maybeGenerateBriefs(
     }
   }
 
-  // Evening brief: 22:00–22:45 Stockholm. Also archives today's snapshot
-  // as "yesterday" for tomorrow's morning brief.
+  // Market-close window: 22:00–22:45 Stockholm. Archives today's
+  // snapshot as "yesterday" for tomorrow's morning brief + writes the
+  // daily archive. The Evening Wrap AI brief that used to fire here
+  // was removed — nobody read the after-close paragraph and the AI
+  // call was ~$0.10/week with no observed engagement.
   if (inEveningBriefWindow(now)) {
     try {
-      const existing = await getEveningBrief();
-      if (existing?.date === today) {
-        console.log("[trigger] evening brief already generated for today");
+      // Idempotency: yesterday's snapshot already reflects today's
+      // STO date → first cron in the window already did it, skip the
+      // rest. Compares Stockholm calendar day, not raw ISO equality,
+      // because subsequent cron ticks in the window have slightly
+      // newer updatedAt values but represent the same trading day.
+      const existing = await getYesterdaySnapshot();
+      const existingDate = existing?.updatedAt
+        ? stockholmDate(new Date(existing.updatedAt))
+        : null;
+      if (existingDate === today) {
+        // Already archived this evening — silent no-op.
       } else {
-        const text = await generateEveningBrief(todaySnapshot);
-        // Archive yesterday-snapshot BEFORE writing the brief. The
-        // idempotency check is keyed on the brief's existence, so if the
-        // brief write succeeds and the archive then fails, we'd be stuck:
-        // tomorrow's morning brief would reflect on stale yesterday data
-        // and never retry. Archive-first means a partial failure leaves
-        // the brief unwritten and the next cron in this window retries
-        // both. Re-archiving the same snapshot is a harmless overwrite.
         await setYesterdaySnapshot(todaySnapshot);
-        await setEveningBrief({
-          date: today,
-          text,
-          generatedAt: Date.now(),
-        });
-        console.log("[trigger] evening brief generated + yesterday archived");
+        console.log(`[trigger] yesterday snapshot archived for ${today}`);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[trigger] evening brief failed: ${msg}`);
+      console.error(`[trigger] yesterday archive failed: ${msg}`);
     }
 
     // Daily archive — runs in the same window so it captures today's
