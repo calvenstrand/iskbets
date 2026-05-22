@@ -64,7 +64,7 @@ Backend and frontend are both complete; build + lint pass clean.
 
 **Smart AI gating** (`shouldRerunAI` in `app/api/trigger/route.ts`):
 The Anthropic call only fires when at least one of these is true:
-1. Any ticker's `regularMarketChangePercent` shifted by **> 1pp** since the snapshot Claude last saw, AND it's been **≥ 60 min** since the last AI run (floor history: 30 → 45 → 60 min as cost tightened).
+1. Any ticker's `regularMarketChangePercent` shifted by **> 2pp** since the snapshot Claude last saw (threshold history: 1 → 2pp; 1pp was firing on nearly every tick on volatile days), AND it's been **≥ 60 min** since the last AI run (floor history: 30 → 45 → 60 min as cost tightened).
 2. **> 4 hours** since the last AI run (freshness ceiling — the `overallMood` shouldn't go stale on a flat day).
 3. No prior analysis exists.
 

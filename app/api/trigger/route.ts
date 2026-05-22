@@ -61,7 +61,14 @@ const COOLDOWN_MS = 60 * 1000; // 1 minute
 // + 10-min cron → reliable triggering at the intended tick.
 const AI_FLOOR_MS = 59 * 60 * 1000; // ~60 min with jitter margin
 const AI_CEILING_MS = 4 * 60 * 60 * 1000; // 4 hr — re-run AI even on a flat day
-const SIGNIFICANT_DELTA_PCT = 1.0; // any ticker moved ≥1pp since last AI
+// Delta threshold for re-running the AI based on ticker movement since
+// the last analysis. Raised 1.0 → 2.0 (May 2026) after observing that
+// weekday cost stuck at ~$0.56 even with the 59-min floor: on volatile
+// weeks the delta trigger was firing on nearly every 59-min tick
+// regardless of floor, because 1pp moves are common. 2pp is rare enough
+// to be a real news event but cuts delta-driven AI calls roughly in
+// half on choppy days. Quieter days fall back to the 4hr ceiling.
+const SIGNIFICANT_DELTA_PCT = 2.0;
 
 function isAuthorized(req: Request): boolean {
   const triggerSecret = process.env.TRIGGER_SECRET;
