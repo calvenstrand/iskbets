@@ -50,7 +50,12 @@ type DashboardProps = {
   initialNowMs: number;
 };
 
-const POLL_MS = 5 * 60 * 1000; // 5 min — comfortably below the 15-min cron cadence
+// Poll cadence — 2 min (was 5 min). Cron fires every 10 min so polling
+// 5× per cycle catches each new snapshot within 2 min of it landing.
+// All polls hit the 20s CDN cache so the extra requests cost nothing
+// at origin. The 5-min cadence was leaving viewers staring at frozen
+// prices for up to 6 min after market open (1-2 cron cycles).
+const POLL_MS = 2 * 60 * 1000;
 const FLASH_MS = 1800;
 
 // Pre-built lookups so the grid sort doesn't scan TICKERS for every card.

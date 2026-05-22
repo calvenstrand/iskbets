@@ -4,15 +4,22 @@ import { getDashboardData } from "@/lib/storage";
 
 export const runtime = "nodejs";
 
-// Edge-cache the response. Underlying data only mutates when the cron
-// fires (every 15 min) so there's no reason every poll should hit
-// Upstash directly. With ~5-min client polling, an open dashboard tab
-// would otherwise issue 36 Redis-backed requests/hour; an attacker
-// could trivially drain the Upstash quota. With s-maxage=60 the CDN
-// collapses everything into 1 origin call/min regardless of viewer
-// count, and stale-while-revalidate keeps the response instant during
-// background refresh.
-const CACHE_HEADER = "public, s-maxage=60, stale-while-revalidate=300";
+// Edge-cache the response. Underlying data mutates every 10 min via
+// the cron, so a tight CDN TTL doesn't waste origin calls but does
+// cut the staleness window dramatically.
+//
+// s-maxage=20 (was 60): Avanza often serves Friday's close for the
+// first few minutes after Stockholm opens, so even when the trigger
+// runs at 09:03 the snapshot can still look frozen. With a 60s TTL
+// the CDN could serve that pre-opening data for another minute after
+// real intraday prints arrived. 20s puts the worst-case "data in
+// Redis → user sees it" gap at ~20s of CDN + 2min of client polling.
+// stale-while-revalidate=300 stays for resilience under load.
+//
+// Math: 30 viewers polling every 2 min = 900 polls/hour. With
+// s-maxage=20, the CDN collapses every 20s window to 1 origin call:
+// 180 origin calls/hour — comfortably below Upstash limits.
+const CACHE_HEADER = "public, s-maxage=20, stale-while-revalidate=300";
 
 export async function GET(request: Request): Promise<NextResponse> {
   // Dev-only `?mode=X` preview support — see lib/mockData.ts MockMode.
