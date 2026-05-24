@@ -1,5 +1,5 @@
 // Date helpers all rooted in Stockholm time — that's the reference clock for
-// "what day is it" decisions (brief idempotency, market-open windows, etc.).
+// "what day is it" decisions (archive idempotency, market-open windows, etc.).
 
 const stockholmDateFormatter = new Intl.DateTimeFormat("en-CA", {
   // en-CA gives YYYY-MM-DD ISO format from format()
@@ -36,36 +36,12 @@ function partsInStockholm(d: Date): Parts {
   };
 }
 
-/** Window for the morning brief: 08:00 – 08:30 Stockholm time, weekdays.
- * Fires a full hour before Stockholm market open (09:00 STO) so readers
- * have time to digest yesterday's recap and today's setup before
- * trading kicks off. */
-export function inMorningBriefWindow(d: Date): boolean {
-  const { isWeekend, minutes } = partsInStockholm(d);
-  if (isWeekend) return false;
-  return minutes >= 8 * 60 && minutes < 8 * 60 + 30;
-}
-
-/**
- * Mon–Fri 09:00 → 22:00 STO. The dashboard hides the BriefCard entirely
- * during this window: once Stockholm opens, the morning wire becomes
- * stale and the live data (leaderboard, featured cards, grid, mood
- * banner) is the actual news. Briefs return at 22:00 when the evening
- * wrap fires and there's something fresh to read again.
- *
- * Weekends always show the most recent brief (typically the weekend
- * wire). Overnight (22:00 → 08:00 STO weekdays) shows the previous
- * evening's wrap until the next morning wire takes over.
- */
-export function briefHiddenDuringTrading(d: Date): boolean {
-  const { isWeekend, minutes } = partsInStockholm(d);
-  if (isWeekend) return false;
-  return minutes >= 9 * 60 && minutes < 22 * 60;
-}
-
-/** Window for the evening brief: 22:00 – 22:45 Stockholm time, weekdays.
- * NY closes at 22:00 CET (15-min gap to settle), then we have 30+ min to fire. */
-export function inEveningBriefWindow(d: Date): boolean {
+/** Post-close window: 22:00 – 22:45 Stockholm time, weekdays. NY closed
+ * (22:00 STO in summer), so this is the moment to write the daily
+ * archive (today's close, locked in for history). Was previously also
+ * where the Evening Wrap AI brief fired — that's gone now, but the
+ * archive still needs the same window. */
+export function inPostCloseWindow(d: Date): boolean {
   const { isWeekend, minutes } = partsInStockholm(d);
   if (isWeekend) return false;
   return minutes >= 22 * 60 && minutes < 22 * 60 + 45;
@@ -95,11 +71,11 @@ export function inRecapWindow(d: Date): boolean {
   return false;
 }
 
-/** Window for the Weekend Wire: Friday 22:45 – 23:30 Stockholm time.
- * Fires immediately after the evening wrap window closes — same "after
- * the bell" energy but for the whole week. Cron runs every 15 min so
- * the window catches multiple fires in both DST modes. */
-export function inWeekendWireWindow(d: Date): boolean {
+/** Weekly archive window: Friday 22:45 – 23:30 Stockholm time. Fires
+ * the WeeklyResult archive + the Weekly Champion AI call (the one
+ * remaining AI-generated narrative). Cron runs every 10 min so the
+ * window catches multiple fires in both DST modes. */
+export function inWeeklyArchiveWindow(d: Date): boolean {
   const { weekday, minutes } = partsInStockholm(d);
   if (weekday !== "Fri") return false;
   return minutes >= 22 * 60 + 45 && minutes < 23 * 60 + 30;
@@ -107,7 +83,7 @@ export function inWeekendWireWindow(d: Date): boolean {
 
 /** Returns YYYY-MM-DD of the Monday in the same Stockholm week as `d`.
  * Used as the idempotency key for both the weekStart snapshot and the
- * Weekend Wire — every brief / archive in week W shares the same value. */
+ * Weekly Champion — every archive in week W shares the same value. */
 export function stockholmMondayOfWeek(d: Date): string {
   // Map Stockholm weekday name → 0=Mon..6=Sun offset.
   const offsetByDay: Record<string, number> = {

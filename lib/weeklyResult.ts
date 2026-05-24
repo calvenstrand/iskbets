@@ -15,19 +15,15 @@ function fridayFromMonday(monday: string): string {
 
 /**
  * Project Friday's snapshot + Monday's baseline into a compact, archival
- * shape. Same per-stock weekChange math the Weekend Wire feeds into Claude
- * + the same per-friend WTD math the leaderboard renders, frozen for
- * the historical record.
- *
- * `wireText` is optional — passed through if the Weekend Wire was
- * generated this week, omitted otherwise.
+ * shape. Same per-stock weekChange math the Weekly Champion call feeds
+ * into Claude + the same per-friend WTD math the leaderboard renders,
+ * frozen for the historical record.
  */
 export function computeWeeklyResult(args: {
   fridaySnapshot: StoredData;
   weekStart: WeekStartSnapshot;
-  wireText?: string;
 }): WeeklyResult {
-  const { fridaySnapshot, weekStart, wireText } = args;
+  const { fridaySnapshot, weekStart } = args;
 
   const baselineByTicker = new Map(
     weekStart.stocks.map((s) => [s.ticker, s.regularMarketPrice]),
@@ -93,6 +89,5 @@ export function computeWeeklyResult(args: {
     stocks,
     friends,
     overallMood: fridaySnapshot.analysis.overallMood,
-    ...(wireText ? { wireText } : {}),
   };
 }

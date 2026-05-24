@@ -1,7 +1,6 @@
 import { deriveRating, deriveSentiment } from "./derive";
-import { stockholmDate, stockholmMondayOfWeek } from "./dateUtil";
+import { stockholmMondayOfWeek } from "./dateUtil";
 import type {
-  Brief,
   DailyResult,
   DashboardData,
   StockAnalysis,
@@ -16,18 +15,12 @@ import type {
  * affordance — has no effect in production (mock branch never fires
  * with real Redis configured). */
 export type MockMode =
-  | "default" // Tuesday afternoon: morning wire pinned, everything else populated
-  | "weekend" // Sat/Sun view: weekend wire pinned
-  | "morning" // morning wire pinned (same as default but explicit)
-  | "evening" // evening wrap pinned
+  | "default" // populated dashboard, weekly champion + WTD baseline present
   | "fresh" // first-deploy: no week-start baseline → no WTD, no weekly champion
   | "empty"; // null dashboard data → "NO DATA YET" state
 
 const VALID_MODES: ReadonlySet<string> = new Set([
   "default",
-  "weekend",
-  "morning",
-  "evening",
   "fresh",
   "empty",
 ]);
@@ -587,55 +580,6 @@ export function getMockData(): StoredData {
   };
 }
 
-// ============== Mock briefs ==============
-
-const MORNING_BRIEF_TEXT =
-  "Yesterday Chris's Cloudflare ripped face off everyone and everything else, dragging the syndicate to +2.3% net. Eric's industrials held the line as always. Oskar's Dicot apes still haven't shown up to morning prayer — currency: copium. Stockholm rings the bell in 30, two apes' Flat Capital catching bid on the SpaceX revaluation chatter.";
-
-const EVENING_BRIEF_TEXT =
-  "What a session. NVDA printed +6.8%, hauling Chris's tech bag to +4.1% net while the rest of the gang grinded sideways. Stockholm closed mixed — Eric's roof boxes catching a bid, Oskar's Dicot continuing its slow death at 25 öre. NY rolled over into the close. Sleep tight, bagholders. Tomorrow we ride.";
-
-const WEEKEND_BRIEF_TEXT =
-  "What a week, apes. Chris's NET printed +9.4% for the syndicate's biggest tendies of the year, dragging his bag to the top of the leaderboard. Eric's industrials traded sideways — Volvo and Atlas held the line, but Viaplay continues its slow-motion seppuku at -8% WTD. Oskar's Dicot lost another 18% because of course it did. Johan's QBTS quantum-printed +12% on the week and he hasn't shut up about it. Stockholm rings the bell again Monday — be ready.";
-
-/** Default age offsets so the BriefCard's most-recent rotation has a
- * sensible default state (morning wire on top — matches a typical
- * weekday-morning view). The mode-aware aggregator below overrides
- * the chosen kind to `now` to pin it as the freshest. */
-const DEFAULT_OFFSET = {
-  morning: 2 * 60 * 60 * 1000, // 2h ago
-  evening: 12 * 60 * 60 * 1000, // 12h ago
-  weekend: 36 * 60 * 60 * 1000, // 36h ago
-} as const;
-
-export function getMockMorningBrief(): Brief {
-  const now = Date.now();
-  return {
-    date: stockholmDate(new Date(now)),
-    text: MORNING_BRIEF_TEXT,
-    generatedAt: now - DEFAULT_OFFSET.morning,
-  };
-}
-
-export function getMockEveningBrief(): Brief {
-  const now = Date.now();
-  return {
-    date: stockholmDate(new Date(now - 24 * 60 * 60 * 1000)), // yesterday
-    text: EVENING_BRIEF_TEXT,
-    generatedAt: now - DEFAULT_OFFSET.evening,
-  };
-}
-
-export function getMockWeekendBrief(): Brief {
-  const now = Date.now();
-  const monday = stockholmMondayOfWeek(new Date(now));
-  return {
-    date: monday,
-    text: WEEKEND_BRIEF_TEXT,
-    generatedAt: now - DEFAULT_OFFSET.weekend,
-  };
-}
-
 // Per-ticker offset: weekStart price = today * (1 - WEEK_DELTA[ticker]).
 // Hand-picked so each friend's leaderboard column tells a story —
 // Chris is up, Eric mixed, Oskar down, Johan winning.
@@ -704,26 +648,18 @@ export function getMockWeekStartSnapshot(): WeekStartSnapshot {
  * affordance — only ever called from the mock branch in storage.ts.
  *
  * Modes:
- *  - "default" / "morning"  → morning wire pinned, all sections populated
- *  - "weekend"              → weekend wire pinned (the post-Friday view)
- *  - "evening"              → evening wrap pinned
- *  - "fresh"                → no week-start, no weekly champion (first deploy)
- *  - "empty"                → returns null (NO DATA YET state)
+ *  - "default" → populated dashboard, weekly champion + WTD baseline present
+ *  - "fresh"   → no week-start, no weekly champion (first deploy)
+ *  - "empty"   → returns null (NO DATA YET state)
+ *
+ * To preview the recap-mode layout (Champion + WEEK STANDINGS
+ * side-by-side), run the dashboard during the actual recap window
+ * (Fri 22:00 → Mon 09:00 STO) — inRecapWindow keys off real time.
  */
 export function getMockDashboardData(mode: MockMode): DashboardData | null {
   if (mode === "empty") return null;
 
   const snapshot = getMockData();
-
-  // Brief rotation — bump the chosen kind to "now" so it wins the
-  // BriefCard's most-recent rule, leave the others at their default ages.
-  const now = Date.now();
-  const morningBrief = getMockMorningBrief();
-  const eveningBrief = getMockEveningBrief();
-  const weekendBrief = getMockWeekendBrief();
-  if (mode === "morning") morningBrief.generatedAt = now;
-  if (mode === "evening") eveningBrief.generatedAt = now;
-  if (mode === "weekend") weekendBrief.generatedAt = now;
 
   // "fresh" hides the week-baseline data so the dashboard renders the
   // pre-Monday-archive fallback state: leaderboard hides WTD column,
@@ -743,9 +679,6 @@ export function getMockDashboardData(mode: MockMode): DashboardData | null {
 
   return {
     snapshot,
-    morningBrief,
-    eveningBrief,
-    weekendBrief,
     ...(weeklyChampion ? { weeklyChampion } : {}),
     ...(weekStartPrices ? { weekStartPrices } : {}),
   };
@@ -910,8 +843,6 @@ export function getMockWeeklyResults(): WeeklyResult[] {
       ],
       overallMood:
         "Chris's tech bag printed tendies all week while Oskar's biotech apes got vaporized on both sides of the Atlantic.",
-      wireText:
-        "What a week, apes. Chris's NET +9.4% and HACK +8.2% dragged the syndicate to glory. Johan's QBTS quantum-printed +12% by Wednesday. Eric held the line, sideways industrials. Oskar got rekt on both DICOT and DFTX. Monday we ride.",
     },
     {
       weekStart: w2.ws,
@@ -933,8 +864,6 @@ export function getMockWeeklyResults(): WeeklyResult[] {
       ],
       overallMood:
         "Eric's industrials carried the week — Atlas, Volvo, Thule all printing while everyone else grinded sideways.",
-      wireText:
-        "Industrial supremacy week. Eric's Atlas Copco +4.1% and Thule +5.2% led the gang. Chris's bag held flat. Johan's QBTS cooled off after last week's pump. Oskar still bagholding. Monday we ride.",
     },
     {
       weekStart: w3.ws,
@@ -956,8 +885,6 @@ export function getMockWeeklyResults(): WeeklyResult[] {
       ],
       overallMood:
         "Johan's quantum stocks printed a generational week. He hasn't shut up about it.",
-      wireText:
-        "QUANTUM SUPREMACY ACHIEVED. Johan's QBTS +21.8%, PLTR +9.4% — the man is insufferable. Rest of the gang basically flat. Tomorrow we hope D-Wave doesn't reverse split.",
     },
   ];
 }

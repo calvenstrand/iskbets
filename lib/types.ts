@@ -46,19 +46,12 @@ export type AnalysisPayload = {
   biggestLoser: string;
 };
 
-/** A long-form analyst brief (morning recap or evening wrap-up). */
-export type Brief = {
-  /** YYYY-MM-DD in Stockholm timezone — the day this brief is FOR. */
-  date: string;
-  text: string;
-  generatedAt: number;
-};
-
-/** Champion-of-the-week recap, generated alongside the Weekend Wire on
- * Friday evening. Targets the friend with the highest WTD% — the
- * actual week's leader — not whoever is currently #1 on the live
- * "today%" sort. Pinned through the weekend; overwritten by the next
- * Friday's call. */
+/** Champion-of-the-week recap, generated Friday evening (22:45 STO).
+ * Targets the friend with the highest WTD% — the actual week's leader
+ * — not whoever is currently #1 on the live "today%" sort. Pinned
+ * through the weekend; overwritten by the next Friday's call. The only
+ * AI-generated narrative the dashboard surfaces (long-form morning /
+ * evening / weekend briefs were removed for cost). */
 export type WeeklyChampion = {
   /** YYYY-MM-DD of the Monday for the week this champion covers. */
   weekStart: string;
@@ -87,12 +80,11 @@ export type PublicStoredData = Omit<
   "lastFetch" | "analyzedAt" | "pricesAtLastAnalysis"
 >;
 
-/** What the dashboard reads. Bundles snapshot + briefs from separate Redis keys. */
+/** What the dashboard reads. Bundles the live snapshot, the optional
+ * weekly champion (Friday-evening AI recap, pinned through the
+ * weekend), and the compact week-start price map for WTD math. */
 export type DashboardData = {
   snapshot: PublicStoredData;
-  morningBrief?: Brief;
-  eveningBrief?: Brief;
-  weekendBrief?: Brief;
   /** The most recent weekly champion (generated last Friday). Pinned for
    * the whole following week — the title on the card carries the date
    * range so it's always clear which week it refers to. */
@@ -105,7 +97,8 @@ export type DashboardData = {
 };
 
 /** Snapshot taken at the first Monday trigger of the week — baseline for
- * the leaderboard's WTD column and the Weekend Wire's week-over-week recap. */
+ * the leaderboard's WTD column and the Weekly Champion's week-over-week
+ * recap. */
 export type WeekStartSnapshot = {
   /** YYYY-MM-DD of the Monday this baseline is for. */
   weekStart: string;
@@ -113,7 +106,7 @@ export type WeekStartSnapshot = {
 };
 
 /** Compact, archive-friendly snapshot of one trading day's close.
- * Written by the evening-wrap branch right after the snapshot is locked
+ * Written by the post-close branch right after the snapshot is locked
  * in for the day; stored in a Redis hash keyed by `date`. ~1.5 KB per
  * day; 250 trading days/year ≈ 350 KB. Designed so future features
  * (per-stock charts, day-by-day leaderboards, volatility / streak
@@ -122,7 +115,7 @@ export type DailyResult = {
   /** YYYY-MM-DD (Stockholm). The trading day this captures. */
   date: string;
   /** Epoch ms when the archive entry was written (during the
-   * 22:00–22:45 STO evening-wrap window). */
+   * 22:00–22:45 STO post-close window). */
   capturedAt: number;
   /** Per-stock today close + intraday change. */
   stocks: Array<{
@@ -143,10 +136,11 @@ export type DailyResult = {
 };
 
 /** Compact, archive-friendly summary of one trading week's result.
- * Written Friday evening after the weekend wire fires; stored in a
- * Redis hash keyed by `weekStart`. Designed to be cheap to accumulate
- * (~3KB per week, 52 weeks ≈ 150KB) so future features (history graphs,
- * year-end recap, monthly leaderboards) have a corpus to draw from. */
+ * Written Friday evening (22:45–23:30 STO) after the weekly archive
+ * window fires; stored in a Redis hash keyed by `weekStart`. Designed
+ * to be cheap to accumulate (~3KB per week, 52 weeks ≈ 150KB) so future
+ * features (history graphs, year-end recap, monthly leaderboards) have
+ * a corpus to draw from. */
 export type WeeklyResult = {
   /** Monday YYYY-MM-DD (Stockholm). Sort key. */
   weekStart: string;
@@ -173,8 +167,6 @@ export type WeeklyResult = {
   }>;
   /** Friday's `overallMood` carried forward. */
   overallMood: string;
-  /** The Weekend Wire text for the week, if it was generated. */
-  wireText?: string;
 };
 
 export type StoredData = {

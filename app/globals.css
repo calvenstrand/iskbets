@@ -148,12 +148,6 @@ a {
   animation: ai-update-pulse 1800ms cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
 }
 
-/* Brief flash gets a slightly slower, more contemplative pulse — the
-   morning/evening updates are the most "noteworthy" things to notice. */
-.brief.ai-update {
-  animation-duration: 2400ms;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .ai-update {
     animation: none;
@@ -658,114 +652,6 @@ html.booting .boot-overlay,
 }
 .market-status-pre {
   color: var(--gold);
-}
-
-/* ============= Brief (Morning Wire / Evening Wrap) ============= */
-
-.brief {
-  /* Contained card matching .weekly-champion / .leaderboard so the brief
-     reads as a peer of the other sections instead of a banner. Side
-     margin + full border + kind-color glow give it the same visual
-     weight as the Champion card above. Width-cap + auto margins center
-     the card on desktop and keep the same vertical axis as Champion. */
-  margin: 1.75rem auto 0;
-  width: min(1000px, calc(100% - 2 * clamp(1rem, 4vw, 3rem)));
-  padding: 1.4rem 1.5rem 1.5rem;
-  border: 1px solid var(--border);
-  font-family: var(--font-mono);
-  position: relative;
-  overflow: hidden;
-  animation: card-in 0.5s ease-out;
-}
-
-.brief-morning {
-  border-color: rgba(245, 200, 66, 0.45);
-  background: linear-gradient(
-    135deg,
-    rgba(245, 200, 66, 0.14) 0%,
-    rgba(245, 200, 66, 0.04) 50%,
-    var(--bg-elev) 100%
-  );
-  box-shadow:
-    0 0 24px rgba(245, 200, 66, 0.14),
-    0 0 12px rgba(245, 200, 66, 0.14) inset;
-}
-
-.brief-evening {
-  border-color: rgba(76, 201, 255, 0.4);
-  background: linear-gradient(
-    135deg,
-    rgba(76, 201, 255, 0.12) 0%,
-    rgba(76, 201, 255, 0.04) 50%,
-    var(--bg-elev) 100%
-  );
-  box-shadow:
-    0 0 24px rgba(76, 201, 255, 0.14),
-    0 0 12px rgba(76, 201, 255, 0.14) inset;
-}
-
-.brief-weekend {
-  border-color: rgba(196, 132, 255, 0.45);
-  background: linear-gradient(
-    135deg,
-    rgba(196, 132, 255, 0.14) 0%,
-    rgba(196, 132, 255, 0.04) 50%,
-    var(--bg-elev) 100%
-  );
-  box-shadow:
-    0 0 24px rgba(196, 132, 255, 0.16),
-    0 0 12px rgba(196, 132, 255, 0.16) inset;
-}
-
-.brief-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0.7rem;
-  flex-wrap: wrap;
-}
-
-.brief-kind {
-  font-family: var(--font-display);
-  font-size: clamp(1rem, 2.2vw, 1.35rem);
-  letter-spacing: 0.22em;
-  color: var(--text);
-  /* Neutralise <h2> default margins — was a <span> previously, promoted
-     to <h2> for SEO/semantic-headings reasons. */
-  margin: 0;
-  font-weight: 400;
-}
-
-.brief-morning .brief-kind {
-  color: var(--gold);
-  text-shadow: 0 0 10px rgba(245, 200, 66, 0.5);
-}
-
-.brief-evening .brief-kind {
-  color: #4cc9ff;
-  text-shadow: 0 0 10px rgba(76, 201, 255, 0.5);
-}
-
-.brief-weekend .brief-kind {
-  color: #c484ff;
-  text-shadow: 0 0 10px rgba(196, 132, 255, 0.55);
-}
-
-.brief-date {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.18em;
-  color: var(--text-dim);
-  text-transform: uppercase;
-}
-
-.brief-body {
-  font-size: clamp(0.92rem, 1.5vw, 1.05rem);
-  line-height: 1.6;
-  color: var(--text);
-  max-width: 75ch;
-  margin: 0;
 }
 
 /* ============= Mood banner ============= */

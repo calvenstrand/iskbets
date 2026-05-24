@@ -3,7 +3,6 @@ import { stockholmMondayOfWeek } from "./dateUtil";
 import type { MockMode } from "./mockData";
 import type {
   AnalysisPayload,
-  Brief,
   DailyResult,
   DashboardData,
   PublicStoredData,
@@ -16,14 +15,18 @@ import type {
 
 const KV_KEY = "iskbets:snapshot";
 const ATTEMPT_KEY = "iskbets:lastAttempt";
-const MORNING_BRIEF_KEY = "iskbets:morningBrief";
-const EVENING_BRIEF_KEY = "iskbets:eveningBrief";
-const WEEKEND_BRIEF_KEY = "iskbets:weekendWire";
-const YESTERDAY_KEY = "iskbets:yesterday";
 const WEEK_START_KEY = "iskbets:weekStart";
 const ARCHIVE_KEY = "iskbets:archive"; // Redis hash, fields = weekStart dates
 const DAILY_ARCHIVE_KEY = "iskbets:dailyArchive"; // Redis hash, fields = YYYY-MM-DD
 const WEEKLY_CHAMPION_KEY = "iskbets:weeklyChampion";
+
+// Deprecated keys left orphaned in Redis after the brief subsystem
+// was removed. Listed here so anyone debugging stale data knows
+// what they're looking at; safe to manually delete from Upstash.
+//   iskbets:morningBrief
+//   iskbets:eveningBrief
+//   iskbets:weekendWire
+//   iskbets:yesterday
 
 function readCreds(): { url: string | undefined; token: string | undefined } {
   // Support both env name conventions:
@@ -117,68 +120,12 @@ export async function markAttempt(): Promise<void> {
   await getRedis().set(ATTEMPT_KEY, Date.now());
 }
 
-// ============== Briefs ==============
-
-export async function getMorningBrief(): Promise<Brief | null> {
-  if (shouldUseMock().use) {
-    const { getMockMorningBrief } = await import("./mockData");
-    return getMockMorningBrief();
-  }
-  const v = await getRedis().get<Brief>(MORNING_BRIEF_KEY);
-  return v ?? null;
-}
-
-export async function setMorningBrief(brief: Brief): Promise<void> {
-  await getRedis().set(MORNING_BRIEF_KEY, brief);
-}
-
-export async function getEveningBrief(): Promise<Brief | null> {
-  if (shouldUseMock().use) {
-    const { getMockEveningBrief } = await import("./mockData");
-    return getMockEveningBrief();
-  }
-  const v = await getRedis().get<Brief>(EVENING_BRIEF_KEY);
-  return v ?? null;
-}
-
-export async function setEveningBrief(brief: Brief): Promise<void> {
-  await getRedis().set(EVENING_BRIEF_KEY, brief);
-}
-
-/**
- * Snapshot taken at evening-brief time — what the morning brief reads from.
- * Capped at one day; overwritten each evening.
- */
-export async function getYesterdaySnapshot(): Promise<StoredData | null> {
-  const v = await getRedis().get<StoredData>(YESTERDAY_KEY);
-  return v ?? null;
-}
-
-export async function setYesterdaySnapshot(data: StoredData): Promise<void> {
-  await getRedis().set(YESTERDAY_KEY, data);
-}
-
-// ============== Weekend Wire (weekly recap brief) ==============
-
-export async function getWeekendBrief(): Promise<Brief | null> {
-  if (shouldUseMock().use) {
-    const { getMockWeekendBrief } = await import("./mockData");
-    return getMockWeekendBrief();
-  }
-  const v = await getRedis().get<Brief>(WEEKEND_BRIEF_KEY);
-  return v ?? null;
-}
-
-export async function setWeekendBrief(brief: Brief): Promise<void> {
-  await getRedis().set(WEEKEND_BRIEF_KEY, brief);
-}
-
 // ============== Week-start snapshot (leaderboard WTD baseline) ==============
 
 /**
  * Baseline snapshot for the trading week — written by the first Monday
- * trigger and read by both the leaderboard (WTD column) and the Weekend
- * Wire (week-over-week recap).
+ * trigger and read by the leaderboard (WTD column) and the Weekly
+ * Champion AI call (week-over-week recap).
  */
 export async function getWeekStartSnapshot(): Promise<WeekStartSnapshot | null> {
   if (shouldUseMock().use) {
@@ -299,11 +246,14 @@ export async function listDailyResults(
 }
 
 /**
- * One-shot fetch for the dashboard: snapshot + all three briefs + the
+ * One-shot fetch for the dashboard: snapshot + weekly champion + the
  * compact week-start price map (just ticker → price, not the full
- * snapshot — keeps the polled payload small). All in parallel.
- * Returns null only if the live snapshot is missing — everything else
- * is best-effort.
+ * snapshot — keeps the polled payload small). All in parallel. Returns
+ * null only if the live snapshot is missing — everything else is
+ * best-effort.
+ *
+ * Briefs (morning / evening / weekend wire) were removed for cost;
+ * the only AI-generated narrative still surfaced is the Weekly Champion.
  */
 export async function getDashboardData(opts?: {
   /** Dev-only preview mode; only honored when the storage layer is in
@@ -318,20 +268,8 @@ export async function getDashboardData(opts?: {
     return getMockDashboardData(opts?.mode ?? "default");
   }
 
-  // Evening brief intentionally not fetched — generation was removed
-  // (nobody read the after-close paragraph, and the AI call was
-  // ~$0.10/week with no observed engagement). Any orphaned eveningBrief
-  // value still in Redis from before the removal is silently ignored.
-  const [
-    snapshot,
-    morningBrief,
-    weekendBrief,
-    weekStart,
-    weeklyChampion,
-  ] = await Promise.all([
+  const [snapshot, weekStart, weeklyChampion] = await Promise.all([
     getStockData(),
-    getMorningBrief(),
-    getWeekendBrief(),
     getWeekStartSnapshot(),
     getWeeklyChampion(),
   ]);
@@ -341,7 +279,7 @@ export async function getDashboardData(opts?: {
   // baseline is for THIS Stockholm-week's Monday — if Monday's archive
   // failed and we're holding last week's snapshot, the leaderboard's
   // WTD column would silently compare against a stale baseline and lie.
-  // The trigger route's weekend-wire branch already does this same check;
+  // The trigger route's weekly-archive branch already does this same check;
   // we mirror it here so the client-side leaderboard never sees stale data.
   const thisMonday = stockholmMondayOfWeek(new Date());
   const weekStartPrices =
@@ -352,8 +290,6 @@ export async function getDashboardData(opts?: {
       : undefined;
   return {
     snapshot: toPublicSnapshot(snapshot),
-    ...(morningBrief ? { morningBrief } : {}),
-    ...(weekendBrief ? { weekendBrief } : {}),
     ...(weeklyChampion ? { weeklyChampion } : {}),
     ...(weekStartPrices ? { weekStartPrices } : {}),
   };

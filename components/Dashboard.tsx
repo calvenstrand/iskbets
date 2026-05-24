@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { briefHiddenDuringTrading, inRecapWindow } from "@/lib/dateUtil";
+import { inRecapWindow } from "@/lib/dateUtil";
 import {
   detectSweep,
   pickTodayWinnerLoser,
@@ -11,14 +11,12 @@ import {
 import { marketHasOpenedToday } from "@/lib/marketHours";
 import { TICKERS } from "@/lib/tickers";
 import type {
-  Brief,
   DashboardData,
   PublicStoredData,
   StockAnalysis,
   StockPrice,
   WeeklyChampion,
 } from "@/lib/types";
-import { BriefCard } from "./Brief";
 import { CelebrationCard } from "./CelebrationCard";
 import { Header } from "./Header";
 import { Leaderboard } from "./Leaderboard";
@@ -32,9 +30,6 @@ import { WeeklyChampionCard } from "./WeeklyChampion";
 
 type DashboardProps = {
   data: PublicStoredData;
-  morningBrief?: Brief;
-  eveningBrief?: Brief;
-  weekendBrief?: Brief;
   weeklyChampion?: WeeklyChampion;
   weekStartPrices?: Record<string, number>;
   /** Server-computed initial value for the recap window (Fri 22:00 STO →
@@ -109,24 +104,12 @@ function findCommentChanges(
 
 export function Dashboard({
   data: initialData,
-  morningBrief: initialMorning,
-  eveningBrief: initialEvening,
-  weekendBrief: initialWeekend,
   weeklyChampion: initialWeeklyChampion,
   weekStartPrices: initialWeekStart,
   initialInRecap,
   initialNowMs,
 }: DashboardProps) {
   const [snapshot, setSnapshot] = useState<PublicStoredData>(initialData);
-  const [morningBrief, setMorningBrief] = useState<Brief | undefined>(
-    initialMorning,
-  );
-  const [eveningBrief, setEveningBrief] = useState<Brief | undefined>(
-    initialEvening,
-  );
-  const [weekendBrief, setWeekendBrief] = useState<Brief | undefined>(
-    initialWeekend,
-  );
   const [weeklyChampion, setWeeklyChampion] = useState<
     WeeklyChampion | undefined
   >(initialWeeklyChampion);
@@ -170,23 +153,15 @@ export function Dashboard({
     () => new Set(),
   );
   const [moodFlash, setMoodFlash] = useState(false);
-  const [briefFlash, setBriefFlash] = useState(false);
 
   // Refs for closure-stable access to the latest state from the poll loop.
   const snapshotRef = useRef(snapshot);
-  const morningRef = useRef(morningBrief);
-  const eveningRef = useRef(eveningBrief);
-  const weekendRef = useRef(weekendBrief);
   snapshotRef.current = snapshot;
-  morningRef.current = morningBrief;
-  eveningRef.current = eveningBrief;
-  weekendRef.current = weekendBrief;
 
   // Single timeout per flash kind so a fast follow-up update doesn't cut
   // the previous flash short.
   const tickerFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const moodFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const briefFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -206,25 +181,12 @@ export function Dashboard({
         if (cancelled) return;
 
         const prev = snapshotRef.current;
-        const prevMorningGen = morningRef.current?.generatedAt ?? 0;
-        const prevEveningGen = eveningRef.current?.generatedAt ?? 0;
-        const prevWeekendGen = weekendRef.current?.generatedAt ?? 0;
-
         const changedTickers = findCommentChanges(prev, fresh.snapshot);
         const moodChanged =
           prev.analysis.overallMood !== fresh.snapshot.analysis.overallMood;
-        const morningChanged =
-          (fresh.morningBrief?.generatedAt ?? 0) > prevMorningGen;
-        const eveningChanged =
-          (fresh.eveningBrief?.generatedAt ?? 0) > prevEveningGen;
-        const weekendChanged =
-          (fresh.weekendBrief?.generatedAt ?? 0) > prevWeekendGen;
 
         // Update state regardless — silent UX even when nothing flashes.
         setSnapshot(fresh.snapshot);
-        setMorningBrief(fresh.morningBrief);
-        setEveningBrief(fresh.eveningBrief);
-        setWeekendBrief(fresh.weekendBrief);
         setWeeklyChampion(fresh.weeklyChampion);
         setWeekStartPrices(fresh.weekStartPrices);
 
@@ -244,13 +206,6 @@ export function Dashboard({
             if (!cancelled) setMoodFlash(false);
           }, FLASH_MS);
         }
-        if (morningChanged || eveningChanged || weekendChanged) {
-          if (briefFlashTimer.current) clearTimeout(briefFlashTimer.current);
-          setBriefFlash(true);
-          briefFlashTimer.current = setTimeout(() => {
-            if (!cancelled) setBriefFlash(false);
-          }, FLASH_MS);
-        }
       } catch {
         // Silent — try again next interval.
       }
@@ -268,9 +223,10 @@ export function Dashboard({
       }
     }
 
-    // Only poll while the tab is visible. With the cron firing every 15 min
-    // and a 5-min poll, leaving the tab open overnight would otherwise burn
-    // ~144 needless /api/data calls per user.
+    // Only poll while the tab is visible. With the cron firing every 10 min
+    // and a 2-min poll, leaving the tab open overnight would otherwise burn
+    // ~720 needless /api/data calls per user (all CDN-cached but still
+    // pointless).
     const onVisibility = () => {
       if (document.visibilityState === "visible") {
         refresh(); // catch up immediately on return
@@ -291,7 +247,6 @@ export function Dashboard({
       document.removeEventListener("visibilitychange", onVisibility);
       if (tickerFlashTimer.current) clearTimeout(tickerFlashTimer.current);
       if (moodFlashTimer.current) clearTimeout(moodFlashTimer.current);
-      if (briefFlashTimer.current) clearTimeout(briefFlashTimer.current);
     };
   }, []);
 
@@ -410,28 +365,14 @@ export function Dashboard({
 
       {/* Mood banner hides during the recap window — Friday's close
           would otherwise masquerade as a live "today" mood on Sat/Sun,
-          and the Weekend Wire above already owns the editorial framing
-          for the whole weekend. Returns Monday at 09:00 STO when the
-          live trading day begins again. */}
+          and the Champion of the Week card already owns the editorial
+          framing for the whole weekend. Returns Monday at 09:00 STO
+          when the live trading day begins again. */}
       {!inRecap && (
         <MoodBanner
           mood={snapshot.analysis.overallMood}
           avgChangePct={avgChangePct}
           flash={moodFlash}
-        />
-      )}
-
-      {/* Brief disappears Mon-Fri 09:00 → 22:00 STO. Once Stockholm
-          opens the morning wire is stale, and the dashboard's live
-          data takes over the news role. Briefs return at 22:00 when
-          the evening wrap fires. */}
-      {!briefHiddenDuringTrading(now) && (
-        <BriefCard
-          morningBrief={morningBrief}
-          eveningBrief={eveningBrief}
-          weekendBrief={weekendBrief}
-          flash={briefFlash}
-          inRecap={inRecap}
         />
       )}
 

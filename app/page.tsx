@@ -56,9 +56,6 @@ export default async function Home({
   return (
     <Dashboard
       data={data.snapshot}
-      morningBrief={data.morningBrief}
-      eveningBrief={data.eveningBrief}
-      weekendBrief={data.weekendBrief}
       weeklyChampion={data.weeklyChampion}
       weekStartPrices={data.weekStartPrices}
       initialInRecap={inRecap}

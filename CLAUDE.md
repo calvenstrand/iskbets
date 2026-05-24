@@ -8,10 +8,10 @@ Backend and frontend are both complete; build + lint pass clean.
 
 **Working:**
 
-- `/api/trigger` (auth via `x-trigger-secret` header — or legacy `?key=` query param) → `fetchPrices` (smart: skips closed-market tickers and reuses their cached prices) → optional `analyzeStocks` (gated by smart-skip logic) → `saveStockData` → `maybeArchiveWeekStart` (writes the week baseline on the first trigger of any weekday that doesn't already have one — resilient to Monday holidays / Monday cron failures) → morning brief (08:00 CET, AI) + post-close archive (22:00 CET, no AI — Evening Wrap was removed) + weekly champion (Friday 22:45 CET, AI; Weekend Wire also removed). All idempotent. A cron-job.org scheduled job pings the endpoint every 10 min on weekdays; off-hours fires are near-instant since they're pure cache passthrough.
-- `/api/data` (public) reads the latest snapshot + all three briefs + a compact `weekStartPrices` map from KV; CDN-cached via `Cache-Control: public, s-maxage=60, stale-while-revalidate=300` so the polling client doesn't drain Upstash
+- `/api/trigger` (auth via `x-trigger-secret` header — or legacy `?key=` query param) → `fetchPrices` (smart: skips closed-market tickers and reuses their cached prices) → optional `analyzeStocks` (gated by smart-skip logic) → `saveStockData` → `maybeArchiveWeekStart` (writes the week baseline on the first trigger of any weekday that doesn't already have one — resilient to Monday holidays / Monday cron failures) → post-close daily archive (22:00 CET, no AI) + Friday-only weekly archive + Weekly Champion AI call (22:45 CET). All idempotent. A cron-job.org scheduled job pings the endpoint every 10 min on weekdays; off-hours fires are near-instant since they're pure cache passthrough.
+- `/api/data` (public) reads the latest snapshot + the weekly champion + a compact `weekStartPrices` map from KV; CDN-cached via `Cache-Control: public, s-maxage=20, stale-while-revalidate=300` so the polling client doesn't drain Upstash
 - `/` server component fetches `/api/data` on the server with `revalidate: 60`, then hands the data to a `'use client'` Dashboard
-- Dashboard sub-components: one-time boot-sequence splash (CRT-style boot log, gated by sessionStorage so it plays once per browser session), ticker tape, masthead header (I$KBETS wordmark + date/issue dateline), market-status bar (5 markets — Tokyo, Hong Kong, Stockholm, London, NYC — real timezones via `Intl`; collapses to pill+code on mobile), brief card (most-recent of morning / evening / weekend), mood banner, friend leaderboard (per-friend today% + WTD%), winner/loser featured cards, responsive grid, last-updated footer
+- Dashboard sub-components: one-time boot-sequence splash (CRT-style boot log, gated by sessionStorage so it plays once per browser session), ticker tape, masthead header (I$KBETS wordmark + date/issue dateline), market-status bar (5 markets — Tokyo, Hong Kong, Stockholm, London, NYC — real timezones via `Intl`; collapses to pill+code on mobile), mood banner, friend leaderboard (per-friend today% + WTD%), winner/loser featured cards, weekend-only Champion+Standings recap-row, responsive grid, last-updated footer
 - Bebas Neue + Share Tech Mono via `next/font/google`; design system in `app/globals.css`
 - `vercel.json` sets `maxDuration: 60` on `/api/trigger` for the AI call
 - Cards render gracefully when AI analysis is missing for a ticker; prices render `N/A` for non-finite values; `/` falls through to a `NO DATA YET` empty state if KV is empty or unreachable
@@ -50,16 +50,15 @@ Backend and frontend are both complete; build + lint pass clean.
        └─ AI skipped    reuse last analysis from existing snapshot
   → saveStockData()      lib/storage.ts (Upstash Redis)
   → maybeArchiveWeekStart() (idempotent — writes the week's baseline on the first trigger of any weekday that doesn't already have it; resilient to Monday holidays / Monday cron outages)
-  → maybeGenerateBriefs() (idempotent, time-windowed)
-       ├─ inMorningBriefWindow → generateMorningBrief() (reads yesterday)
-       ├─ inEveningBriefWindow → archive yesterday snapshot (no AI brief)
-       │                         + maybeArchiveDailyResult() (compact daily archive)
-       └─ inWeekendWireWindow (Friday only) → generateWeekendWire() (reads weekStart)
-                                              + maybeArchiveWeeklyResult() (compact weekly archive)
-                                              + maybeGenerateWeeklyChampion() (separate AI call, recap of WTD leader)
+  → runPostCloseWork() (idempotent, time-windowed)
+       ├─ inPostCloseWindow (Mon-Fri 22:00-22:45 STO)
+       │                       → maybeArchiveDailyResult() (compact daily archive)
+       └─ inWeeklyArchiveWindow (Friday 22:45-23:30 STO)
+                                  → maybeArchiveWeeklyResult() (compact weekly archive)
+                                  + maybeGenerateWeeklyChampion() (AI call, recap of WTD leader — the only recurring AI narrative)
 
-/api/data (GET, public, CDN-cached 60s)
-  → getDashboardData()   lib/storage.ts → { snapshot, morningBrief?, weekendBrief?, weeklyChampion?, weekStartPrices? }
+/api/data (GET, public, CDN-cached 20s)
+  → getDashboardData()   lib/storage.ts → { snapshot, weeklyChampion?, weekStartPrices? }
 ```
 
 **Smart AI gating** (`shouldRerunAI` in `app/api/trigger/route.ts`):
@@ -70,9 +69,9 @@ The Anthropic call only fires when at least one of these is true:
 
 Otherwise prices are refreshed but the existing analysis is carried forward. This decouples price freshness (every 10 min) from AI cost (only when there's something new to say).
 
-**Cron schedule** lives at [cron-job.org](https://cron-job.org): `3,13,23,33,43,53 6-22 * * 1-5` UTC (every 10 min on weekdays, `:03`-style offset so each tick lands ~3 min after each ten-minute mark). The offsets are chosen to land shortly after market opens — Stockholm opens at 09:00 STO (= 08:00 UTC winter / 07:00 UTC summer), so the `:03` tick fires 3 min after open. 3 min vs 1 min gives the opening auction time to settle and Finnhub/Avanza time to start returning sensible intraday `dp` values instead of zero. Same logic for NY's 15:30 STO open → 15:33 STO tick. The window covers ~07:00–00:00 CET / ~08:00–01:00 CEST so the morning brief (08:00 CET), evening brief (22:00 CET), and weekend wire (Fri 22:45 CET) windows always have multiple fires inside them in either DST mode. The job sends GET to `https://www.iskbets.se/api/trigger` with the `x-trigger-secret` header set from a private cron-job.org config (timeout 90s, response logged to job history).
+**Cron schedule** lives at [cron-job.org](https://cron-job.org): `3,13,23,33,43,53 6-22 * * 1-5` UTC (every 10 min on weekdays, `:03`-style offset so each tick lands ~3 min after each ten-minute mark). The offsets are chosen to land shortly after market opens — Stockholm opens at 09:00 STO (= 08:00 UTC winter / 07:00 UTC summer), so the `:03` tick fires 3 min after open. 3 min vs 1 min gives the opening auction time to settle and Finnhub/Avanza time to start returning sensible intraday `dp` values instead of zero. Same logic for NY's 15:30 STO open → 15:33 STO tick. The window covers ~07:00–00:00 CET / ~08:00–01:00 CEST so the post-close window (22:00 CET) and weekly archive window (Fri 22:45 CET) always have multiple fires inside them in either DST mode. The job sends GET to `https://www.iskbets.se/api/trigger` with the `x-trigger-secret` header set from a private cron-job.org config (timeout 90s, response logged to job history).
 
-Cadence history: 15 min → 10 min (bumped 2026-05-12 — more headroom for fresher data without straining Upstash quotas; client polling stays at 5 min so users see at most one cron cycle of staleness).
+Cadence history: 15 min → 10 min (bumped 2026-05-12 — more headroom for fresher data without straining Upstash quotas; client polling currently 2 min so users see at most one cron cycle + ~20s CDN of staleness).
 
 Migration history: Vercel Cron → GitHub Actions (free, but ~12% delivery rate during business hours due to scheduling backlog) → cron-job.org (proper second-level reliability, free tier, web dashboard with manual fire button).
 
@@ -80,19 +79,16 @@ Migration history: Vercel Cron → GitHub Actions (free, but ~12% delivery rate 
 
 **Live-window gating in `fetchPrices`** (`isMarketLive` in `lib/marketHours.ts`): for each ticker, check whether its market is currently in a "live data" window — open + 30 min post-close buffer. Inside the window: fetch fresh from Finnhub/Avanza. Outside: reuse the cached price from the previous snapshot, no API call. Bootstrap edge case: if a ticker has no cached price yet (very first cron run, or a newly added ticker), fetch regardless of window. Result: cron fires outside market hours are essentially free no-ops; only the markets actually trading hit the network.
 
-**Briefs**:
+**Brief subsystem (removed)**: the dashboard once carried three long-form Anthropic-generated briefs (Morning Wire 08:00 STO, Evening Wrap 22:00 STO, Weekend Wire Fri 22:45 STO). All three were removed for cost — nobody on the friend group was reading them and the combined AI calls added ~$0.40/week. The Weekly Champion AI call (below) survived because the dashboard actively renders it as a hero card every weekend. If a future feature needs long-form prose again (e.g. an archive page), the old generators are in git history (`lib/briefs.ts` commits around May 2026).
 
-Long-form analyst messages generated on a recurring cadence:
+**Time windows still in play**:
 
-- **Morning Wire** — fires once between 08:00–08:30 Stockholm time (~1 hour before market open). Reads from `iskbets:yesterday` (the snapshot archived at the previous evening's brief) and reflects on yesterday's close + sets up today. Idempotent per Stockholm calendar day.
-- **Post-close archive** — runs in the 22:00–22:45 STO window after NY close. Archives today's snapshot to `iskbets:yesterday` (which the next morning brief reads) and writes the daily archive. The Evening Wrap AI brief that used to fire here was removed for cost reasons — nobody read the after-close paragraph and the AI call was ~$0.10/week with no observed engagement. Idempotent per Stockholm calendar day.
-- **Weekend Wire** — fires once Friday 22:45–23:30 Stockholm time. Recaps the WHOLE WEEK using `iskbets:weekStart` (the snapshot archived on the first trigger of any weekday this week) as the baseline. Idempotent per *week* — keyed on the Monday's date. Lives there until Monday's morning wire takes over.
+- **Post-close archive** — runs in the 22:00–22:45 STO window after NY close. Writes the daily archive (`iskbets:dailyArchive`) to capture today's close for long-term history. Idempotent per Stockholm calendar day. No AI cost.
+- **Weekly archive + Weekly Champion** — Friday 22:45–23:30 STO. Writes `iskbets:archive` (compact `WeeklyResult` for the week) and fires one Anthropic call to generate the Weekly Champion recap (the only recurring AI narrative). Idempotent per week.
 
-All three are stored under separate Redis keys; each stores its own `date`, and the BriefCard rotates to whichever was most recently generated. Morning is gold, evening is cyan, weekend is purple. Brief generation is wrapped in try/catch in the trigger route — a brief failure never breaks the snapshot save.
+**Friend leaderboard**: per-friend daily/WTD performance, computed in `lib/leaderboard.ts` from the snapshot + `weekStartPrices` map. Only renders during the recap window (Fri 22:00 → Mon 09:00 STO). WTD column gracefully hides when no Monday baseline exists yet (e.g. very first deploy or if Monday's archive missed). Sort is by today% during weekdays, by WTD during the recap window. In recap mode the standings sit side-by-side with the Champion card in a `.recap-row` 2-column grid; cards get green/red sentiment tints based on each friend's WTD performance.
 
-**Friend leaderboard**: per-friend daily/WTD performance, computed in `lib/leaderboard.ts` from the snapshot + `weekStartPrices` map. Renders above the brief. WTD column gracefully hides when no Monday baseline exists yet (e.g. very first deploy or if Monday's archive missed). Sort is descending by today's % change. Champion (#1) gets a hero treatment with a gold gradient + glow + 👑 LEADER badge; each card shows a top + bottom mover so the story behind the number is visible.
-
-**Champion of the Week**: separate gold card pinned above the leaderboard. Generated once a week alongside the Weekend Wire (Friday 22:45–23:30 STO) by a dedicated Anthropic call. Targets the friend with the highest **WTD%** at end of week — the actual week champion, which can differ from today's #1. Persists through the weekend until next Friday's call overwrites it. Title shows the date range so it's always clear which week it covers.
+**Champion of the Week**: gold hero card pinned above the standings during the recap window. Generated once a week (Friday 22:45–23:30 STO) by the surviving Anthropic call. Targets the friend with the highest **WTD%** at end of week — the actual week champion, which can differ from today's #1. Persists through the weekend until next Friday's call overwrites it. Title shows the date range so it's always clear which week it covers.
 
 **Cooldown gate** (`iskbets:lastAttempt`) is intentionally written **before** the pipeline runs — so a partial failure (provider flake, Anthropic rate limit) still consumes the cooldown. It's now 1 min (was 30) — just spam-prevention for manual clicks; cron fires every 10 min so it's never blocked.
 
@@ -117,31 +113,22 @@ Ten Redis keys (two are hashes), all under the `iskbets:` namespace:
 }
 
 // iskbets:lastAttempt — number, epoch ms (cooldown gate)
-// iskbets:morningBrief — { date: "YYYY-MM-DD", text: string, generatedAt: number }
-// iskbets:eveningBrief — DEPRECATED. Generation removed; any leftover
-//                         value from before the removal is ignored by
-//                         /api/data and the dashboard. Safe to delete
-//                         manually if you want a clean Redis dump.
-// iskbets:weekendWire   — DEPRECATED. Same story as eveningBrief —
-//                         generation removed for cost. Old value
-//                         ignored. Safe to delete.
-// iskbets:yesterday — copy of the snapshot captured in the 22:00–22:45 STO
-//                     post-close window, used by next morning's brief.
+
 // iskbets:weekStart — { weekStart: "YYYY-MM-DD" (Monday), stocks: StockPrice[] }
 //                     archived on the first weekday trigger of the week that
 //                     doesn't already have a baseline (typically Monday morning;
 //                     falls forward to Tue+ if Monday is a holiday or cron failed).
-//                     Baseline for the leaderboard WTD column and the Weekend
-//                     Wire's week-over-week recap.
+//                     Baseline for the leaderboard WTD column and the Weekly
+//                     Champion's week-over-week recap.
 
 // iskbets:archive — Redis HASH. Field name = weekStart (YYYY-MM-DD).
 //                   Field value = WeeklyResult (compact: per-stock weekChangePct,
-//                   per-friend WTD%, Friday's overallMood, optional wireText).
-//                   Written Friday evening after the wire fires. Idempotent per
-//                   week. Read via `listWeeklyResults(limit?)` from lib/storage.
-//                   Future home for history graphs / yearly recap / monthly
-//                   leaderboards. NOT in /api/data — pull via a new endpoint
-//                   when needed.
+//                   per-friend WTD%, Friday's overallMood).
+//                   Written Friday evening (22:45–23:30 STO) after the weekly
+//                   archive window fires. Idempotent per week. Read via
+//                   `listWeeklyResults(limit?)` from lib/storage. Future home
+//                   for history graphs / yearly recap / monthly leaderboards.
+//                   NOT in /api/data — pull via a new endpoint when needed.
 
 // iskbets:dailyArchive — Redis HASH. Field name = date (YYYY-MM-DD STO).
 //                   Field value = DailyResult (compact: per-stock close +
@@ -154,13 +141,21 @@ Ten Redis keys (two are hashes), all under the `iskbets:` namespace:
 
 // iskbets:weeklyChampion — { weekStart, weekEnd, person, name, wtdPct,
 //                            line, generatedAt }. Champion of the week
-//                            recap, generated alongside the Weekend Wire
-//                            on Friday evening. Targets the WTD leader
+//                            recap, generated by the Friday 22:45–23:30
+//                            STO Anthropic call. Targets the WTD leader
 //                            (highest WTD%, which can differ from today's
 //                            #1 on the live leaderboard). Pinned through
 //                            the weekend, overwritten next Friday.
 //                            Surfaced in /api/data; rendered as a gold
-//                            card above the leaderboard.
+//                            card during the recap window.
+
+// DEPRECATED keys still in Redis from the removed brief subsystem.
+// Safe to delete manually if you want a clean Redis dump — nothing
+// reads them anymore:
+//   iskbets:morningBrief
+//   iskbets:eveningBrief
+//   iskbets:weekendWire
+//   iskbets:yesterday
 ```
 
 ## Env vars

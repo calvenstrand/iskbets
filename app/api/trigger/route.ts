@@ -1,14 +1,10 @@
 import { NextResponse } from "next/server";
 import { analyzeStocks } from "@/lib/analyzeStocks";
-import {
-  generateMorningBrief,
-  generateWeeklyChampion,
-} from "@/lib/briefs";
+import { generateWeeklyChampion } from "@/lib/briefs";
 import { computeLeaderboard, pickWeekChampion } from "@/lib/leaderboard";
 import {
-  inEveningBriefWindow,
-  inMorningBriefWindow,
-  inWeekendWireWindow,
+  inPostCloseWindow,
+  inWeeklyArchiveWindow,
   stockholmDate,
   stockholmMondayOfWeek,
 } from "@/lib/dateUtil";
@@ -16,20 +12,16 @@ import { fetchPrices } from "@/lib/fetchPrices";
 import {
   getDailyResult,
   getLastAttempt,
-  getMorningBrief,
   getStockData,
   getWeeklyChampion,
   getWeeklyResult,
   getWeekStartSnapshot,
-  getYesterdaySnapshot,
   markAttempt,
   saveStockData,
   setDailyResult,
-  setMorningBrief,
   setWeeklyChampion,
   setWeeklyResult,
   setWeekStartSnapshot,
-  setYesterdaySnapshot,
 } from "@/lib/storage";
 import type { StockPrice, StoredData } from "@/lib/types";
 import { computeDailyResult } from "@/lib/dailyResult";
@@ -141,87 +133,29 @@ function shouldRerunAI(
 }
 
 /**
- * Generate and persist the morning / evening / weekend-wire briefs if
- * we're in the right window AND that brief hasn't been generated for
- * its target period yet. Failures here are caught and logged — they
- * don't fail the trigger response.
+ * Run the time-windowed post-close work: daily archive (every weekday
+ * after market close) and weekly archive + Weekly Champion (Friday
+ * after close). All Brief generation (morning / evening / weekend wire)
+ * was removed for cost reasons — only the Weekly Champion still uses
+ * Anthropic on a recurring schedule, and it's the one AI-generated
+ * narrative the dashboard actually surfaces.
  */
-async function maybeGenerateBriefs(
+async function runPostCloseWork(
   todaySnapshot: StoredData,
   now: Date,
 ): Promise<void> {
-  const today = stockholmDate(now);
-
-  // Morning brief: 08:30–09:00 Stockholm. Reads yesterday's archived snapshot.
-  if (inMorningBriefWindow(now)) {
-    try {
-      const existing = await getMorningBrief();
-      if (existing?.date === today) {
-        console.log("[trigger] morning brief already generated for today");
-      } else {
-        const yesterday = await getYesterdaySnapshot();
-        if (!yesterday) {
-          console.log(
-            "[trigger] morning brief skipped — no yesterday snapshot yet",
-          );
-        } else {
-          const text = await generateMorningBrief(yesterday);
-          await setMorningBrief({
-            date: today,
-            text,
-            generatedAt: Date.now(),
-          });
-          console.log("[trigger] morning brief generated");
-        }
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[trigger] morning brief failed: ${msg}`);
-    }
-  }
-
-  // Market-close window: 22:00–22:45 Stockholm. Archives today's
-  // snapshot as "yesterday" for tomorrow's morning brief + writes the
-  // daily archive. The Evening Wrap AI brief that used to fire here
-  // was removed — nobody read the after-close paragraph and the AI
-  // call was ~$0.10/week with no observed engagement.
-  if (inEveningBriefWindow(now)) {
-    try {
-      // Idempotency: yesterday's snapshot already reflects today's
-      // STO date → first cron in the window already did it, skip the
-      // rest. Compares Stockholm calendar day, not raw ISO equality,
-      // because subsequent cron ticks in the window have slightly
-      // newer updatedAt values but represent the same trading day.
-      const existing = await getYesterdaySnapshot();
-      const existingDate = existing?.updatedAt
-        ? stockholmDate(new Date(existing.updatedAt))
-        : null;
-      if (existingDate === today) {
-        // Already archived this evening — silent no-op.
-      } else {
-        await setYesterdaySnapshot(todaySnapshot);
-        console.log(`[trigger] yesterday snapshot archived for ${today}`);
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[trigger] yesterday archive failed: ${msg}`);
-    }
-
-    // Daily archive — runs in the same window so it captures today's
-    // close. Independent of brief success: if Claude refused, we still
-    // store the numbers. Idempotent per Stockholm calendar day.
+  // Post-close window: 22:00–22:45 STO. Writes the daily archive
+  // (captures today's close for long-term history). Idempotent per
+  // Stockholm calendar day.
+  if (inPostCloseWindow(now)) {
     await maybeArchiveDailyResult(todaySnapshot, now);
   }
 
-  // Weekend wire window: Friday 22:45–23:30 Stockholm. Fires the weekly
-  // archive + the Weekly Champion AI call. The Weekend Wire itself
-  // (paragraph-length recap) is no longer generated — the dashboard
-  // hides it during the recap window in favor of the Champion card,
-  // and that's the only surface that ever displayed it. Skipping the
-  // wire AI call saves ~$0.40/month. If a future feature wants the
-  // long-form wire back (e.g., archive page), re-enable by restoring
-  // the generateWeekendWire() block here.
-  if (inWeekendWireWindow(now)) {
+  // Weekly archive window: Friday 22:45–23:30 STO. Fires the weekly
+  // archive + the Weekly Champion AI call. The Weekend Wire long-form
+  // recap that used to fire here was removed for cost reasons (nobody
+  // read it after the dashboard hid it during recap mode).
+  if (inWeeklyArchiveWindow(now)) {
     // Weekly archive — captures Friday's close. Idempotent per week,
     // so spam-firing this branch after the first archive lands is a
     // no-op. wireText falls through as undefined now that the wire
@@ -255,7 +189,7 @@ async function maybeArchiveDailyResult(
   try {
     const existing = await getDailyResult(today);
     if (existing) {
-      // Idempotent — every cron in the evening window after the first
+      // Idempotent — every cron in the post-close window after the first
       // archive is a no-op.
       return;
     }
@@ -296,11 +230,6 @@ async function maybeArchiveWeeklyResult(
       );
       return;
     }
-    // wireText is intentionally omitted — the Weekend Wire AI call was
-    // dropped for cost reasons (the dashboard never displayed it after
-    // the recap-window hide). Archive shape allows wireText to be
-    // undefined; future archive surfaces just won't have the long-form
-    // recap field. If you re-enable the wire, restore the read here.
     const result = computeWeeklyResult({
       fridaySnapshot: todaySnapshot,
       weekStart,
@@ -544,11 +473,11 @@ export async function GET(request: Request): Promise<NextResponse> {
     // sees the baseline as fresh.
     await maybeArchiveWeekStart(saved, triggerNow);
 
-    // Brief generation runs alongside the regular pipeline. Idempotent —
-    // each brief stores a `date` (Stockholm tz) and won't regenerate if
-    // today's already exists. Cron fires every 15 min in the brief windows
-    // so this typically lands once per window per day.
-    await maybeGenerateBriefs(saved, triggerNow);
+    // Post-close work: daily archive (every weekday after market close)
+    // and weekly archive + Weekly Champion AI call (Friday after close).
+    // All idempotent; cron fires every 10 min so each window catches
+    // multiple ticks but only the first one does work.
+    await runPostCloseWork(saved, triggerNow);
 
     console.log("[trigger] pipeline done");
     return NextResponse.json(saved, { status: 200 });
