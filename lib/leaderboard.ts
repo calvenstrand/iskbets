@@ -1,4 +1,4 @@
-import { marketHasOpenedToday } from "./marketHours";
+import { hasTradedToday } from "./marketHours";
 import { PEOPLE, type Person, TICKERS } from "./tickers";
 import type { StockPrice } from "./types";
 
@@ -239,7 +239,7 @@ export function pickTodayWinnerLoser(
   for (const s of stocks) {
     const meta = tickerMeta.get(s.ticker);
     if (!meta) continue;
-    if (!marketHasOpenedToday(meta.market, now)) continue;
+    if (!hasTradedToday(s.lastTradeAt, meta.market, now)) continue;
     if (!Number.isFinite(s.regularMarketChangePercent)) continue;
     const pct = s.regularMarketChangePercent;
     if (!winner || pct > winner.changePct) winner = { ticker: s.ticker, changePct: pct };

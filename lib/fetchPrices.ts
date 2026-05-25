@@ -85,6 +85,12 @@ async function fetchOneFromFinnhub(
       fiftyTwoWeekHigh: 0,
       fiftyTwoWeekLow: 0,
       marketState: deriveMarketState(ticker.market, now),
+      // Finnhub `t` is the last-trade epoch in SECONDS. On a US holiday it
+      // stays pinned to the previous session's close, which is exactly the
+      // signal the dashboard's holiday veto keys off.
+      ...(typeof q.t === "number" && q.t > 0
+        ? { lastTradeAt: q.t * 1000 }
+        : {}),
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -98,6 +104,7 @@ async function fetchOneFromFinnhub(
 async function fetchOneFromAvanza(
   ticker: Ticker,
   now: Date,
+  cachedPrice: StockPrice | undefined,
 ): Promise<StockPrice | null> {
   if (!ticker.avanzaId) {
     console.log(`[fetchPrices] ${ticker.symbol}: no avanzaId configured`);
@@ -138,6 +145,18 @@ async function fetchOneFromAvanza(
     else if (q.marketPlace?.marketOpen === false) marketState = "CLOSED";
     else marketState = deriveMarketState(ticker.market, now);
 
+    // Avanza's free quote has no trade timestamp, so we synthesize one
+    // from its marketOpen flag: if the orderbook is open right now the
+    // stock is trading today → stamp `now`. If it's closed (after hours
+    // OR an exchange holiday), carry forward whatever the last fetch
+    // recorded — that preserves an earlier "traded today" stamp through
+    // the evening, while on a holiday it stays on the prior trading day
+    // (Avanza reports marketOpen:false all day) so the holiday veto fires.
+    const lastTradeAt =
+      q.marketPlace?.marketOpen === true
+        ? now.getTime()
+        : cachedPrice?.lastTradeAt;
+
     return {
       ticker: ticker.symbol,
       name: ticker.name,
@@ -154,6 +173,7 @@ async function fetchOneFromAvanza(
       fiftyTwoWeekHigh: 0,
       fiftyTwoWeekLow: 0,
       marketState,
+      ...(typeof lastTradeAt === "number" ? { lastTradeAt } : {}),
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -202,7 +222,7 @@ export async function fetchPrices(
       // Live market OR no cache → actually fetch.
       const fresh =
         t.market === "SE"
-          ? await fetchOneFromAvanza(t, now)
+          ? await fetchOneFromAvanza(t, now, cachedPrice)
           : await fetchOneFromFinnhub(t, finnhubKey, now);
 
       if (fresh) {

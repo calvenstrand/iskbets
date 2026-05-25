@@ -8,7 +8,7 @@ import {
   pickWeekWinnerLoser,
   type SweepResult,
 } from "@/lib/leaderboard";
-import { marketHasOpenedToday } from "@/lib/marketHours";
+import { hasTradedToday } from "@/lib/marketHours";
 import { TICKERS } from "@/lib/tickers";
 import type {
   DashboardData,
@@ -105,8 +105,12 @@ function sortGridStocks(
     if (!useWeek) {
       const aMarket = TICKER_MARKETS.get(a.ticker);
       const bMarket = TICKER_MARKETS.get(b.ticker);
-      const aStale = aMarket ? !marketHasOpenedToday(aMarket, now) : false;
-      const bStale = bMarket ? !marketHasOpenedToday(bMarket, now) : false;
+      const aStale = aMarket
+        ? !hasTradedToday(a.lastTradeAt, aMarket, now)
+        : false;
+      const bStale = bMarket
+        ? !hasTradedToday(b.lastTradeAt, bMarket, now)
+        : false;
       if (aStale !== bStale) return aStale ? 1 : -1;
     }
 
@@ -395,7 +399,7 @@ export function Dashboard({
         snapshot.stocks
           .filter((s) => {
             const market = TICKER_MARKETS.get(s.ticker);
-            return market ? marketHasOpenedToday(market, now) : false;
+            return market ? hasTradedToday(s.lastTradeAt, market, now) : false;
           })
           .map((s) => ({ pct: s.regularMarketChangePercent })),
       );
@@ -548,7 +552,7 @@ export function Dashboard({
             // doesn't look uniformly washed out.
             const stale =
               !weekChangeByTicker && market
-                ? !marketHasOpenedToday(market, now)
+                ? !hasTradedToday(stock.lastTradeAt, market, now)
                 : false;
             const wk = weekChangeByTicker?.get(stock.ticker);
             return (

@@ -4,7 +4,7 @@ import {
   pickTodayWinnerLoser,
   pickWeekWinnerLoser,
 } from "./leaderboard";
-import { isMarketInRegularSession } from "./marketHours";
+import { isMarketInRegularSession, tradedTodaySignal } from "./marketHours";
 import { PEOPLE, TICKERS } from "./tickers";
 import type {
   AnalysisPayload,
@@ -207,8 +207,14 @@ export async function analyzeStocks(
   const now = new Date();
   const enriched = prices.map((p) => {
     const meta = tickerMeta.get(p.ticker);
+    // Regular-session clock check, vetoed by the holiday signal: on a
+    // closed exchange the session window is "open" but `lastTradeAt`
+    // still points at the previous trading day, so marketLive goes false
+    // and Claude treats the frozen number as last-session data instead of
+    // narrating it as "today's move".
     const marketLive = meta
-      ? isMarketInRegularSession(meta.market, now)
+      ? isMarketInRegularSession(meta.market, now) &&
+        tradedTodaySignal(p.lastTradeAt, now)
       : false;
     const owners = ownersMap.get(p.ticker) ?? [];
     const context = meta?.context;
