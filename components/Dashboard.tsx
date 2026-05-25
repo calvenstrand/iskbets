@@ -65,7 +65,10 @@ const TICKER_MARKETS = new Map(TICKERS.map((t) => [t.symbol, t.market]));
  *      Stockholm calendar day, so the change% is from the previous
  *      session and uninteresting next to live action).
  *   2. Within each group: owners' picks first.
- *   3. Within each owner-status group: biggest gainers first.
+ *   3. Within each owner-status group: biggest movers first by
+ *      absolute change%. Both big winners and big losers float to the
+ *      top; quiet mid-band cards sink. Tie-broken by signed value so
+ *      gainers edge out equal-magnitude losers when sitting side-by-side.
  */
 function sortGridStocks(stocks: StockPrice[], now: Date): StockPrice[] {
   return [...stocks].sort((a, b) => {
@@ -79,6 +82,9 @@ function sortGridStocks(stocks: StockPrice[], now: Date): StockPrice[] {
     const bOwned = OWNED_TICKERS.has(b.ticker);
     if (aOwned !== bOwned) return aOwned ? -1 : 1;
 
+    const aAbs = Math.abs(a.regularMarketChangePercent);
+    const bAbs = Math.abs(b.regularMarketChangePercent);
+    if (aAbs !== bAbs) return bAbs - aAbs;
     return b.regularMarketChangePercent - a.regularMarketChangePercent;
   });
 }
