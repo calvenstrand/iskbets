@@ -82,6 +82,52 @@ export function marketHasOpenedToday(
   return minutes >= 15 * 60 + 30;
 }
 
+/** Stockholm calendar day (YYYY-MM-DD) for a Date. en-CA renders ISO
+ * order, so this is a stable, locale-independent date key. The whole app
+ * defines "today" by the Stockholm clock; this keeps that convention. */
+function stockholmDateKey(d: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Stockholm",
+  }).format(d);
+}
+
+/**
+ * Does the provider's last-trade timestamp fall on the current Stockholm
+ * calendar day? This is the holiday veto: on a closed exchange the
+ * session window is "open" by the clock but `lastTradeAt` still points at
+ * the previous trading day, so this returns false.
+ *
+ * Degrades to `true` when no timestamp is available (legacy snapshots,
+ * bootstrap, a provider that didn't surface one) — callers then behave
+ * exactly as the pure clock check did before this signal existed.
+ */
+export function tradedTodaySignal(
+  lastTradeAt: number | undefined,
+  now: Date,
+): boolean {
+  if (typeof lastTradeAt !== "number" || !Number.isFinite(lastTradeAt) || lastTradeAt <= 0) {
+    return true;
+  }
+  return stockholmDateKey(new Date(lastTradeAt)) === stockholmDateKey(now);
+}
+
+/**
+ * Holiday-aware replacement for `marketHasOpenedToday` at call sites that
+ * have the ticker's `lastTradeAt`. The clock check remains the floor (so
+ * pre-market prints still don't count as "the regular session opened"),
+ * and the timestamp vetoes days when the window is open but the exchange
+ * is shut. With no timestamp it equals the old clock-only behavior.
+ */
+export function hasTradedToday(
+  lastTradeAt: number | undefined,
+  market: "SE" | "US",
+  now: Date,
+): boolean {
+  return (
+    marketHasOpenedToday(market, now) && tradedTodaySignal(lastTradeAt, now)
+  );
+}
+
 /**
  * Strict regular-trading-session check. True only during the official
  * orderbook hours, NOT pre-market or post-market.

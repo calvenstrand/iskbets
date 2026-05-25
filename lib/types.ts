@@ -12,6 +12,15 @@ export type StockPrice = {
   fiftyTwoWeekHigh: number;
   fiftyTwoWeekLow: number;
   marketState: MarketState;
+  /** Epoch ms of the last trade the provider reported (Finnhub `t`, or
+   * `now` for Avanza when it says the market is open — carried forward
+   * across cron fires otherwise). Lets the dashboard tell "this stock
+   * actually traded today" from "the clock says the session window is
+   * open" — the difference being exchange holidays, when the window is
+   * open but nothing trades. Optional: absent on legacy snapshots and
+   * when neither provider exposed a usable timestamp, in which case the
+   * gating falls back to the pure clock check. */
+  lastTradeAt?: number;
 };
 
 export const RATINGS = [
