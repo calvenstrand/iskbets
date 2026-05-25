@@ -1135,6 +1135,77 @@ html.booting .boot-overlay,
   }
 }
 
+/* ============= Grid sort control ============= */
+
+.sort-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.85rem;
+  margin-bottom: 1rem;
+  font-family: var(--font-mono);
+}
+
+.sort-bar-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.sort-bar-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.sort-pill {
+  appearance: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.32rem 0.6rem;
+  border: 1px solid var(--border-bright);
+  background: #0a0e0c;
+  color: var(--text-dim);
+  white-space: nowrap;
+  transition:
+    color 0.16s ease,
+    border-color 0.16s ease,
+    background 0.16s ease,
+    text-shadow 0.16s ease;
+}
+
+.sort-pill:hover,
+.sort-pill:focus-visible {
+  color: var(--text);
+  border-color: var(--green-dim);
+  outline: none;
+}
+
+.sort-pill.active {
+  color: var(--green);
+  border-color: var(--green);
+  background: var(--green-glow);
+  text-shadow: 0 0 8px rgba(0, 230, 118, 0.4);
+}
+
+@media (max-width: 640px) {
+  /* Drop the label onto its own line so the pills get the full width to
+     wrap into. */
+  .sort-bar-label {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sort-pill {
+    transition: none;
+  }
+}
+
 /* ============= Cards ============= */
 
 .stock-card {
