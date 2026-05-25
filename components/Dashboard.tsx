@@ -53,10 +53,8 @@ type DashboardProps = {
 const POLL_MS = 2 * 60 * 1000;
 const FLASH_MS = 1800;
 
-// Pre-built lookups so the grid sort doesn't scan TICKERS for every card.
-const OWNED_TICKERS = new Set(
-  TICKERS.filter((t) => (t.owners?.length ?? 0) > 0).map((t) => t.symbol),
-);
+// Pre-built market lookup so the grid sort doesn't scan TICKERS for
+// every card.
 const TICKER_MARKETS = new Map(TICKERS.map((t) => [t.symbol, t.market]));
 
 /**
@@ -66,15 +64,18 @@ const TICKER_MARKETS = new Map(TICKERS.map((t) => [t.symbol, t.market]));
  *     1. Stale-market tickers LAST (market hasn't opened in this
  *        Stockholm calendar day, change% is from the previous session
  *        and uninteresting next to live action).
- *     2. Owners' picks first within each market-state group.
- *     3. Biggest abs(today%) first; ties broken by signed value so
+ *     2. Biggest abs(today%) first; ties broken by signed value so
  *        gainers edge out equal-magnitude losers.
  *
  *   Week framing (recap window — `weekChanges` provided):
  *     1. (Stale tier dropped — all data is fresh week data; no stocks
  *        are "stale" relative to a Mon-Fri baseline.)
- *     2. Owners' picks first.
- *     3. Biggest abs(week%) first; ties broken by signed value.
+ *     2. Biggest abs(week%) first; ties broken by signed value.
+ *
+ * The owned-first tier was removed (May 2026) so a +12% unowned
+ * stock is no longer parked below a +0.5% owned one — abs magnitude
+ * wins. Friend leaderboard + featured cards already carry the
+ * "who owns what" story; the grid's job is just to surface action.
  *
  * Tickers without a Monday baseline fall through to 0 in week framing,
  * sinking to the bottom of the abs ordering — fine since they have no
@@ -94,10 +95,6 @@ function sortGridStocks(
       const bStale = bMarket ? !marketHasOpenedToday(bMarket, now) : false;
       if (aStale !== bStale) return aStale ? 1 : -1;
     }
-
-    const aOwned = OWNED_TICKERS.has(a.ticker);
-    const bOwned = OWNED_TICKERS.has(b.ticker);
-    if (aOwned !== bOwned) return aOwned ? -1 : 1;
 
     const aPct = useWeek
       ? (weekChanges.get(a.ticker) ?? 0)
