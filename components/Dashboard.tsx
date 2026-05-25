@@ -18,6 +18,7 @@ import type {
   WeeklyChampion,
 } from "@/lib/types";
 import { CelebrationCard } from "./CelebrationCard";
+import { GridSort, isSortMode, type SortMode } from "./GridSort";
 import { Header } from "./Header";
 import { Leaderboard } from "./Leaderboard";
 import { MarketStatus } from "./MarketStatus";
@@ -57,36 +58,49 @@ const FLASH_MS = 1800;
 // every card.
 const TICKER_MARKETS = new Map(TICKERS.map((t) => [t.symbol, t.market]));
 
+// Tickers at least one friend holds — drives the "💎 OUR BAGS" sort.
+const TICKER_OWNED = new Set(
+  TICKERS.filter((t) => t.owners && t.owners.length > 0).map((t) => t.symbol),
+);
+
+const SORT_STORAGE_KEY = "iskbets:gridSort";
+
 /**
- * Sort for the dashboard grid. Two modes:
+ * Sort for the dashboard grid. The viewer picks the ordering via the
+ * GridSort pills (default `chaos`); the metric each mode reads follows
+ * the active framing:
  *
- *   Today framing (weekday trading):
- *     1. Stale-market tickers LAST (market hasn't opened in this
- *        Stockholm calendar day, change% is from the previous session
- *        and uninteresting next to live action).
- *     2. Biggest abs(today%) first; ties broken by signed value so
- *        gainers edge out equal-magnitude losers.
+ *   Today framing (weekday trading): `regularMarketChangePercent`, and a
+ *     stale-market tier pins closed-market tickers LAST regardless of
+ *     mode — their numbers are from a previous session and they render
+ *     dimmed anyway, so they shouldn't crowd the top of any sort.
  *
- *   Week framing (recap window — `weekChanges` provided):
- *     1. (Stale tier dropped — all data is fresh week data; no stocks
- *        are "stale" relative to a Mon-Fri baseline.)
- *     2. Biggest abs(week%) first; ties broken by signed value.
+ *   Week framing (recap window — `weekChanges` provided): week-over-week
+ *     %, no stale tier (all data is fresh relative to the Mon baseline).
+ *     Tickers without a Monday baseline fall through to 0, sinking to the
+ *     bottom — fine since they have no weekly story to tell.
  *
- * The owned-first tier was removed (May 2026) so a +12% unowned
- * stock is no longer parked below a +0.5% owned one — abs magnitude
- * wins. Friend leaderboard + featured cards already carry the
- * "who owns what" story; the grid's job is just to surface action.
- *
- * Tickers without a Monday baseline fall through to 0 in week framing,
- * sinking to the bottom of the abs ordering — fine since they have no
- * weekly story to tell.
+ * Modes:
+ *   chaos  — biggest abs move first; ties broken by signed value so
+ *            gainers edge out equal-magnitude losers.
+ *   moon   — top gainers first (signed %, descending).
+ *   rekt   — biggest losers first (signed %, ascending).
+ *   stacks — priciest tickers first; non-finite prices sink.
+ *   bags   — friend-group holdings first, then biggest movers within
+ *            each tier.
  */
 function sortGridStocks(
   stocks: StockPrice[],
   now: Date,
   weekChanges: Map<string, number> | null,
+  sortMode: SortMode,
 ): StockPrice[] {
   const useWeek = weekChanges !== null;
+  const pctOf = (s: StockPrice): number =>
+    useWeek
+      ? (weekChanges.get(s.ticker) ?? 0)
+      : s.regularMarketChangePercent;
+
   return [...stocks].sort((a, b) => {
     if (!useWeek) {
       const aMarket = TICKER_MARKETS.get(a.ticker);
@@ -96,12 +110,36 @@ function sortGridStocks(
       if (aStale !== bStale) return aStale ? 1 : -1;
     }
 
-    const aPct = useWeek
-      ? (weekChanges.get(a.ticker) ?? 0)
-      : a.regularMarketChangePercent;
-    const bPct = useWeek
-      ? (weekChanges.get(b.ticker) ?? 0)
-      : b.regularMarketChangePercent;
+    const aPct = pctOf(a);
+    const bPct = pctOf(b);
+
+    switch (sortMode) {
+      case "moon":
+        if (aPct !== bPct) return bPct - aPct;
+        break;
+      case "rekt":
+        if (aPct !== bPct) return aPct - bPct;
+        break;
+      case "stacks": {
+        const aPrice = Number.isFinite(a.regularMarketPrice)
+          ? a.regularMarketPrice
+          : -Infinity;
+        const bPrice = Number.isFinite(b.regularMarketPrice)
+          ? b.regularMarketPrice
+          : -Infinity;
+        if (aPrice !== bPrice) return bPrice - aPrice;
+        break;
+      }
+      case "bags": {
+        const aOwned = TICKER_OWNED.has(a.ticker);
+        const bOwned = TICKER_OWNED.has(b.ticker);
+        if (aOwned !== bOwned) return aOwned ? -1 : 1;
+        break;
+      }
+    }
+
+    // Shared fallback (and the whole story for `chaos`): biggest abs
+    // move first, ties broken by signed value.
     const aAbs = Math.abs(aPct);
     const bAbs = Math.abs(bPct);
     if (aAbs !== bAbs) return bAbs - aAbs;
@@ -173,6 +211,29 @@ export function Dashboard({
     () => pickTodayWinnerLoser(snapshot.stocks, now),
     [snapshot, now],
   );
+
+  // Grid sort mode. Seeded to "chaos" so the first client render matches
+  // the server (no hydration mismatch); the saved preference is read from
+  // localStorage post-mount and re-sorts then.
+  const [sortMode, setSortMode] = useState<SortMode>("chaos");
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(SORT_STORAGE_KEY);
+      if (saved && isSortMode(saved)) setSortMode(saved);
+    } catch {
+      // localStorage unavailable (private mode / blocked) — keep default.
+    }
+  }, []);
+
+  const handleSortChange = (mode: SortMode): void => {
+    setSortMode(mode);
+    try {
+      window.localStorage.setItem(SORT_STORAGE_KEY, mode);
+    } catch {
+      // Non-fatal — the choice still applies for this session.
+    }
+  };
 
   // Visual flash state — set on poll diff, cleared after FLASH_MS.
   const [flashedTickers, setFlashedTickers] = useState<Set<string>>(
@@ -364,6 +425,7 @@ export function Dashboard({
     snapshot.stocks.filter((s) => !featuredTickers.has(s.ticker)),
     now,
     weekChangeByTicker,
+    sortMode,
   );
 
   const totalChangePct = snapshot.stocks.reduce(
@@ -474,6 +536,8 @@ export function Dashboard({
             )}
           </div>
         )}
+
+        <GridSort value={sortMode} onChange={handleSortChange} />
 
         <div className="stock-grid gap-3">
           {gridStocks.map((stock, i) => {
