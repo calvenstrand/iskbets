@@ -22,6 +22,14 @@ type StockCardProps = {
   /** Week-over-week % to show as the headline number under the
    * BIGGEST WINNER / LOSER badge on featured cards. */
   featuredWeekChangePct?: number;
+  /** When provided, the change row swaps from today's intraday move to
+   * this week's % (Monday baseline → now). Used on regular grid cards
+   * during the recap window (Fri 22:00 → Mon 09:00 STO) so the visible
+   * number matches the week-recap framing instead of stranding viewers
+   * on Friday's intraday print. Sentiment glow + arrow follow the week
+   * sign; today-based rating badge is hidden since its thresholds are
+   * tuned to intraday moves. */
+  weekChangePct?: number;
   /** Set true momentarily when the AI comment for this stock just changed.
    * Triggers a one-shot glow animation on the card. */
   flashing?: boolean;
@@ -84,20 +92,30 @@ export function StockCard({
   featured,
   featuredScope = "week",
   featuredWeekChangePct,
+  weekChangePct,
   flashing,
   marketStale,
 }: StockCardProps) {
-  // Rating + sentiment are pure functions of regularMarketChangePercent
-  // — recompute LIVE from the current snapshot price instead of using
-  // analysis.rating / analysis.sentiment from cache. Otherwise these
-  // get frozen at the value derived during the last AI run (~every
-  // 45 min) and drift out of sync as prices refresh every 10 min via
-  // the cron: a card whose live change% is -0.5% can end up tagged
-  // DIAMOND HANDS with a green border because that's what it was 30
-  // min ago when the AI last ran.
-  const livePct = stock.regularMarketChangePercent;
-  const liveRating = deriveRating(livePct);
-  const liveSentiment = deriveSentiment(livePct);
+  // Week-framing mode: regular grid cards during the recap window. The
+  // headline change row + sentiment glow follow the week change instead
+  // of today's intraday print (which is Friday's close on Sat/Sun and
+  // misleading next to a week-recap layout). Featured cards do their
+  // own thing via featured/featuredScope/featuredWeekChangePct and are
+  // unaffected by this flag.
+  const useWeekFraming = !featured && weekChangePct !== undefined;
+  const displayPct = useWeekFraming
+    ? (weekChangePct as number)
+    : stock.regularMarketChangePercent;
+
+  // Rating + sentiment are pure functions of the visible pct — recompute
+  // LIVE from the current snapshot price instead of using analysis.rating
+  // / analysis.sentiment from cache. Otherwise these get frozen at the
+  // value derived during the last AI run (~every 45 min) and drift out
+  // of sync as prices refresh every 10 min via the cron: a card whose
+  // live change% is -0.5% can end up tagged DIAMOND HANDS with a green
+  // border because that's what it was 30 min ago when the AI last ran.
+  const liveRating = deriveRating(stock.regularMarketChangePercent);
+  const liveSentiment = deriveSentiment(displayPct);
   const glow = sentimentGlow(liveSentiment);
 
   // Featured cards during a week-scoped recap get a dedicated week
@@ -110,7 +128,11 @@ export function StockCard({
     featured && featuredScope === "week" && featuredWeekChangePct !== undefined
       ? deriveWeekBadge(featuredWeekChangePct, featured)
       : null;
-  const displayRating = weekBadge ?? liveRating;
+  // Grid cards in week framing hide the rating badge — daily thresholds
+  // (DIAMOND HANDS at +0.5%, TO THE MOON at +5%) don't translate to
+  // weekly moves where +5% is just "a decent week". Featured weekBadge
+  // already uses week-tuned thresholds and is unaffected.
+  const displayRating = weekBadge ?? (useWeekFraming ? null : liveRating);
   const featuredClass = featured ? `featured ${featured}` : "";
   const cardClass = [
     "stock-card",
@@ -172,11 +194,17 @@ export function StockCard({
         )}
       </div>
 
-      <div className={`mt-1 ${changeClass(stock.regularMarketChangePercent)}`}>
-        {changeArrow(stock.regularMarketChangePercent)}{" "}
-        {formatChangeAmount(stock.regularMarketChange)}{" "}
-        ({formatChangePct(stock.regularMarketChangePercent)})
-      </div>
+      {useWeekFraming ? (
+        <div className={`mt-1 ${changeClass(displayPct)}`}>
+          {changeArrow(displayPct)} WEEK {formatChangePct(displayPct)}
+        </div>
+      ) : (
+        <div className={`mt-1 ${changeClass(stock.regularMarketChangePercent)}`}>
+          {changeArrow(stock.regularMarketChangePercent)}{" "}
+          {formatChangeAmount(stock.regularMarketChange)}{" "}
+          ({formatChangePct(stock.regularMarketChangePercent)})
+        </div>
+      )}
 
       {analysis?.comment && (
         <p className="comment mt-3">&ldquo;{analysis.comment}&rdquo;</p>

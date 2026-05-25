@@ -60,32 +60,55 @@ const OWNED_TICKERS = new Set(
 const TICKER_MARKETS = new Map(TICKERS.map((t) => [t.symbol, t.market]));
 
 /**
- * Three-tier sort for the dashboard grid:
- *   1. Stale-market tickers go LAST (their market hasn't opened in this
- *      Stockholm calendar day, so the change% is from the previous
- *      session and uninteresting next to live action).
- *   2. Within each group: owners' picks first.
- *   3. Within each owner-status group: biggest movers first by
- *      absolute change%. Both big winners and big losers float to the
- *      top; quiet mid-band cards sink. Tie-broken by signed value so
- *      gainers edge out equal-magnitude losers when sitting side-by-side.
+ * Sort for the dashboard grid. Two modes:
+ *
+ *   Today framing (weekday trading):
+ *     1. Stale-market tickers LAST (market hasn't opened in this
+ *        Stockholm calendar day, change% is from the previous session
+ *        and uninteresting next to live action).
+ *     2. Owners' picks first within each market-state group.
+ *     3. Biggest abs(today%) first; ties broken by signed value so
+ *        gainers edge out equal-magnitude losers.
+ *
+ *   Week framing (recap window — `weekChanges` provided):
+ *     1. (Stale tier dropped — all data is fresh week data; no stocks
+ *        are "stale" relative to a Mon-Fri baseline.)
+ *     2. Owners' picks first.
+ *     3. Biggest abs(week%) first; ties broken by signed value.
+ *
+ * Tickers without a Monday baseline fall through to 0 in week framing,
+ * sinking to the bottom of the abs ordering — fine since they have no
+ * weekly story to tell.
  */
-function sortGridStocks(stocks: StockPrice[], now: Date): StockPrice[] {
+function sortGridStocks(
+  stocks: StockPrice[],
+  now: Date,
+  weekChanges: Map<string, number> | null,
+): StockPrice[] {
+  const useWeek = weekChanges !== null;
   return [...stocks].sort((a, b) => {
-    const aMarket = TICKER_MARKETS.get(a.ticker);
-    const bMarket = TICKER_MARKETS.get(b.ticker);
-    const aStale = aMarket ? !marketHasOpenedToday(aMarket, now) : false;
-    const bStale = bMarket ? !marketHasOpenedToday(bMarket, now) : false;
-    if (aStale !== bStale) return aStale ? 1 : -1;
+    if (!useWeek) {
+      const aMarket = TICKER_MARKETS.get(a.ticker);
+      const bMarket = TICKER_MARKETS.get(b.ticker);
+      const aStale = aMarket ? !marketHasOpenedToday(aMarket, now) : false;
+      const bStale = bMarket ? !marketHasOpenedToday(bMarket, now) : false;
+      if (aStale !== bStale) return aStale ? 1 : -1;
+    }
 
     const aOwned = OWNED_TICKERS.has(a.ticker);
     const bOwned = OWNED_TICKERS.has(b.ticker);
     if (aOwned !== bOwned) return aOwned ? -1 : 1;
 
-    const aAbs = Math.abs(a.regularMarketChangePercent);
-    const bAbs = Math.abs(b.regularMarketChangePercent);
+    const aPct = useWeek
+      ? (weekChanges.get(a.ticker) ?? 0)
+      : a.regularMarketChangePercent;
+    const bPct = useWeek
+      ? (weekChanges.get(b.ticker) ?? 0)
+      : b.regularMarketChangePercent;
+    const aAbs = Math.abs(aPct);
+    const bAbs = Math.abs(bPct);
     if (aAbs !== bAbs) return bAbs - aAbs;
-    return b.regularMarketChangePercent - a.regularMarketChangePercent;
+    return bPct - aPct;
   });
 }
 
@@ -323,9 +346,27 @@ export function Dashboard({
   if (winner) featuredTickers.add(winner.ticker);
   if (loser) featuredTickers.add(loser.ticker);
 
+  // Week-change lookup for the grid cards during recap. Computed once
+  // per render from the Monday baseline; `null` outside the recap
+  // window so the grid falls back to today-framing (current behavior).
+  // Tickers without a baseline are absent from the map — sort defaults
+  // them to 0 abs change so they sink to the bottom.
+  const weekChangeByTicker = useMemo<Map<string, number> | null>(() => {
+    if (!inRecap || !weekStartPrices) return null;
+    const map = new Map<string, number>();
+    for (const s of snapshot.stocks) {
+      const baseline = weekStartPrices[s.ticker];
+      if (!baseline || baseline <= 0) continue;
+      if (!Number.isFinite(s.regularMarketPrice)) continue;
+      map.set(s.ticker, ((s.regularMarketPrice - baseline) / baseline) * 100);
+    }
+    return map;
+  }, [snapshot.stocks, weekStartPrices, inRecap]);
+
   const gridStocks: StockPrice[] = sortGridStocks(
     snapshot.stocks.filter((s) => !featuredTickers.has(s.ticker)),
     now,
+    weekChangeByTicker,
   );
 
   const totalChangePct = snapshot.stocks.reduce(
@@ -440,9 +481,15 @@ export function Dashboard({
         <div className="stock-grid gap-3">
           {gridStocks.map((stock, i) => {
             const market = TICKER_MARKETS.get(stock.ticker);
-            const stale = market
-              ? !marketHasOpenedToday(market, now)
-              : false;
+            // During recap mode, "stale" loses meaning — every card
+            // is showing week data which is fresh relative to the Mon
+            // baseline. Skip the dim treatment so the weekend grid
+            // doesn't look uniformly washed out.
+            const stale =
+              !weekChangeByTicker && market
+                ? !marketHasOpenedToday(market, now)
+                : false;
+            const wk = weekChangeByTicker?.get(stock.ticker);
             return (
               <StockCard
                 key={stock.ticker}
@@ -451,6 +498,7 @@ export function Dashboard({
                 index={i + 2}
                 flashing={flashedTickers.has(stock.ticker)}
                 marketStale={stale}
+                {...(wk !== undefined ? { weekChangePct: wk } : {})}
               />
             );
           })}
