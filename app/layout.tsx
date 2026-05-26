@@ -137,6 +137,11 @@ export const viewport: Viewport = {
   initialScale: 1,
   // Tints the iOS Safari URL bar / Chrome address bar to match the bg.
   themeColor: "#080b0a",
+  // Extend under the notch / Dynamic Island / home indicator so we can
+  // paint those regions ourselves via env(safe-area-inset-*). The sticky
+  // ticker tape fills the top inset with its own dark bar (see .tape in
+  // globals.css); the drawer footer pads the bottom inset.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

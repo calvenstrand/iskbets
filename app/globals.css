@@ -246,7 +246,12 @@ a {
   color: var(--green);
   font-family: var(--font-mono);
   font-size: 14px;
-  padding: 0.55rem 0;
+  /* Top padding absorbs the safe-area inset (notch / Dynamic Island) so
+     the tape's dark bar fills that region and the scrolling text sits
+     just below it — "tape at the top, solid black above." env() is 0 on
+     devices without an inset (and on browsers that don't support it via
+     the fallback), so this is a no-op everywhere else. */
+  padding: calc(0.55rem + env(safe-area-inset-top, 0px)) 0 0.55rem;
   cursor: pointer;
   user-select: none;
 }
@@ -1788,7 +1793,11 @@ main {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2rem clamp(1rem, 4vw, 3rem);
+  /* Extra bottom padding clears the home indicator now that
+     viewport-fit=cover lets the footer reach the screen edge. 0 on
+     devices without a bottom inset. */
+  padding: 2rem clamp(1rem, 4vw, 3rem)
+    calc(2rem + env(safe-area-inset-bottom, 0px));
   font-family: var(--font-mono);
   /* Don't intercept clicks/scroll while hidden behind main. The
      pointer-events: auto kicks in when content lands in the drawer
