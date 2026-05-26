@@ -326,9 +326,24 @@ export function Dashboard({
         stopPolling();
       }
     };
+    // Window focus catches "user clicked back into the browser from
+    // another app" — visibilitychange only fires on tab/window
+    // visibility flips, not cross-app focus changes. Common case:
+    // user opens dashboard, switches to Slack/VS Code, then clicks
+    // back. Without this listener they'd wait up to POLL_MS for the
+    // next scheduled tick to see fresh data.
+    const onFocus = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
     document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", onFocus);
 
     if (document.visibilityState === "visible") {
+      // Fire immediately on mount so the first paint after hydration
+      // catches up to whatever's currently in /api/data — otherwise
+      // viewers stare at SSR-cached HTML for up to POLL_MS (2 min)
+      // before the first scheduled poll lands.
+      refresh();
       startPolling();
     }
 
@@ -336,6 +351,7 @@ export function Dashboard({
       cancelled = true;
       stopPolling();
       document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", onFocus);
       if (tickerFlashTimer.current) clearTimeout(tickerFlashTimer.current);
       if (moodFlashTimer.current) clearTimeout(moodFlashTimer.current);
     };
