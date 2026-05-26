@@ -62,12 +62,16 @@ Backend and frontend are both complete; build + lint pass clean.
 ```
 
 **Smart AI gating** (`shouldRerunAI` in `app/api/trigger/route.ts`):
-The Anthropic call only fires when at least one of these is true:
-1. Any ticker's `regularMarketChangePercent` shifted by **> 2pp** since the snapshot Claude last saw (threshold history: 1 → 2pp; 1pp was firing on nearly every tick on volatile days), AND it's been **≥ 60 min** since the last AI run (floor history: 30 → 45 → 60 min as cost tightened).
-2. **> 4 hours** since the last AI run (freshness ceiling — the `overallMood` shouldn't go stale on a flat day).
-3. No prior analysis exists.
+The Anthropic call only fires when ALL of these are true:
+1. There is a prior analysis. (No prior → run unconditionally to bootstrap.)
+2. At least one ticker's `regularMarketChangePercent` moved **> 0.01pp** (one basis point — noise floor) since the last AI run. If literally nothing moved (common off-hours when fetchPrices reuses cached prices), AI is skipped regardless of time elapsed. Pure waste to re-run on identical inputs.
+3. AND at least one of:
+   - Any ticker moved **> 2pp** AND it's been **≥ 60 min** since the last AI run (threshold history: 1 → 2pp; 1pp was firing on nearly every tick on volatile days. Floor history: 30 → 45 → 60 min as cost tightened).
+   - **> 4 hours** since the last AI run (freshness ceiling — the `overallMood` shouldn't go stale on a flat day, IF anything changed at all).
 
 Otherwise prices are refreshed but the existing analysis is carried forward. This decouples price freshness (every 10 min) from AI cost (only when there's something new to say).
+
+**Morning wipe**: at the end of the post-close window (22:00–22:45 STO weekdays), `wipeCommentary()` blanks the live snapshot's per-stock `comment` fields and `overallMood`. Keeps prices + `analyzedAt` + `pricesAtLastAnalysis` intact so the no-change short-circuit (gate #2 above) prevents wasted re-runs overnight. Result: next morning's dashboard starts clean — no yesterday "Chris's Cloudflare ripped face off everyone" lines hanging around — and commentary repopulates organically once market open brings real movement. The daily archive captures the day's full commentary first, so historical archives are unaffected.
 
 **Cron schedule** lives at [cron-job.org](https://cron-job.org): `3,13,23,33,43,53 6-22 * * 1-5` UTC (every 10 min on weekdays, `:03`-style offset so each tick lands ~3 min after each ten-minute mark). The offsets are chosen to land shortly after market opens — Stockholm opens at 09:00 STO (= 08:00 UTC winter / 07:00 UTC summer), so the `:03` tick fires 3 min after open. 3 min vs 1 min gives the opening auction time to settle and Finnhub/Avanza time to start returning sensible intraday `dp` values instead of zero. Same logic for NY's 15:30 STO open → 15:33 STO tick. The window covers ~07:00–00:00 CET / ~08:00–01:00 CEST so the post-close window (22:00 CET) and weekly archive window (Fri 22:45 CET) always have multiple fires inside them in either DST mode. The job sends GET to `https://www.iskbets.se/api/trigger` with the `x-trigger-secret` header set from a private cron-job.org config (timeout 90s, response logged to job history).
 

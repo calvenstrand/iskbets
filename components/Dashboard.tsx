@@ -493,8 +493,11 @@ export function Dashboard({
           would otherwise masquerade as a live "today" mood on Sat/Sun,
           and the Champion of the Week card already owns the editorial
           framing for the whole weekend. Returns Monday at 09:00 STO
-          when the live trading day begins again. */}
-      {!inRecap && (
+          when the live trading day begins again.
+          Also hides when overallMood is empty — post-close wipe blanks
+          it overnight so tomorrow morning starts clean, no point
+          rendering a styled bar with no content. */}
+      {!inRecap && snapshot.analysis.overallMood && (
         <MoodBanner
           mood={snapshot.analysis.overallMood}
           avgChangePct={avgChangePct}

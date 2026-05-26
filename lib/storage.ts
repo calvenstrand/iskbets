@@ -102,6 +102,50 @@ export async function getStockData(): Promise<StoredData | null> {
 }
 
 /**
+ * Clear the AI commentary fields on the live snapshot so the next
+ * morning's dashboard starts with a clean slate (no "Chris's Cloudflare
+ * ripped face off everyone" left over from yesterday's session).
+ *
+ * Wipes per-stock `comment` + `overallMood`. Keeps everything else:
+ *   - prices: still the snapshot's purpose
+ *   - biggestWinner / biggestLoser: computed deterministically, not AI
+ *   - sentiment per stock: required by the type, unused by the UI
+ *     (StockCard recomputes from live price)
+ *   - rating per stock: optional, also unused by the UI
+ *   - analyzedAt + pricesAtLastAnalysis: KEPT intact so the AI gating
+ *     can still tell "no price changes since last AI" and skip re-runs.
+ *     If we cleared these, the next trigger would always re-fire AI
+ *     ("no prior analysis"), which defeats the cost goal.
+ *
+ * Idempotent: if commentary is already blank (mood = "", no comments),
+ * returns false without touching Redis. Lets the caller spam this in
+ * a time window without burning writes.
+ */
+export async function wipeCommentary(): Promise<{ wiped: boolean }> {
+  const existing = await getRedis().get<StoredData>(KV_KEY);
+  if (!existing) return { wiped: false };
+  const allCommentsEmpty = existing.analysis.stocks.every((s) => !s.comment);
+  if (existing.analysis.overallMood === "" && allCommentsEmpty) {
+    return { wiped: false };
+  }
+  const wiped: StoredData = {
+    ...existing,
+    analysis: {
+      ...existing.analysis,
+      stocks: existing.analysis.stocks.map((s) => ({
+        ticker: s.ticker,
+        sentiment: s.sentiment,
+        ...(s.rating !== undefined ? { rating: s.rating } : {}),
+        // `comment` intentionally dropped
+      })),
+      overallMood: "",
+    },
+  };
+  await getRedis().set(KV_KEY, wiped);
+  return { wiped: true };
+}
+
+/**
  * Returns the epoch ms of the most recent /api/trigger attempt — success
  * OR failure. Used for cooldown gating so a failing pipeline can't be
  * hammered. Returns 0 if no attempt has been recorded yet.

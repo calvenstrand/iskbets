@@ -22,6 +22,7 @@ import {
   setWeeklyChampion,
   setWeeklyResult,
   setWeekStartSnapshot,
+  wipeCommentary,
 } from "@/lib/storage";
 import type { StockPrice, StoredData } from "@/lib/types";
 import { computeDailyResult } from "@/lib/dailyResult";
@@ -62,6 +63,13 @@ const AI_CEILING_MS = 4 * 60 * 60 * 1000; // 4 hr — re-run AI even on a flat d
 // half on choppy days. Quieter days fall back to the 4hr ceiling.
 const SIGNIFICANT_DELTA_PCT = 2.0;
 
+// Noise floor for the "no change since last AI" short-circuit. A
+// ticker that moves <0.01pp (one basis point) from one fetch to the
+// next is almost certainly the same print rendered with tiny
+// floating-point drift, not a real move. Below this threshold we treat
+// the snapshot as identical and skip the AI call entirely.
+const NO_CHANGE_TOLERANCE_PCT = 0.01;
+
 function isAuthorized(req: Request): boolean {
   const triggerSecret = process.env.TRIGGER_SECRET;
   if (!triggerSecret) return false;
@@ -93,6 +101,46 @@ function shouldRerunAI(
   if (!analyzedAt || !baseline) {
     return { rerun: true, reason: "no prior analysis" };
   }
+
+  // Find the biggest absolute change-percent shift across the portfolio.
+  // Done once and reused for both the no-change short-circuit and the
+  // existing delta-driven re-run trigger.
+  const baselineByTicker = new Map(baseline.map((p) => [p.ticker, p]));
+  let maxDelta = 0;
+  let maxTicker = "";
+  let newTicker: string | null = null;
+  for (const newP of newPrices) {
+    const oldP = baselineByTicker.get(newP.ticker);
+    if (!oldP) {
+      newTicker = newP.ticker;
+      break;
+    }
+    const delta = Math.abs(
+      newP.regularMarketChangePercent - oldP.regularMarketChangePercent,
+    );
+    if (delta > maxDelta) {
+      maxDelta = delta;
+      maxTicker = newP.ticker;
+    }
+  }
+  if (newTicker) {
+    return { rerun: true, reason: `new ticker ${newTicker}` };
+  }
+
+  // No-change short-circuit: if literally nothing moved since the last
+  // AI run (within the noise tolerance), skip regardless of time
+  // elapsed. Common off-hours case: cron fires every 10 min, markets
+  // are closed, fetchPrices reuses cached prices, nothing has changed.
+  // Without this, the 4hr ceiling would fire AI on identical inputs
+  // overnight — pure waste. With it, the AI only ever spends tokens
+  // when there's something genuinely new to say.
+  if (maxDelta <= NO_CHANGE_TOLERANCE_PCT) {
+    return {
+      rerun: false,
+      reason: `no price changes since last AI (max delta ${maxDelta.toFixed(3)}pp)`,
+    };
+  }
+
   const elapsed = now - analyzedAt;
   if (elapsed > AI_CEILING_MS) {
     const hrs = (elapsed / 3_600_000).toFixed(1);
@@ -102,23 +150,6 @@ function shouldRerunAI(
     const min = Math.round(elapsed / 60_000);
     const floorMin = Math.round(AI_FLOOR_MS / 60_000);
     return { rerun: false, reason: `${min}min since last AI (<${floorMin}min floor)` };
-  }
-  // Find the biggest absolute change-percent shift across the portfolio.
-  const baselineByTicker = new Map(baseline.map((p) => [p.ticker, p]));
-  let maxDelta = 0;
-  let maxTicker = "";
-  for (const newP of newPrices) {
-    const oldP = baselineByTicker.get(newP.ticker);
-    if (!oldP) {
-      return { rerun: true, reason: `new ticker ${newP.ticker}` };
-    }
-    const delta = Math.abs(
-      newP.regularMarketChangePercent - oldP.regularMarketChangePercent,
-    );
-    if (delta > maxDelta) {
-      maxDelta = delta;
-      maxTicker = newP.ticker;
-    }
   }
   if (maxDelta > SIGNIFICANT_DELTA_PCT) {
     return {
@@ -145,10 +176,21 @@ async function runPostCloseWork(
   now: Date,
 ): Promise<void> {
   // Post-close window: 22:00–22:45 STO. Writes the daily archive
-  // (captures today's close for long-term history). Idempotent per
-  // Stockholm calendar day.
+  // (captures today's close for long-term history) and wipes the live
+  // commentary so tomorrow morning's dashboard starts with a clean
+  // slate. Both idempotent per Stockholm calendar day.
   if (inPostCloseWindow(now)) {
+    // ORDER MATTERS: archive first (captures today's overallMood +
+    // per-friend dayPct), THEN wipe live commentary. The archive
+    // function reads from todaySnapshot (local var, unaffected by
+    // the wipe), so this ordering is purely about Redis state if a
+    // crash hits between the two writes — better to have an archive
+    // without the wipe than a wipe without the archive.
     await maybeArchiveDailyResult(todaySnapshot, now);
+    const wipe = await wipeCommentary();
+    if (wipe.wiped) {
+      console.log("[trigger] commentary wiped for fresh-morning state");
+    }
   }
 
   // Weekly archive window: Friday 22:45–23:30 STO. Fires the weekly
