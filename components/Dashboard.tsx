@@ -502,7 +502,13 @@ export function Dashboard({
         />
       )}
 
-      <section className="px-4 md:px-8 lg:px-12 mt-8 mb-12">
+      {/* relative z-0: the stock cards set `container-type: inline-size`
+          (for their mobile container queries), which makes each card its
+          own stacking context. WebKit/Safari then mis-paints those above
+          the sticky ticker tape (z-index 50) on scroll. Capping the whole
+          card section in a z-0 stacking context confines every card below
+          the tape. */}
+      <section className="px-4 md:px-8 lg:px-12 mt-8 mb-12 relative z-0">
         {(winner || loser) && (
           <div className="stock-grid-featured gap-3 mb-6">
             {/* WINNER slot — replaced by a 🩸 BLOODBATH celebration when
