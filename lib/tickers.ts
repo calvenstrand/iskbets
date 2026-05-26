@@ -211,6 +211,15 @@ export const TICKERS: Ticker[] = [
       "Swedish tire-pyrolysis tech — recycles end-of-life tires into recovered carbon black for new tire manufacturing. ESG / circular-economy play with Michelin as a strategic partner. Pre-scale, capital-intensive, slow commercial ramp. Penny-stock territory.",
   },
   {
+    symbol: "ACCON.ST",
+    name: "Acconeer",
+    market: "SE",
+    avanzaId: 808452,
+    owners: ["oskar"],
+    context:
+      "Swedish fabless semiconductor company. Designs pulsed-coherent radar sensor chips (PCR) used for proximity, gesture, distance and presence detection. Customers across smartwatches, IoT devices, level sensors and robotics. First North listed, small-cap, design-win driven so revenue is lumpy. Speculative pre-scale chip play, another Oskar small-cap-tech YOLO.",
+  },
+  {
     symbol: "FLAT-B.ST",
     name: "Flat Capital B",
     market: "SE",
