@@ -259,24 +259,16 @@ a {
 .tape-track {
   display: inline-flex;
   gap: 1.75rem;
+  /* Intentionally runs regardless of prefers-reduced-motion — the tape is
+     core to the app's identity, and tap-to-pause (.tape onClick) is the
+     escape hatch for anyone who wants it stopped. Don't re-add a
+     reduced-motion override here. */
   animation: marquee 90s linear infinite;
   will-change: transform;
 }
 
 .tape.paused .tape-track {
   animation-play-state: paused;
-}
-
-/* Respect motion preferences — kill the marquee for users who've asked
-   browsers to reduce motion. The content still scrolls horizontally if
-   it overflows; users can scroll it manually. */
-@media (prefers-reduced-motion: reduce) {
-  .tape-track {
-    animation: none;
-  }
-  .tape {
-    overflow-x: auto;
-  }
 }
 
 .tape-item {
