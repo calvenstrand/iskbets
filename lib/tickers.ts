@@ -7,6 +7,7 @@ export const PEOPLE = {
   johan: "Johan",
   oskar: "Oskar",
   william: "William",
+  jesper: "Jesper",
 } as const;
 
 export type Person = keyof typeof PEOPLE;
@@ -370,5 +371,13 @@ export const TICKERS: Ticker[] = [
     owners: ["chris", "johan"],
     context:
       "Trapped-ion quantum computing — gate-based architecture (different from QBTS's annealing). Pre-revenue, partnerships with Microsoft / Hyundai / others. Multi-bag-or-zero. The Microsoft-aligned quantum supremacy meme stock.",
+  },
+  {
+    symbol: "SMCI",
+    name: "Super Micro Computer",
+    market: "US",
+    owners: ["jesper"],
+    context:
+      "US server + storage hardware maker riding the AI datacenter boom — liquid-cooled GPU servers, Nvidia HGX / Blackwell systems. Extreme volatility: a 2024 short-seller report + delayed SEC filings + auditor resignation nearly got it delisted before it caught up on financials in early 2025. Moves on AI capex, Nvidia supply, and accounting / governance headlines. High-beta WSB favorite.",
   },
 ];
