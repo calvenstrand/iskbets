@@ -6,6 +6,8 @@ export const PEOPLE = {
   eric: "Eric",
   johan: "Johan",
   oskar: "Oskar",
+  william: "William",
+  jesper: "Jesper",
 } as const;
 
 export type Person = keyof typeof PEOPLE;
@@ -228,6 +230,33 @@ export const TICKERS: Ticker[] = [
     context:
       "Swedish-listed investment holding company. Concentrated stakes in Klarna and Defensor Group, plus private-tech YOLOs in OpenAI / SpaceX / Cerebras Systems. Essentially a Stockholm-listed wrapper for AI/space/fintech exposure that's otherwise unreachable in public markets. Trading at meaningful discount to NAV (~35% as of Q4 2025: ~9 SEK price vs ~14 SEK NAV/share). Founded 2013. Klarna IPO + any private-tech revaluation are the main catalysts.",
   },
+  {
+    symbol: "LUC.ST",
+    name: "Lucara Diamond Corp",
+    market: "SE",
+    avanzaId: 325050,
+    owners: ["william"],
+    context:
+      "Canadian diamond miner, single-asset: the Karowe mine in Botswana. Famous for unearthing rare 1000+ carat stones (Lesedi La Rona, Sewelô). Mid-build on a deep underground expansion to extend mine life — heavy capex + financing overhang. Moves on rough-diamond prices and exceptional-stone recoveries. Dual-listed (Toronto + Stockholm).",
+  },
+  {
+    symbol: "KLAR.ST",
+    name: "Klaria Pharma Holding",
+    market: "SE",
+    avanzaId: 603362,
+    owners: ["william"],
+    context:
+      "Swedish specialty pharma — sublingual / oral-film drug delivery (fast-dissolving films placed under the tongue). Lead programs in migraine and acute conditions. Small-cap, pre-profit, recurring dilution risk. Penny-stock biotech energy; moves on trial/partnership news and cap raises.",
+  },
+  {
+    symbol: "CIBUS.ST",
+    name: "Cibus Real Estate",
+    market: "SE",
+    avanzaId: 831975,
+    owners: ["william"],
+    context:
+      "Nordic real estate — owns grocery-anchored / daily-goods retail properties leased to staples chains (ICA, Coop, Kesko). High-dividend, rate-sensitive REIT-style compounder. Moves on interest rates, acquisition pace, and the dividend. Defensive bagholder income play.",
+  },
   // WSB darlings — fetched via Finnhub
   {
     symbol: "NVDA",
@@ -342,5 +371,13 @@ export const TICKERS: Ticker[] = [
     owners: ["chris", "johan"],
     context:
       "Trapped-ion quantum computing — gate-based architecture (different from QBTS's annealing). Pre-revenue, partnerships with Microsoft / Hyundai / others. Multi-bag-or-zero. The Microsoft-aligned quantum supremacy meme stock.",
+  },
+  {
+    symbol: "SMCI",
+    name: "Super Micro Computer",
+    market: "US",
+    owners: ["jesper"],
+    context:
+      "US server + storage hardware maker riding the AI datacenter boom — liquid-cooled GPU servers, Nvidia HGX / Blackwell systems. Extreme volatility: a 2024 short-seller report + delayed SEC filings + auditor resignation nearly got it delisted before it caught up on financials in early 2025. Moves on AI capex, Nvidia supply, and accounting / governance headlines. High-beta WSB favorite.",
   },
 ];
