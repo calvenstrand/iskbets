@@ -134,7 +134,7 @@ export const TICKERS: Ticker[] = [
     name: "Nibe Industrier B",
     market: "SE",
     avanzaId: 5325,
-    owners: ["eric"],
+    owners: ["eric", "johan"],
     context:
       "World leader in heat pumps. Won big during the European energy crisis when everyone wanted to ditch gas heating. Then de-rated hard as policy subsidies softened and growth slowed. Industrial turnaround story.",
   },
