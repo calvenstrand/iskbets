@@ -33,7 +33,7 @@ Backend and frontend are both complete; build + lint pass clean.
   - **Finnhub** `/api/v1/quote` for US tickers (free tier, 60 req/min, US-only)
   - **Avanza** `/_api/market-guide/stock/{orderbookId}` for Stockholm tickers — unofficial public JSON, no auth, no key. Each SE ticker has a hardcoded `avanzaId` in `lib/tickers.ts`.
   - Path we burned: Yahoo (429 from Vercel IPs on both `yahoo-finance2` and `/v8/finance/chart`); Twelve Data (free tier silently 404s on Stockholm despite docs claiming coverage). Avanza was the unblock.
-- `@anthropic-ai/sdk` — analysis (model: `claude-sonnet-4-6`, no web search; data is passed in; uses native structured outputs via `output_config.format`)
+- `@anthropic-ai/sdk` — analysis (model: `claude-haiku-4-5` for the per-tick analyzer, `claude-sonnet-4-6` for the weekly champion recap; no web search; data is passed in; uses native structured outputs via `output_config.format`)
 - `@upstash/redis` — storage (Upstash Redis via Vercel Marketplace; keys `iskbets:snapshot` for the data, `iskbets:lastAttempt` for the cooldown gate)
 - Tailwind CSS 4 (layout utilities only — colors and typography live in `globals.css` via CSS variables)
 - `next/font/google` — Bebas Neue (display) + Share Tech Mono (mono)
