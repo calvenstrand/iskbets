@@ -12,7 +12,17 @@ import type {
   StockPrice,
 } from "./types";
 
-const MODEL = "claude-sonnet-4-6";
+// Haiku 4.5 (swapped down from Sonnet 4.6 — see cost history below). The
+// analyzer's job is constrained: one-line WSB takes per ticker + a single
+// overallMood line, output via structured outputs. Haiku handles that
+// well and runs ~3–5× cheaper on both input and output. The Friday
+// Weekly Champion recap (lib/briefs.ts) stays on Sonnet — once a week,
+// long-form prose where the quality bump is worth the cost.
+//
+// Cost history (weekday baseline):
+//   sonnet-4-6 — ~$0.50/day after the 59-min floor + 2pp delta tuning.
+//   haiku-4-5  — target ~$0.10-0.15/day.
+const MODEL = "claude-haiku-4-5-20251001";
 
 // Derived from PEOPLE so the prompt stays in sync when friends are added.
 // E.g. ["Chris","Eric","Oskar"] → "Chris, Eric, or Oskar".
