@@ -87,7 +87,12 @@ Do NOT just paste the context verbatim. Distill ONE relevant detail. Stay in WSB
 For tickers without \`context\`, fall back to generic WSB framing using the friend's name + the magnitude of the move.
 
 OVERALL MOOD:
-ONE dramatic WSB sentence about the whole portfolio. Reference friends when something dramatic is happening with their picks — same naming rule as comments (first name for 1-owner picks, a collective phrase like "the gang" / "the syndicate" / "<count> apes" / "<count> degens" for 2+ owners). Anchor the line to whichever market(s) are actually live right now: if only Stockholm is open, talk about the SE side without pretending US tickers are doing anything; if only NY is open, the inverse. Don't claim portfolio-wide moves when half the data is frozen from the previous session.`;
+ONE dramatic WSB sentence about the whole portfolio. The user message starts with a MARKETS RIGHT NOW header classifying SE and US as LIVE, FRESH-FROZEN, or STALE-FROZEN — read it before writing the mood line and apply these rules STRICTLY:
+
+- The mood headline comes from TODAY'S story. LIVE and FRESH-FROZEN sides both count as "today" (a market that closed today still owns today's story until midnight STO). Pick whichever side has the bigger story — largest moves, owner-pick drama, sweep — regardless of which one is technically open right now.
+- A STALE-FROZEN side is "yesterday." Do NOT lead the mood with a STALE-FROZEN ticker's number even if it looks dramatic — that move already happened yesterday. A STALE-FROZEN side MAY be referenced as background context if directly relevant (e.g. "the gang shrugging off yesterday's NVDA crash, Stockholm holding steady"), never as the headline.
+- If BOTH sides are STALE-FROZEN (overnight before any market opens), describe the portfolio's standing without "today" claims.
+- Reference friends when something dramatic is happening with their picks — same naming rule as comments (first name for 1-owner picks, a collective phrase like "the gang" / "the syndicate" / "<count> apes" / "<count> degens" for 2+ owners).`;
 
 const ANALYSIS_SCHEMA = {
   type: "object",
@@ -179,6 +184,82 @@ function pickBiggestWinnerLoser(prices: StockPrice[]): {
     }
   }
   return { biggestWinner: winner.ticker, biggestLoser: loser.ticker };
+}
+
+// Per-market session state, classified from the clock + provider signals.
+// Drives the MARKETS RIGHT NOW header in the user message so Claude
+// anchors the mood line to today's story instead of yesterday's frozen
+// numbers.
+//
+//   live          — currently in regular session, prices update.
+//   fresh-frozen  — not in session right now BUT we have evidence that at
+//                   least one ticker traded today (Stockholm calendar
+//                   day). Today's story; equal weight to "live" in the
+//                   mood.
+//   stale-frozen  — no ticker for this market has a today-trade. Numbers
+//                   are from the previous session. Background only.
+type MarketSessionState = "live" | "fresh-frozen" | "stale-frozen";
+
+function computeMarketState(
+  market: "SE" | "US",
+  pricesForMarket: StockPrice[],
+  now: Date,
+): MarketSessionState {
+  if (isMarketInRegularSession(market, now)) return "live";
+  // tradedTodaySignal returns true when lastTradeAt is missing (so the
+  // dashboard's holiday veto degrades safely to clock behavior). Here we
+  // want the OPPOSITE — actual evidence — so require an explicit finite
+  // timestamp before counting a ticker as "traded today."
+  const anyTradedToday = pricesForMarket.some((p) => {
+    if (
+      typeof p.lastTradeAt !== "number" ||
+      !Number.isFinite(p.lastTradeAt) ||
+      p.lastTradeAt <= 0
+    ) {
+      return false;
+    }
+    return tradedTodaySignal(p.lastTradeAt, now);
+  });
+  return anyTradedToday ? "fresh-frozen" : "stale-frozen";
+}
+
+function buildMarketsHeader(prices: StockPrice[], now: Date): string {
+  const tickerMeta = new Map(TICKERS.map((t) => [t.symbol, t]));
+  const sePrices = prices.filter(
+    (p) => tickerMeta.get(p.ticker)?.market === "SE",
+  );
+  const usPrices = prices.filter(
+    (p) => tickerMeta.get(p.ticker)?.market === "US",
+  );
+  const seState = computeMarketState("SE", sePrices, now);
+  const usState = computeMarketState("US", usPrices, now);
+  const stoTime = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Stockholm",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(now);
+
+  const describe = (label: string, state: MarketSessionState): string => {
+    switch (state) {
+      case "live":
+        return `${label} = LIVE (in regular session right now — today's intraday)`;
+      case "fresh-frozen":
+        return `${label} = FRESH-FROZEN (closed for the day, but numbers below ARE today's session — still today's story)`;
+      case "stale-frozen":
+        return `${label} = STALE-FROZEN (has not traded today — the \`regularMarketChangePercent\` for these tickers below is the PREVIOUS session's close, NOT today)`;
+    }
+  };
+
+  return `MARKETS RIGHT NOW (Stockholm ${stoTime} STO):
+- ${describe("SE (Stockholmsbörsen)", seState)}
+- ${describe("US (NYSE/NASDAQ)", usState)}
+
+MOOD ANCHOR RULE: the OVERALL MOOD must come from today's story.
+- A LIVE or FRESH-FROZEN side is "today" — both qualify as the mood headline, picked by which side has the bigger moves or more owner drama.
+- A STALE-FROZEN side is "yesterday" — background only. Do NOT lead the mood line with a STALE-FROZEN ticker's number, even if the % looks dramatic. That move already happened yesterday and the dashboard's "today" mood shouldn't relitigate it.
+
+`;
 }
 
 export async function analyzeStocks(
@@ -287,7 +368,9 @@ export async function analyzeStocks(
       ? `MUST COMMENT — these tickers ALWAYS get a comment regardless of move size. The arrow hint at the end tells you which timeframe to reference.\n${mustCommentBlock.join("\n")}\n\n`
       : "";
 
-  const userMessage = `Here is today's price data for ${prices.length} stocks. Pick the ones worth a comment, write the overallMood.\n\n${mustCommentSection}ALL PRICE DATA:\n${JSON.stringify(enriched, null, 2)}`;
+  const marketsHeader = buildMarketsHeader(prices, now);
+
+  const userMessage = `${marketsHeader}Here is today's price data for ${prices.length} stocks. Pick the ones worth a comment, write the overallMood.\n\n${mustCommentSection}ALL PRICE DATA:\n${JSON.stringify(enriched, null, 2)}`;
 
   const response = await client.messages.create({
     model: MODEL,
