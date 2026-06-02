@@ -282,3 +282,30 @@ export function pickWeekWinnerLoser(
     ...(loser ? { loser } : {}),
   };
 }
+
+/**
+ * Today's biggest absolute winner/loser by `regularMarketChangePercent`,
+ * unfiltered by market state. Used by the trigger route to stamp the
+ * snapshot's `biggestWinner`/`biggestLoser` so they stay fresh on every
+ * cron tick regardless of whether either AI call fires.
+ *
+ * Returns empty strings for an empty prices array — callers should fall
+ * back to whatever they had cached.
+ */
+export function pickBiggestWinnerLoser(prices: StockPrice[]): {
+  biggestWinner: string;
+  biggestLoser: string;
+} {
+  if (prices.length === 0) return { biggestWinner: "", biggestLoser: "" };
+  let winner = prices[0]!;
+  let loser = prices[0]!;
+  for (const p of prices) {
+    if (p.regularMarketChangePercent > winner.regularMarketChangePercent) {
+      winner = p;
+    }
+    if (p.regularMarketChangePercent < loser.regularMarketChangePercent) {
+      loser = p;
+    }
+  }
+  return { biggestWinner: winner.ticker, biggestLoser: loser.ticker };
+}

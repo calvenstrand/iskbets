@@ -71,10 +71,18 @@ function shouldUseMock(): { use: boolean; reason: string } {
 export async function saveStockData(args: {
   stocks: StockPrice[];
   analysis: AnalysisPayload;
-  /** When the AI was last regenerated. Carried over if AI didn't run this turn. */
+  /** When the per-ticker COMMENTS call (Haiku) was last regenerated.
+   * Carried over if comments didn't run this turn. */
   analyzedAt: number;
-  /** Snapshot used as the diff baseline for the next trigger. */
+  /** Snapshot used as the diff baseline for the next comments-call decision. */
   pricesAtLastAnalysis: StockPrice[];
+  /** When the MOOD call (Sonnet) was last regenerated. Carried over if
+   * mood didn't run this turn. Optional — first deploy will not have it. */
+  moodGeneratedAt?: number;
+  /** Snapshot used as the diff baseline for the next mood-call decision.
+   * Independent of pricesAtLastAnalysis since the two calls fire on
+   * different cadences. Optional — first deploy will not have it. */
+  pricesAtLastMood?: StockPrice[];
 }): Promise<StoredData> {
   const now = Date.now();
   const data: StoredData = {
@@ -84,6 +92,12 @@ export async function saveStockData(args: {
     lastFetch: now,
     analyzedAt: args.analyzedAt,
     pricesAtLastAnalysis: args.pricesAtLastAnalysis,
+    ...(args.moodGeneratedAt !== undefined
+      ? { moodGeneratedAt: args.moodGeneratedAt }
+      : {}),
+    ...(args.pricesAtLastMood !== undefined
+      ? { pricesAtLastMood: args.pricesAtLastMood }
+      : {}),
   };
   console.log(`[storage] saving snapshot at ${data.updatedAt}`);
   await getRedis().set(KV_KEY, data);
