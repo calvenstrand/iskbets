@@ -33,7 +33,11 @@ Backend and frontend are both complete; build + lint pass clean.
   - **Finnhub** `/api/v1/quote` for US tickers (free tier, 60 req/min, US-only)
   - **Avanza** `/_api/market-guide/stock/{orderbookId}` for Stockholm tickers — unofficial public JSON, no auth, no key. Each SE ticker has a hardcoded `avanzaId` in `lib/tickers.ts`.
   - Path we burned: Yahoo (429 from Vercel IPs on both `yahoo-finance2` and `/v8/finance/chart`); Twelve Data (free tier silently 404s on Stockholm despite docs claiming coverage). Avanza was the unblock.
-- `@anthropic-ai/sdk` — analysis (model: `claude-haiku-4-5` for the per-tick analyzer, `claude-sonnet-4-6` for the weekly champion recap; no web search; data is passed in; uses native structured outputs via `output_config.format`)
+- `@anthropic-ai/sdk` — three Claude calls, each on its own cadence:
+  - `claude-haiku-4-5` for the per-ticker WSB COMMENTS (`lib/analyzeStocks.ts`) — fires per `shouldRerunComments` (59-min floor, 4h ceiling, 2pp delta).
+  - `claude-sonnet-4-6` for the OVERALL MOOD line (`lib/generateMood.ts`) — fires per `shouldRerunMood` (90-min floor, 4pp delta, plus four Stockholm checkpoints at 09:30 / 12:00 / 16:00 / 22:00 STO; weekday-only). Split out from the comments call because Haiku tended to enumerate every ticker into one long mood sentence.
+  - `claude-sonnet-4-6` for the Friday-evening WEEKLY CHAMPION recap (`lib/briefs.ts`) — once a week, long-form prose.
+  - No web search; data is passed in; all three use native structured outputs via `output_config.format`.
 - `@upstash/redis` — storage (Upstash Redis via Vercel Marketplace; keys `iskbets:snapshot` for the data, `iskbets:lastAttempt` for the cooldown gate)
 - Tailwind CSS 4 (layout utilities only — colors and typography live in `globals.css` via CSS variables)
 - `next/font/google` — Bebas Neue (display) + Share Tech Mono (mono)

@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
+import { shouldRerunComments, shouldRerunMood } from "@/lib/aiGating";
 import { analyzeStocks } from "@/lib/analyzeStocks";
 import { generateWeeklyChampion } from "@/lib/briefs";
-import { computeLeaderboard, pickWeekChampion } from "@/lib/leaderboard";
+import { generateMood } from "@/lib/generateMood";
+import {
+  computeLeaderboard,
+  pickBiggestWinnerLoser,
+  pickWeekChampion,
+} from "@/lib/leaderboard";
 import {
   inPostCloseWindow,
   inWeeklyArchiveWindow,
@@ -23,7 +29,7 @@ import {
   setWeeklyResult,
   setWeekStartSnapshot,
 } from "@/lib/storage";
-import type { StockPrice, StoredData } from "@/lib/types";
+import type { StoredData } from "@/lib/types";
 import { computeDailyResult } from "@/lib/dailyResult";
 import { computeWeeklyResult } from "@/lib/weeklyResult";
 
@@ -34,33 +40,6 @@ export const runtime = "nodejs";
 // never blocks scheduled runs; it just prevents a refresh button from
 // hammering Finnhub/Avanza.
 const COOLDOWN_MS = 60 * 1000; // 1 minute
-
-// AI gating thresholds. Prices refresh on every trigger; the AI only
-// runs when something genuinely changed (or enough time has passed).
-//
-// Floor history:
-//   29 → 44 min (May 2026): bumped to cut daily Anthropic spend ~35%
-//     ($0.70 → $0.46 weekday baseline).
-//   44 → 59 min (May 2026): another ~25-30% cut. Friday spikes back
-//     up to $0.67 because the Weekend Wire + Weekly Champion both
-//     fire that night; this floor mostly affects Mon-Thu.
-//
-// 59 (not 60) for jitter margin. Cron ticks at :03 :13 :23 :33 :43 :53
-// — so the "60 min since last AI" mark lands EXACTLY when the next
-// eligible tick fires. Vercel processing jitter can put `elapsed` at
-// 59:59.x and fail the floor check, slipping AI to the +10-min tick
-// (effectively giving us a 70-min cadence instead of 60). 59-min floor
-// + 10-min cron → reliable triggering at the intended tick.
-const AI_FLOOR_MS = 59 * 60 * 1000; // ~60 min with jitter margin
-const AI_CEILING_MS = 4 * 60 * 60 * 1000; // 4 hr — re-run AI even on a flat day
-// Delta threshold for re-running the AI based on ticker movement since
-// the last analysis. Raised 1.0 → 2.0 (May 2026) after observing that
-// weekday cost stuck at ~$0.56 even with the 59-min floor: on volatile
-// weeks the delta trigger was firing on nearly every 59-min tick
-// regardless of floor, because 1pp moves are common. 2pp is rare enough
-// to be a real news event but cuts delta-driven AI calls roughly in
-// half on choppy days. Quieter days fall back to the 4hr ceiling.
-const SIGNIFICANT_DELTA_PCT = 2.0;
 
 function isAuthorized(req: Request): boolean {
   const triggerSecret = process.env.TRIGGER_SECRET;
@@ -82,55 +61,6 @@ function isAuthorized(req: Request): boolean {
   return false;
 }
 
-type AIDecision = { rerun: boolean; reason: string };
-
-function shouldRerunAI(
-  newPrices: StockPrice[],
-  baseline: StockPrice[] | undefined,
-  analyzedAt: number | undefined,
-  now: number,
-): AIDecision {
-  if (!analyzedAt || !baseline) {
-    return { rerun: true, reason: "no prior analysis" };
-  }
-  const elapsed = now - analyzedAt;
-  if (elapsed > AI_CEILING_MS) {
-    const hrs = (elapsed / 3_600_000).toFixed(1);
-    return { rerun: true, reason: `${hrs}h since last AI (>4h ceiling)` };
-  }
-  if (elapsed < AI_FLOOR_MS) {
-    const min = Math.round(elapsed / 60_000);
-    const floorMin = Math.round(AI_FLOOR_MS / 60_000);
-    return { rerun: false, reason: `${min}min since last AI (<${floorMin}min floor)` };
-  }
-  // Find the biggest absolute change-percent shift across the portfolio.
-  const baselineByTicker = new Map(baseline.map((p) => [p.ticker, p]));
-  let maxDelta = 0;
-  let maxTicker = "";
-  for (const newP of newPrices) {
-    const oldP = baselineByTicker.get(newP.ticker);
-    if (!oldP) {
-      return { rerun: true, reason: `new ticker ${newP.ticker}` };
-    }
-    const delta = Math.abs(
-      newP.regularMarketChangePercent - oldP.regularMarketChangePercent,
-    );
-    if (delta > maxDelta) {
-      maxDelta = delta;
-      maxTicker = newP.ticker;
-    }
-  }
-  if (maxDelta > SIGNIFICANT_DELTA_PCT) {
-    return {
-      rerun: true,
-      reason: `${maxTicker} moved ${maxDelta.toFixed(2)}pp since last AI`,
-    };
-  }
-  return {
-    rerun: false,
-    reason: `max delta ${maxDelta.toFixed(2)}pp (<${SIGNIFICANT_DELTA_PCT}pp)`,
-  };
-}
 
 /**
  * Run the time-windowed post-close work: daily archive (every weekday
@@ -412,57 +342,88 @@ export async function GET(request: Request): Promise<NextResponse> {
     }
 
     const now = Date.now();
-    const decision = shouldRerunAI(
+    const commentsDecision = shouldRerunComments(
       newPrices,
       existing?.pricesAtLastAnalysis,
       existing?.analyzedAt,
       now,
     );
+    const moodDecision = shouldRerunMood(
+      newPrices,
+      existing?.pricesAtLastMood,
+      existing?.moodGeneratedAt,
+      now,
+    );
 
-    let analysis = existing?.analysis;
-    let analyzedAt = existing?.analyzedAt;
-    let pricesAtLastAnalysis = existing?.pricesAtLastAnalysis;
+    // Start with whatever was cached (or empty defaults on first run).
+    // Each AI path below replaces its slice of the payload when it fires.
+    let stocksAnalysis = existing?.analysis?.stocks ?? [];
+    let overallMood = existing?.analysis?.overallMood ?? "";
+    let analyzedAt = existing?.analyzedAt ?? now;
+    let pricesAtLastAnalysis = existing?.pricesAtLastAnalysis ?? newPrices;
+    let moodGeneratedAt = existing?.moodGeneratedAt;
+    let pricesAtLastMood = existing?.pricesAtLastMood;
 
-    if (decision.rerun || !analysis) {
-      // Hand the week-start baseline to the analyzer so it can compute
-      // the week's biggest mover/dragger and force-comment on them.
-      // Without this the featured cards (which are picked by week
-      // change) can sit silent when their big move was earlier in the
-      // week. Falls back to today-only commenting when the baseline is
-      // missing or stale.
-      const thisMonday = stockholmMondayOfWeek(new Date(now));
-      const weekStartSnapshot = await getWeekStartSnapshot();
-      const weekStartPrices =
-        weekStartSnapshot && weekStartSnapshot.weekStart === thisMonday
-          ? Object.fromEntries(
-              weekStartSnapshot.stocks.map((s) => [
-                s.ticker,
-                s.regularMarketPrice,
-              ]),
-            )
-          : undefined;
+    // Hand both AI paths the week-start baseline so the comments call
+    // can force-comment the week's biggest mover/dragger (featured cards
+    // must never be silent) and the mood can reference the week story
+    // when relevant. Falls back to undefined on a fresh deploy / stale
+    // baseline; both calls handle that.
+    const thisMonday = stockholmMondayOfWeek(new Date(now));
+    const weekStartSnapshot =
+      commentsDecision.rerun || moodDecision.rerun || !existing?.analysis
+        ? await getWeekStartSnapshot()
+        : undefined;
+    const weekStartPrices =
+      weekStartSnapshot && weekStartSnapshot.weekStart === thisMonday
+        ? Object.fromEntries(
+            weekStartSnapshot.stocks.map((s) => [
+              s.ticker,
+              s.regularMarketPrice,
+            ]),
+          )
+        : undefined;
 
+    if (commentsDecision.rerun || !existing?.analysis) {
       console.log(
-        `[trigger] AI run (${decision.reason})${weekStartPrices ? " + week-baseline" : ""}`,
+        `[trigger] comments run (${commentsDecision.reason})${weekStartPrices ? " + week-baseline" : ""}`,
       );
-      analysis = await analyzeStocks(newPrices, weekStartPrices);
+      stocksAnalysis = await analyzeStocks(newPrices, weekStartPrices);
       analyzedAt = now;
       pricesAtLastAnalysis = newPrices;
     } else {
-      console.log(`[trigger] AI skipped (${decision.reason})`);
+      console.log(`[trigger] comments skipped (${commentsDecision.reason})`);
     }
 
-    if (!analysis || analyzedAt === undefined || !pricesAtLastAnalysis) {
-      // Defensive: only possible if analyzeStocks returned undefined,
-      // which the validator there should prevent.
-      throw new Error("internal: missing analysis state after gating step");
+    if (moodDecision.rerun) {
+      console.log(`[trigger] mood run (${moodDecision.reason})`);
+      overallMood = await generateMood(newPrices);
+      moodGeneratedAt = now;
+      pricesAtLastMood = newPrices;
+    } else {
+      console.log(`[trigger] mood skipped (${moodDecision.reason})`);
     }
+
+    // biggestWinner/Loser are computed in code (not by the AI), so they
+    // refresh every tick from current prices regardless of whether
+    // either AI path fired. Keeps the snapshot's pointers fresh for the
+    // dashboard's featured cards.
+    const { biggestWinner, biggestLoser } = pickBiggestWinnerLoser(newPrices);
+
+    const analysis = {
+      stocks: stocksAnalysis,
+      overallMood,
+      biggestWinner,
+      biggestLoser,
+    };
 
     const saved = await saveStockData({
       stocks: newPrices,
       analysis,
       analyzedAt,
       pricesAtLastAnalysis,
+      ...(moodGeneratedAt !== undefined ? { moodGeneratedAt } : {}),
+      ...(pricesAtLastMood !== undefined ? { pricesAtLastMood } : {}),
     });
 
     const triggerNow = new Date();

@@ -86,7 +86,11 @@ export type WeeklyChampion = {
  * `stocks`, `analysis`, and `updatedAt`. */
 export type PublicStoredData = Omit<
   StoredData,
-  "lastFetch" | "analyzedAt" | "pricesAtLastAnalysis"
+  | "lastFetch"
+  | "analyzedAt"
+  | "pricesAtLastAnalysis"
+  | "moodGeneratedAt"
+  | "pricesAtLastMood"
 >;
 
 /** What the dashboard reads. Bundles the live snapshot, the optional
@@ -186,15 +190,30 @@ export type StoredData = {
   /** Epoch ms of when prices were last refreshed (every cron / trigger). */
   lastFetch: number;
   /**
-   * Epoch ms of when the AI analysis was last regenerated. Distinct from
-   * lastFetch — the AI runs less often than the price refresh.
-   * Optional only because legacy snapshots may predate this field.
+   * Epoch ms of when the per-ticker Haiku COMMENTS were last regenerated.
+   * Distinct from lastFetch — the AI runs less often than the price
+   * refresh. Optional only because legacy snapshots may predate this.
    */
   analyzedAt?: number;
   /**
-   * Snapshot of price data at the moment the AI was last run. Used to
-   * compute "did anything move enough to warrant a new AI run?" on the
-   * next trigger. Optional only because legacy snapshots may predate this.
+   * Snapshot of price data at the moment the comments call was last run.
+   * Used by shouldRerunComments to decide "did anything move enough to
+   * warrant a new comments pass?" Optional only because legacy snapshots
+   * may predate this.
    */
   pricesAtLastAnalysis?: StockPrice[];
+  /**
+   * Epoch ms of when the Sonnet MOOD line was last regenerated. The mood
+   * is a separate AI call from the per-ticker comments and fires on its
+   * own stricter cadence (Stockholm-checkpoint-driven). Optional for
+   * legacy snapshots that predate the mood split.
+   */
+  moodGeneratedAt?: number;
+  /**
+   * Snapshot of price data at the moment the mood was last generated.
+   * Used by shouldRerunMood for the >4pp delta backstop, independent of
+   * the comments-call baseline (different thresholds, different cadence).
+   * Optional for legacy snapshots.
+   */
+  pricesAtLastMood?: StockPrice[];
 };
