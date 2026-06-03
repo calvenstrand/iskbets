@@ -357,8 +357,9 @@ export function Dashboard({
     };
   }, []);
 
-  const analysisByTicker = new Map<string, StockAnalysis>(
-    snapshot.analysis.stocks.map((a) => [a.ticker, a]),
+  const analysisByTicker = useMemo(
+    () => new Map<string, StockAnalysis>(snapshot.analysis.stocks.map((a) => [a.ticker, a])),
+    [snapshot.analysis.stocks],
   );
 
   // Featured cards swap framing based on the recap window:

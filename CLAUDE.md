@@ -171,6 +171,17 @@ Documented in `.env.example`:
 - `TRIGGER_SECRET` — auth for `/api/trigger`. Send via the `x-trigger-secret` header (preferred) or the legacy `?key=` query param. Configured as a custom request header in the cron-job.org job config (also pasteable into the GitHub Actions workflow if we ever need the manual `workflow_dispatch` fallback to authenticate).
 - (Avanza needs no key — orderbookIds are hardcoded in `lib/tickers.ts`)
 - `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` — Upstash Redis; auto-injected in production via the Vercel Marketplace integration, manual for local dev. Legacy `KV_REST_API_URL` / `KV_REST_API_TOKEN` names are also supported as a fallback.
+- `USE_MOCK_DATA=true` — forces the storage layer to return mock data regardless of Redis creds. Useful for local UI work without a running Redis instance.
+
+## Local dev preview modes
+
+The dashboard supports a `?mode=` query param for local development (ignored in production when Redis is configured):
+
+- `/?mode=default` — fully populated dashboard with weekly champion + WTD baseline (default when no param is set)
+- `/?mode=fresh` — first-deploy state: no week-start baseline, no WTD column, no weekly champion
+- `/?mode=empty` — no data at all, renders the "NO DATA YET" empty state
+
+These are defined in `lib/mockData.ts` (`MockMode` type). Production ignores them — the mock branch only fires when Redis creds are absent or `USE_MOCK_DATA=true`.
 
 ## Conventions
 
