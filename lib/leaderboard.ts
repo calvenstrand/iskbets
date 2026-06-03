@@ -1,5 +1,5 @@
 import { hasTradedToday } from "./marketHours";
-import { PEOPLE, type Person, TICKERS } from "./tickers";
+import { buildOwnersByPerson, PEOPLE, type Person, TICKERS } from "./tickers";
 import type { StockPrice } from "./types";
 
 export type Mover = {
@@ -60,14 +60,7 @@ export function computeLeaderboard(
 ): LeaderboardEntry[] {
   const sortBy = opts?.sortBy ?? "today";
   const priceByTicker = new Map(stocks.map((s) => [s.ticker, s]));
-  const ownersByPerson = new Map<Person, string[]>();
-  for (const t of TICKERS) {
-    for (const owner of t.owners ?? []) {
-      const existing = ownersByPerson.get(owner) ?? [];
-      existing.push(t.symbol);
-      ownersByPerson.set(owner, existing);
-    }
-  }
+  const ownersByPerson = buildOwnersByPerson();
 
   const entries: LeaderboardEntry[] = [];
   for (const [person, name] of Object.entries(PEOPLE) as [Person, string][]) {

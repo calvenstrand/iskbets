@@ -31,7 +31,7 @@ import {
 } from "@/lib/storage";
 import type { StoredData } from "@/lib/types";
 import { computeDailyResult } from "@/lib/dailyResult";
-import { computeWeeklyResult } from "@/lib/weeklyResult";
+import { computeWeeklyResult, fridayFromMonday } from "@/lib/weeklyResult";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -230,18 +230,7 @@ async function maybeGenerateWeeklyChampion(
       weekStart,
     });
 
-    // Friday from the Monday: add 4 days. Same trick used in lib/weeklyResult.
-    const [yy, mm, dd] = weekKey.split("-").map(Number);
-    const weekEnd =
-      yy && mm && dd
-        ? (() => {
-            const friday = new Date(Date.UTC(yy, mm - 1, dd + 4));
-            const y = friday.getUTCFullYear();
-            const m = String(friday.getUTCMonth() + 1).padStart(2, "0");
-            const d = String(friday.getUTCDate()).padStart(2, "0");
-            return `${y}-${m}-${d}`;
-          })()
-        : weekKey;
+    const weekEnd = fridayFromMonday(weekKey);
 
     await setWeeklyChampion({
       weekStart: weekKey,

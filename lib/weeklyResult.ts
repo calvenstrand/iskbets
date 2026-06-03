@@ -1,8 +1,8 @@
-import { PEOPLE, type Person, TICKERS } from "./tickers";
+import { buildOwnersByPerson, PEOPLE, type Person } from "./tickers";
 import type { StoredData, WeeklyResult, WeekStartSnapshot } from "./types";
 
 /** Add 4 days to a Stockholm-date YYYY-MM-DD to get that week's Friday. */
-function fridayFromMonday(monday: string): string {
+export function fridayFromMonday(monday: string): string {
   const [y, m, d] = monday.split("-").map(Number);
   if (!y || !m || !d) return monday;
   // Construct as UTC date (date-only, no tz drama), add 4 days, format back.
@@ -45,17 +45,7 @@ export function computeWeeklyResult(args: {
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);
 
-  // Per-friend WTD: same simple-mean rule the live leaderboard uses
-  // (no position weighting). Owners drawn from TICKERS so this stays
-  // in sync as the friend list grows.
-  const ownersByPerson = new Map<Person, string[]>();
-  for (const t of TICKERS) {
-    for (const owner of t.owners ?? []) {
-      const existing = ownersByPerson.get(owner) ?? [];
-      existing.push(t.symbol);
-      ownersByPerson.set(owner, existing);
-    }
-  }
+  const ownersByPerson = buildOwnersByPerson();
 
   const stockWeekChange = new Map(
     stocks.map((s) => [s.ticker, s.weekChangePct]),
