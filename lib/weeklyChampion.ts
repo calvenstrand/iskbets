@@ -4,11 +4,6 @@ import type { StoredData, WeekStartSnapshot } from "./types";
 
 const MODEL = "claude-sonnet-4-6";
 
-// Filename kept as briefs.ts for git history readability. The morning /
-// evening / weekend-wire brief generators were removed for cost reasons —
-// only generateWeeklyChampion remains. If we re-add long-form briefs
-// later (archive page, mid-week summary, etc.), put them back here.
-
 const WEEKLY_CHAMPION_SYSTEM = `You are a degenerate WSB analyst with peak Gordon Gekko energy. You crown the friend who DOMINATED the trading week.
 
 You receive: the week's leader (highest WTD%), their owned tickers and how each performed Monday → Friday, and a snapshot of the rest of the friend leaderboard for context.

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { shouldRerunComments, shouldRerunMood } from "@/lib/aiGating";
 import { analyzeStocks } from "@/lib/analyzeStocks";
-import { generateWeeklyChampion } from "@/lib/briefs";
+import { generateWeeklyChampion } from "@/lib/weeklyChampion";
 import { generateMood } from "@/lib/generateMood";
 import {
   computeLeaderboard,
@@ -419,8 +419,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 
     // Archive the Monday baseline once per week (no-op other days, or
     // on subsequent Monday triggers after the first one this week).
-    // Runs BEFORE the briefs so a same-trigger morning brief on Monday
-    // sees the baseline as fresh.
+    // Runs BEFORE post-close work so the Weekly Champion sees a fresh baseline.
     await maybeArchiveWeekStart(saved, triggerNow);
 
     // Post-close work: daily archive (every weekday after market close)
