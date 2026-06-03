@@ -107,10 +107,14 @@ const MOOD_DELTA_PCT = 4.0; // bigger move required than comments (2pp)
 // we wait 30 min for it to settle) and ties the mood cadence to the
 // moments the framing genuinely shifts.
 //   09:30 STO — SE settled; first mood of the day.
+//   12:00 STO — Swedish lunch; mid-session check-in (NY hasn't opened).
+//               Without this the 09:30 → 16:00 gap is ~6.5h, which is
+//               a long stretch on a flat day with no other refresh.
 //   16:00 STO — NY settled (opens 15:30 + 30 min); framing flips to "both live".
 //   22:00 STO — NY close; end-of-day mood captures the close.
 export const MOOD_CHECKPOINTS_STO_MIN = [
   9 * 60 + 30,
+  12 * 60,
   16 * 60,
   22 * 60,
 ] as const;
@@ -156,9 +160,10 @@ function stockholmIsWeekday(d: Date): boolean {
  *     mood would never render. Mood from Friday persists.
  *  3. < 90min since last mood (floor — prevents rapid-fire refreshes
  *     even on a volatile day).
- *  4. Crossed a daily Stockholm checkpoint (09:30 / 16:00 / 22:00) we
- *     haven't already covered — these are the moments the mood framing
- *     genuinely shifts (SE just settled / NY just settled / NY close).
+ *  4. Crossed a daily Stockholm checkpoint (09:30 / 12:00 / 16:00 /
+ *     22:00) we haven't already covered — these are the moments the
+ *     mood framing genuinely shifts (SE settled / lunch check-in / NY
+ *     settled / NY close).
  *  5. Backstop: > 4pp single-ticker delta since the mood baseline
  *     captured the portfolio.
  */
