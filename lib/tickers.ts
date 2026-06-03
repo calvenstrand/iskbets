@@ -381,3 +381,17 @@ export const TICKERS: Ticker[] = [
       "US server + storage hardware maker riding the AI datacenter boom — liquid-cooled GPU servers, Nvidia HGX / Blackwell systems. Extreme volatility: a 2024 short-seller report + delayed SEC filings + auditor resignation nearly got it delisted before it caught up on financials in early 2025. Moves on AI capex, Nvidia supply, and accounting / governance headlines. High-beta WSB favorite.",
   },
 ];
+
+/** Maps each person to the tickers they own. Derived from TICKERS so it
+ * stays in sync automatically as the ticker list grows. */
+export function buildOwnersByPerson(): Map<Person, string[]> {
+  const map = new Map<Person, string[]>();
+  for (const t of TICKERS) {
+    for (const owner of t.owners ?? []) {
+      const existing = map.get(owner) ?? [];
+      existing.push(t.symbol);
+      map.set(owner, existing);
+    }
+  }
+  return map;
+}

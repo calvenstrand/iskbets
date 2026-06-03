@@ -1,4 +1,4 @@
-import { PEOPLE, type Person, TICKERS } from "./tickers";
+import { buildOwnersByPerson, PEOPLE, type Person } from "./tickers";
 import type { DailyResult, StoredData } from "./types";
 
 /**
@@ -21,14 +21,7 @@ export function computeDailyResult(args: {
       changePct: Number(s.regularMarketChangePercent.toFixed(2)),
     }));
 
-  const ownersByPerson = new Map<Person, string[]>();
-  for (const t of TICKERS) {
-    for (const owner of t.owners ?? []) {
-      const existing = ownersByPerson.get(owner) ?? [];
-      existing.push(t.symbol);
-      ownersByPerson.set(owner, existing);
-    }
-  }
+  const ownersByPerson = buildOwnersByPerson();
   const stockChange = new Map(stocks.map((s) => [s.ticker, s.changePct]));
 
   const friends: DailyResult["friends"] = [];
