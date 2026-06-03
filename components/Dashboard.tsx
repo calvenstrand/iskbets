@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { inRecapWindow } from "@/lib/dateUtil";
+import { useMemo } from "react";
 import {
   detectSweep,
   pickTodayWinnerLoser,
@@ -11,14 +10,16 @@ import {
 import { hasTradedToday } from "@/lib/marketHours";
 import { TICKERS } from "@/lib/tickers";
 import type {
-  DashboardData,
   PublicStoredData,
   StockAnalysis,
   StockPrice,
   WeeklyChampion,
 } from "@/lib/types";
+import { useGridSort } from "@/hooks/useGridSort";
+import { useNow } from "@/hooks/useNow";
+import { usePollDashboard } from "@/hooks/usePollDashboard";
 import { CelebrationCard } from "./CelebrationCard";
-import { GridSort, isSortMode, type SortMode } from "./GridSort";
+import { GridSort } from "./GridSort";
 import { Header } from "./Header";
 import { Leaderboard } from "./Leaderboard";
 import { MarketStatus } from "./MarketStatus";
@@ -46,14 +47,6 @@ type DashboardProps = {
   initialNowMs: number;
 };
 
-// Poll cadence — 2 min (was 5 min). Cron fires every 10 min so polling
-// 5× per cycle catches each new snapshot within 2 min of it landing.
-// All polls hit the 20s CDN cache so the extra requests cost nothing
-// at origin. The 5-min cadence was leaving viewers staring at frozen
-// prices for up to 6 min after market open (1-2 cron cycles).
-const POLL_MS = 2 * 60 * 1000;
-const FLASH_MS = 1800;
-
 // Pre-built market lookup so the grid sort doesn't scan TICKERS for
 // every card.
 const TICKER_MARKETS = new Map(TICKERS.map((t) => [t.symbol, t.market]));
@@ -62,8 +55,6 @@ const TICKER_MARKETS = new Map(TICKERS.map((t) => [t.symbol, t.market]));
 const TICKER_OWNED = new Set(
   TICKERS.filter((t) => t.owners && t.owners.length > 0).map((t) => t.symbol),
 );
-
-const SORT_STORAGE_KEY = "iskbets:gridSort";
 
 /**
  * Sort for the dashboard grid. The viewer picks the ordering via the
@@ -93,7 +84,7 @@ function sortGridStocks(
   stocks: StockPrice[],
   now: Date,
   weekChanges: Map<string, number> | null,
-  sortMode: SortMode,
+  sortMode: ReturnType<typeof useGridSort>[0],
 ): StockPrice[] {
   const useWeek = weekChanges !== null;
   const pctOf = (s: StockPrice): number =>
@@ -151,25 +142,6 @@ function sortGridStocks(
   });
 }
 
-/** Tickers whose AI comment changed between two snapshots. */
-function findCommentChanges(
-  prev: PublicStoredData,
-  next: PublicStoredData,
-): Set<string> {
-  const oldComments = new Map(
-    prev.analysis.stocks.map((s) => [s.ticker, s.comment ?? ""]),
-  );
-  const changed = new Set<string>();
-  for (const s of next.analysis.stocks) {
-    const newComment = s.comment ?? "";
-    const oldComment = oldComments.get(s.ticker) ?? "";
-    if (newComment !== oldComment && newComment !== "") {
-      changed.add(s.ticker);
-    }
-  }
-  return changed;
-}
-
 export function Dashboard({
   data: initialData,
   weeklyChampion: initialWeeklyChampion,
@@ -177,34 +149,14 @@ export function Dashboard({
   initialInRecap,
   initialNowMs,
 }: DashboardProps) {
-  const [snapshot, setSnapshot] = useState<PublicStoredData>(initialData);
-  const [weeklyChampion, setWeeklyChampion] = useState<
-    WeeklyChampion | undefined
-  >(initialWeeklyChampion);
-  const [weekStartPrices, setWeekStartPrices] = useState<
-    Record<string, number> | undefined
-  >(initialWeekStart);
-
-  // Unified time state. Seeded from server-rendered initialNowMs so
-  // the first client render uses the same timestamp as the server
-  // (no hydration mismatch in any time-dependent logic — sort, stale
-  // flags, today-winner pick, recap window). useEffect then ticks
-  // every minute, keeping the dashboard in sync with real time
-  // without page reloads. All time-dependent derivations below pull
-  // from this single `now`.
-  const [now, setNow] = useState<Date>(() => new Date(initialNowMs));
-  const [inRecap, setInRecap] = useState(initialInRecap);
-
-  useEffect(() => {
-    const tick = () => {
-      const newNow = new Date();
-      setNow(newNow);
-      setInRecap(inRecapWindow(newNow));
-    };
-    tick(); // re-check immediately post-hydration in case clocks differ
-    const id = setInterval(tick, 60_000);
-    return () => clearInterval(id);
-  }, []);
+  const { now, inRecap } = useNow(initialNowMs, initialInRecap);
+  const [sortMode, handleSortChange] = useGridSort();
+  const { snapshot, weeklyChampion, weekStartPrices, flashedTickers, moodFlash } =
+    usePollDashboard({
+      snapshot: initialData,
+      weeklyChampion: initialWeeklyChampion,
+      weekStartPrices: initialWeekStart,
+    });
 
   // Today's winner/loser, recomputed whenever `now` ticks or the
   // snapshot refreshes. Filters out tickers whose market hasn't opened
@@ -215,147 +167,6 @@ export function Dashboard({
     () => pickTodayWinnerLoser(snapshot.stocks, now),
     [snapshot, now],
   );
-
-  // Grid sort mode. Seeded to "chaos" so the first client render matches
-  // the server (no hydration mismatch); the saved preference is read from
-  // localStorage post-mount and re-sorts then.
-  const [sortMode, setSortMode] = useState<SortMode>("chaos");
-
-  useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(SORT_STORAGE_KEY);
-      if (saved && isSortMode(saved)) setSortMode(saved);
-    } catch {
-      // localStorage unavailable (private mode / blocked) — keep default.
-    }
-  }, []);
-
-  const handleSortChange = (mode: SortMode): void => {
-    setSortMode(mode);
-    try {
-      window.localStorage.setItem(SORT_STORAGE_KEY, mode);
-    } catch {
-      // Non-fatal — the choice still applies for this session.
-    }
-  };
-
-  // Visual flash state — set on poll diff, cleared after FLASH_MS.
-  const [flashedTickers, setFlashedTickers] = useState<Set<string>>(
-    () => new Set(),
-  );
-  const [moodFlash, setMoodFlash] = useState(false);
-
-  // Refs for closure-stable access to the latest state from the poll loop.
-  const snapshotRef = useRef(snapshot);
-  snapshotRef.current = snapshot;
-
-  // Single timeout per flash kind so a fast follow-up update doesn't cut
-  // the previous flash short.
-  const tickerFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const moodFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    let interval: ReturnType<typeof setInterval> | null = null;
-
-    async function refresh() {
-      try {
-        // Forward the page's search params (e.g. `?mode=weekend`) so the
-        // polled data stays consistent with the initial server render.
-        // Production: query string is empty, behavior unchanged.
-        const url = new URL("/api/data", window.location.origin);
-        const liveParams = new URL(window.location.href).searchParams;
-        for (const [k, v] of liveParams) url.searchParams.set(k, v);
-        const res = await fetch(url.toString(), { cache: "no-store" });
-        if (!res.ok) return;
-        const fresh = (await res.json()) as DashboardData;
-        if (cancelled) return;
-
-        const prev = snapshotRef.current;
-        const changedTickers = findCommentChanges(prev, fresh.snapshot);
-        const moodChanged =
-          prev.analysis.overallMood !== fresh.snapshot.analysis.overallMood;
-
-        // Update state regardless — silent UX even when nothing flashes.
-        setSnapshot(fresh.snapshot);
-        setWeeklyChampion(fresh.weeklyChampion);
-        setWeekStartPrices(fresh.weekStartPrices);
-
-        if (changedTickers.size > 0) {
-          if (tickerFlashTimer.current) {
-            clearTimeout(tickerFlashTimer.current);
-          }
-          setFlashedTickers(changedTickers);
-          tickerFlashTimer.current = setTimeout(() => {
-            if (!cancelled) setFlashedTickers(new Set());
-          }, FLASH_MS);
-        }
-        if (moodChanged) {
-          if (moodFlashTimer.current) clearTimeout(moodFlashTimer.current);
-          setMoodFlash(true);
-          moodFlashTimer.current = setTimeout(() => {
-            if (!cancelled) setMoodFlash(false);
-          }, FLASH_MS);
-        }
-      } catch {
-        // Silent — try again next interval.
-      }
-    }
-
-    function startPolling() {
-      if (interval !== null) return; // idempotent — already running
-      interval = setInterval(refresh, POLL_MS);
-    }
-
-    function stopPolling() {
-      if (interval !== null) {
-        clearInterval(interval);
-        interval = null;
-      }
-    }
-
-    // Only poll while the tab is visible. With the cron firing every 10 min
-    // and a 2-min poll, leaving the tab open overnight would otherwise burn
-    // ~720 needless /api/data calls per user (all CDN-cached but still
-    // pointless).
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") {
-        refresh(); // catch up immediately on return
-        startPolling();
-      } else {
-        stopPolling();
-      }
-    };
-    // Window focus catches "user clicked back into the browser from
-    // another app" — visibilitychange only fires on tab/window
-    // visibility flips, not cross-app focus changes. Common case:
-    // user opens dashboard, switches to Slack/VS Code, then clicks
-    // back. Without this listener they'd wait up to POLL_MS for the
-    // next scheduled tick to see fresh data.
-    const onFocus = () => {
-      if (document.visibilityState === "visible") refresh();
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("focus", onFocus);
-
-    if (document.visibilityState === "visible") {
-      // Fire immediately on mount so the first paint after hydration
-      // catches up to whatever's currently in /api/data — otherwise
-      // viewers stare at SSR-cached HTML for up to POLL_MS (2 min)
-      // before the first scheduled poll lands.
-      refresh();
-      startPolling();
-    }
-
-    return () => {
-      cancelled = true;
-      stopPolling();
-      document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("focus", onFocus);
-      if (tickerFlashTimer.current) clearTimeout(tickerFlashTimer.current);
-      if (moodFlashTimer.current) clearTimeout(moodFlashTimer.current);
-    };
-  }, []);
 
   const analysisByTicker = useMemo(
     () => new Map<string, StockAnalysis>(snapshot.analysis.stocks.map((a) => [a.ticker, a])),
