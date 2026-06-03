@@ -146,6 +146,97 @@ function ownersByTickerSymbol(): Map<string, string[]> {
   );
 }
 
+/** Enrich raw prices with owner names, context, and a marketLive flag
+ * so Claude knows which tickers are in an active regular session vs.
+ * carrying a stale/pre-market print. */
+function enrichPrices(prices: StockPrice[], now: Date) {
+  const ownersMap = ownersByTickerSymbol();
+  const tickerMeta = new Map(TICKERS.map((t) => [t.symbol, t]));
+  return prices.map((p) => {
+    const meta = tickerMeta.get(p.ticker);
+    // Regular-session clock check, vetoed by the holiday signal: on a
+    // closed exchange the session window is "open" but `lastTradeAt`
+    // still points at the previous trading day, so marketLive goes false
+    // and Claude treats the frozen number as last-session data instead of
+    // narrating it as "today's move". See isMarketInRegularSession vs.
+    // isMarketLive in lib/marketHours.ts for the distinction.
+    const marketLive = meta
+      ? isMarketInRegularSession(meta.market, now) &&
+        tradedTodaySignal(p.lastTradeAt, now)
+      : false;
+    const owners = ownersMap.get(p.ticker) ?? [];
+    const context = meta?.context;
+    return {
+      ...p,
+      marketLive,
+      ...(owners.length > 0 ? { owners } : {}),
+      ...(context ? { context } : {}),
+    };
+  });
+}
+
+/** Build the MUST COMMENT section: force-includes the week's and
+ * today's biggest mover/dragger so the dashboard's featured cards
+ * always have a comment, even on a flat day. Deduplication rules:
+ *   - ticker is both week winner AND today winner → keep week entry only
+ *   - today winner === today loser (single stock with data) → drop loser */
+function buildMustCommentSection(
+  prices: StockPrice[],
+  weekStartPrices: Record<string, number> | undefined,
+  now: Date,
+): string {
+  const weekMovers = pickWeekWinnerLoser(prices, weekStartPrices);
+  const todayMovers = pickTodayWinnerLoser(prices, now);
+  const weekTickers = new Set<string>();
+  const lines: string[] = [];
+
+  if (weekMovers.winner) {
+    weekTickers.add(weekMovers.winner.ticker);
+    lines.push(
+      `- ${weekMovers.winner.ticker} (week's biggest WINNER, ${weekMovers.winner.weekChangePct.toFixed(2)}% WTD) → comment on the WEEK'S move`,
+    );
+  }
+  if (weekMovers.loser) {
+    weekTickers.add(weekMovers.loser.ticker);
+    lines.push(
+      `- ${weekMovers.loser.ticker} (week's biggest LOSER, ${weekMovers.loser.weekChangePct.toFixed(2)}% WTD) → comment on the WEEK'S move`,
+    );
+  }
+
+  const todayWinnerTicker = todayMovers.winner?.ticker;
+  const todayLoserTicker = todayMovers.loser?.ticker;
+  if (todayMovers.winner && todayWinnerTicker && !weekTickers.has(todayWinnerTicker)) {
+    lines.push(
+      `- ${todayMovers.winner.ticker} (today's biggest WINNER, ${todayMovers.winner.changePct.toFixed(2)}% today) → comment on TODAY'S move`,
+    );
+  }
+  if (
+    todayMovers.loser &&
+    todayLoserTicker &&
+    todayLoserTicker !== todayWinnerTicker &&
+    !weekTickers.has(todayLoserTicker)
+  ) {
+    lines.push(
+      `- ${todayMovers.loser.ticker} (today's biggest LOSER, ${todayMovers.loser.changePct.toFixed(2)}% today) → comment on TODAY'S move`,
+    );
+  }
+
+  if (lines.length === 0) return "";
+  return `MUST COMMENT — these tickers ALWAYS get a comment regardless of move size. The arrow hint at the end tells you which timeframe to reference.\n${lines.join("\n")}\n\n`;
+}
+
+/** Assemble the full user message sent to Claude for the comments call. */
+export function buildAnalysisPrompt(
+  prices: StockPrice[],
+  weekStartPrices: Record<string, number> | undefined,
+  now: Date,
+): string {
+  const enriched = enrichPrices(prices, now);
+  const mustCommentSection = buildMustCommentSection(prices, weekStartPrices, now);
+  const marketsHeader = buildMarketsHeader(prices, now);
+  return `${marketsHeader}Here is today's price data for ${prices.length} stocks. Pick the ones worth a comment.\n\n${mustCommentSection}ALL PRICE DATA:\n${JSON.stringify(enriched, null, 2)}`;
+}
+
 export async function analyzeStocks(
   prices: StockPrice[],
   /** Optional Monday-baseline ticker→price map. When provided, the
@@ -161,100 +252,8 @@ export async function analyzeStocks(
   );
 
   const client = new Anthropic();
-
-  // Enrich prices with owner names so Claude can reference the friend
-  // when something dramatic happens with their pick. Also tag each
-  // ticker with `marketLive` — true ONLY when the market is in its
-  // regular orderbook session right now, NOT pre-market or post-market.
-  //
-  // Why strict (isMarketInRegularSession) and not the broader
-  // isMarketLive used by fetchPrices: pre-market quotes from Finnhub
-  // on thin US-stock volume can print absurd values (e.g. -23% on a
-  // single small order that disappears within minutes). Treating
-  // those as "today's intraday" produced AI commentary that contradicts
-  // observable reality — Claude wrote "NET evaporate -23% premarket"
-  // while the actual orderbook sat near 0. By gating marketLive to the
-  // regular session, pre-market data falls under the prompt's "frozen
-  // from last session" rule and Claude stays appropriately conservative.
-  // See lib/marketHours.ts for the function pair.
-  const ownersMap = ownersByTickerSymbol();
-  const tickerMeta = new Map(TICKERS.map((t) => [t.symbol, t]));
   const now = new Date();
-  const enriched = prices.map((p) => {
-    const meta = tickerMeta.get(p.ticker);
-    // Regular-session clock check, vetoed by the holiday signal: on a
-    // closed exchange the session window is "open" but `lastTradeAt`
-    // still points at the previous trading day, so marketLive goes false
-    // and Claude treats the frozen number as last-session data instead of
-    // narrating it as "today's move".
-    const marketLive = meta
-      ? isMarketInRegularSession(meta.market, now) &&
-        tradedTodaySignal(p.lastTradeAt, now)
-      : false;
-    const owners = ownersMap.get(p.ticker) ?? [];
-    const context = meta?.context;
-    return {
-      ...p,
-      marketLive,
-      ...(owners.length > 0 ? { owners } : {}),
-      ...(context ? { context } : {}),
-    };
-  });
-
-  // Force-include the week's AND today's biggest mover/dragger so the
-  // dashboard's featured cards always have a comment underneath, even
-  // on a flat day when the today winner moved +0.4%. Each entry is
-  // tagged with an arrow hint telling Claude which timeframe to
-  // reference in its comment. Dedupes:
-  //   - same ticker as both today's winner AND week's winner → only
-  //     keep the week entry (week framing implies more context)
-  //   - same ticker as today's winner AND today's loser (only one
-  //     stock has finite data) → drop the loser
-  const weekMovers = pickWeekWinnerLoser(prices, weekStartPrices);
-  const todayMovers = pickTodayWinnerLoser(prices, new Date());
-  const weekTickers = new Set<string>();
-  const mustCommentBlock: string[] = [];
-  if (weekMovers.winner) {
-    weekTickers.add(weekMovers.winner.ticker);
-    mustCommentBlock.push(
-      `- ${weekMovers.winner.ticker} (week's biggest WINNER, ${weekMovers.winner.weekChangePct.toFixed(2)}% WTD) → comment on the WEEK'S move`,
-    );
-  }
-  if (weekMovers.loser) {
-    weekTickers.add(weekMovers.loser.ticker);
-    mustCommentBlock.push(
-      `- ${weekMovers.loser.ticker} (week's biggest LOSER, ${weekMovers.loser.weekChangePct.toFixed(2)}% WTD) → comment on the WEEK'S move`,
-    );
-  }
-  const todayWinnerTicker = todayMovers.winner?.ticker;
-  const todayLoserTicker = todayMovers.loser?.ticker;
-  if (
-    todayMovers.winner &&
-    todayWinnerTicker &&
-    !weekTickers.has(todayWinnerTicker)
-  ) {
-    mustCommentBlock.push(
-      `- ${todayMovers.winner.ticker} (today's biggest WINNER, ${todayMovers.winner.changePct.toFixed(2)}% today) → comment on TODAY'S move`,
-    );
-  }
-  if (
-    todayMovers.loser &&
-    todayLoserTicker &&
-    todayLoserTicker !== todayWinnerTicker &&
-    !weekTickers.has(todayLoserTicker)
-  ) {
-    mustCommentBlock.push(
-      `- ${todayMovers.loser.ticker} (today's biggest LOSER, ${todayMovers.loser.changePct.toFixed(2)}% today) → comment on TODAY'S move`,
-    );
-  }
-  const mustCommentSection =
-    mustCommentBlock.length > 0
-      ? `MUST COMMENT — these tickers ALWAYS get a comment regardless of move size. The arrow hint at the end tells you which timeframe to reference.\n${mustCommentBlock.join("\n")}\n\n`
-      : "";
-
-  const marketsHeader = buildMarketsHeader(prices, now);
-
-  const userMessage = `${marketsHeader}Here is today's price data for ${prices.length} stocks. Pick the ones worth a comment.\n\n${mustCommentSection}ALL PRICE DATA:\n${JSON.stringify(enriched, null, 2)}`;
+  const userMessage = buildAnalysisPrompt(prices, weekStartPrices, now);
 
   const response = await client.messages.create({
     model: MODEL,
