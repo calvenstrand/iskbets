@@ -380,6 +380,14 @@ export const TICKERS: Ticker[] = [
     context:
       "US server + storage hardware maker riding the AI datacenter boom — liquid-cooled GPU servers, Nvidia HGX / Blackwell systems. Extreme volatility: a 2024 short-seller report + delayed SEC filings + auditor resignation nearly got it delisted before it caught up on financials in early 2025. Moves on AI capex, Nvidia supply, and accounting / governance headlines. High-beta WSB favorite.",
   },
+  {
+    symbol: "RDDT",
+    name: "Reddit",
+    market: "US",
+    owners: ["chris"],
+    context:
+      "US social platform — the literal home of WallStreetBets. Revenue split between ads + AI data-licensing deals (Google, OpenAI training on Reddit text). IPO'd March 2024 at $34, hit profitability late 2024. Moves on daily active uniques, ad revenue growth, and AI partnership announcements. Maximally meta: Chris owning the platform he posts WSB takes on.",
+  },
 ];
 
 /** Maps each person to the tickers they own. Derived from TICKERS so it
