@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { shouldRerunComments, shouldRerunMood } from "@/lib/aiGating";
-import { analyzeStocks } from "@/lib/analyzeStocks";
+import { shouldRerunMood } from "@/lib/aiGating";
+import { buildStaticComments } from "@/lib/stockMessages";
 import { generateWeeklyChampion } from "@/lib/weeklyChampion";
 import { generateMood } from "@/lib/generateMood";
 import {
@@ -321,12 +321,9 @@ export async function GET(request: Request): Promise<NextResponse> {
     }
 
     const now = Date.now();
-    const commentsDecision = shouldRerunComments(
-      newPrices,
-      existing?.pricesAtLastAnalysis,
-      existing?.analyzedAt,
-      now,
-    );
+    // Comments are pure code now — built from a static per-ticker × sentiment
+    // message table (lib/stockMessages.ts). Run every trigger; cost is a
+    // Map lookup + a string.replace. Only the mood call still hits Anthropic.
     const moodDecision = shouldRerunMood(
       newPrices,
       existing?.pricesAtLastMood,
@@ -334,45 +331,11 @@ export async function GET(request: Request): Promise<NextResponse> {
       now,
     );
 
-    // Start with whatever was cached (or empty defaults on first run).
-    // Each AI path below replaces its slice of the payload when it fires.
-    let stocksAnalysis = existing?.analysis?.stocks ?? [];
     let overallMood = existing?.analysis?.overallMood ?? "";
-    let analyzedAt = existing?.analyzedAt ?? now;
-    let pricesAtLastAnalysis = existing?.pricesAtLastAnalysis ?? newPrices;
     let moodGeneratedAt = existing?.moodGeneratedAt;
     let pricesAtLastMood = existing?.pricesAtLastMood;
 
-    // Hand both AI paths the week-start baseline so the comments call
-    // can force-comment the week's biggest mover/dragger (featured cards
-    // must never be silent) and the mood can reference the week story
-    // when relevant. Falls back to undefined on a fresh deploy / stale
-    // baseline; both calls handle that.
-    const thisMonday = stockholmMondayOfWeek(new Date(now));
-    const weekStartSnapshot =
-      commentsDecision.rerun || moodDecision.rerun || !existing?.analysis
-        ? await getWeekStartSnapshot()
-        : undefined;
-    const weekStartPrices =
-      weekStartSnapshot && weekStartSnapshot.weekStart === thisMonday
-        ? Object.fromEntries(
-            weekStartSnapshot.stocks.map((s) => [
-              s.ticker,
-              s.regularMarketPrice,
-            ]),
-          )
-        : undefined;
-
-    if (commentsDecision.rerun || !existing?.analysis) {
-      console.log(
-        `[trigger] comments run (${commentsDecision.reason})${weekStartPrices ? " + week-baseline" : ""}`,
-      );
-      stocksAnalysis = await analyzeStocks(newPrices, weekStartPrices);
-      analyzedAt = now;
-      pricesAtLastAnalysis = newPrices;
-    } else {
-      console.log(`[trigger] comments skipped (${commentsDecision.reason})`);
-    }
+    const stocksAnalysis = buildStaticComments(newPrices);
 
     if (moodDecision.rerun) {
       console.log(`[trigger] mood run (${moodDecision.reason})`);
@@ -383,10 +346,8 @@ export async function GET(request: Request): Promise<NextResponse> {
       console.log(`[trigger] mood skipped (${moodDecision.reason})`);
     }
 
-    // biggestWinner/Loser are computed in code (not by the AI), so they
-    // refresh every tick from current prices regardless of whether
-    // either AI path fired. Keeps the snapshot's pointers fresh for the
-    // dashboard's featured cards.
+    // biggestWinner/Loser are pure code — refresh every tick from current
+    // prices so the dashboard's featured cards always have fresh pointers.
     const { biggestWinner, biggestLoser } = pickBiggestWinnerLoser(newPrices);
 
     const analysis = {
@@ -399,8 +360,6 @@ export async function GET(request: Request): Promise<NextResponse> {
     const saved = await saveStockData({
       stocks: newPrices,
       analysis,
-      analyzedAt,
-      pricesAtLastAnalysis,
       ...(moodGeneratedAt !== undefined ? { moodGeneratedAt } : {}),
       ...(pricesAtLastMood !== undefined ? { pricesAtLastMood } : {}),
     });
