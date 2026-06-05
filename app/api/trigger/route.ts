@@ -36,29 +36,19 @@ import { computeWeeklyResult, fridayFromMonday } from "@/lib/weeklyResult";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-// Anti-spam guard for manual triggers. Cron fires every 15 min so this
+// Anti-spam guard for manual triggers. Cron fires every 10 min so this
 // never blocks scheduled runs; it just prevents a refresh button from
 // hammering Finnhub/Avanza.
 const COOLDOWN_MS = 60 * 1000; // 1 minute
 
 function isAuthorized(req: Request): boolean {
   const triggerSecret = process.env.TRIGGER_SECRET;
-  if (!triggerSecret) return false;
-
-  // Preferred: header — never logged in Vercel access logs, never in
-  // browser history, never leaked via Referer. The GitHub Actions cron
-  // workflow uses this path.
+  if (!triggerSecret) {
+    console.error("[trigger] TRIGGER_SECRET not set — all requests denied");
+    return false;
+  }
   const headerSecret = req.headers.get("x-trigger-secret");
-  if (headerSecret && headerSecret === triggerSecret) return true;
-
-  // Legacy: ?key=TRIGGER_SECRET. Kept for backward compat with any
-  // bookmarked manual-trigger URLs. Avoid for new integrations — the
-  // value lands in access logs and Referer headers.
-  const url = new URL(req.url);
-  const key = url.searchParams.get("key");
-  if (key && key === triggerSecret) return true;
-
-  return false;
+  return headerSecret === triggerSecret;
 }
 
 
