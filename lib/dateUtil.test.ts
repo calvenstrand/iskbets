@@ -59,15 +59,19 @@ describe("inWeeklyArchiveWindow (Friday 22:45–23:30 STO)", () => {
   });
 });
 
-describe("inRecapWindow (Fri 22:00 STO → Mon 09:00 STO)", () => {
+describe("inRecapWindow (Fri 22:30 STO → Mon 09:00 STO)", () => {
   it("covers the whole weekend", () => {
     expect(inRecapWindow(utc(2026, 6, 6, 12, 0))).toBe(true); // Sat
     expect(inRecapWindow(utc(2026, 6, 7, 3, 0))).toBe(true); // Sun
   });
 
-  it("opens at Friday's NY close (22:00 STO)", () => {
-    expect(inRecapWindow(utc(2026, 6, 5, 20, 0))).toBe(true); // Fri 22:00
-    expect(inRecapWindow(utc(2026, 6, 5, 19, 59))).toBe(false); // Fri 21:59
+  it("opens at Friday 22:30 STO", () => {
+    expect(inRecapWindow(utc(2026, 6, 5, 20, 30))).toBe(true); // Fri 22:30
+    expect(inRecapWindow(utc(2026, 6, 5, 20, 29))).toBe(false); // Fri 22:29
+  });
+
+  it("is false at 22:00 STO (before the new threshold)", () => {
+    expect(inRecapWindow(utc(2026, 6, 5, 20, 0))).toBe(false); // Fri 22:00
   });
 
   it("closes at Monday's Stockholm open (09:00 STO)", () => {
