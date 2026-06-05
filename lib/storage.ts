@@ -56,6 +56,8 @@ function getRedis(): Redis {
 
 function shouldUseMock(): { use: boolean; reason: string } {
   if (process.env.USE_MOCK_DATA === "true") {
+    if (process.env.NODE_ENV === "production")
+      throw new Error("USE_MOCK_DATA must not be set in production");
     return { use: true, reason: "USE_MOCK_DATA=true" };
   }
   // Zero-config dev: if Redis creds are missing and we're not in production,
