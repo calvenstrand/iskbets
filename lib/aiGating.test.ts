@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shouldRerunComments, shouldRerunMood } from "./aiGating";
+import { shouldRerunMood } from "./aiGating";
 import type { StockPrice } from "./types";
 
 // June 2026 is CEST (UTC+2). Annotated with Stockholm local equivalent.
@@ -29,57 +29,6 @@ function stock(ticker: string, pct: number): StockPrice {
 
 const BASELINE = [stock("NVDA", 1), stock("TSLA", -2)];
 const SAME_PRICES = [stock("NVDA", 1), stock("TSLA", -2)];
-
-// ============================================================
-// shouldRerunComments
-// ============================================================
-
-describe("shouldRerunComments", () => {
-  const now = utc(2026, 6, 3, 12, 0); // Wed 14:00 STO
-
-  it("reruns when there is no prior analysis", () => {
-    expect(shouldRerunComments(SAME_PRICES, undefined, undefined, now).rerun).toBe(true);
-    expect(shouldRerunComments(SAME_PRICES, BASELINE, undefined, now).rerun).toBe(true);
-  });
-
-  it("skips when within the 59-min floor", () => {
-    const analyzedAt = now - 30 * 60 * 1000; // 30 min ago
-    const d = shouldRerunComments(SAME_PRICES, BASELINE, analyzedAt, now);
-    expect(d.rerun).toBe(false);
-    expect(d.reason).toMatch(/floor/);
-  });
-
-  it("reruns when the 4-hour ceiling is exceeded", () => {
-    const analyzedAt = now - 5 * 60 * 60 * 1000; // 5 h ago
-    const d = shouldRerunComments(SAME_PRICES, BASELINE, analyzedAt, now);
-    expect(d.rerun).toBe(true);
-    expect(d.reason).toMatch(/ceiling/);
-  });
-
-  it("reruns when a ticker's change% moved more than 2pp since the baseline", () => {
-    const analyzedAt = now - 60 * 60 * 1000; // 60 min ago (past floor)
-    const movedPrices = [stock("NVDA", 3.5), stock("TSLA", -2)]; // NVDA +2.5pp
-    const d = shouldRerunComments(movedPrices, BASELINE, analyzedAt, now);
-    expect(d.rerun).toBe(true);
-    expect(d.reason).toMatch(/NVDA/);
-  });
-
-  it("skips when delta is below the 2pp threshold after the floor", () => {
-    const analyzedAt = now - 60 * 60 * 1000;
-    const slightMove = [stock("NVDA", 1.5), stock("TSLA", -2)]; // only 0.5pp
-    const d = shouldRerunComments(slightMove, BASELINE, analyzedAt, now);
-    expect(d.rerun).toBe(false);
-  });
-
-  it("reruns when a new ticker appears in the snapshot (floor does not block new tickers)", () => {
-    // The new-ticker check runs after the floor, so we need analyzedAt past the floor.
-    const analyzedAt = now - 60 * 60 * 1000; // 60 min ago — past the 59-min floor
-    const withNewTicker = [...SAME_PRICES, stock("GME", 10)];
-    const d = shouldRerunComments(withNewTicker, BASELINE, analyzedAt, now);
-    expect(d.rerun).toBe(true);
-    expect(d.reason).toMatch(/GME/);
-  });
-});
 
 // ============================================================
 // shouldRerunMood

@@ -79,18 +79,13 @@ export type WeeklyChampion = {
 };
 
 /** Snapshot shape exposed to the frontend / public /api/data. Drops the
- * trigger-route bookkeeping fields (`lastFetch`, `analyzedAt`,
- * `pricesAtLastAnalysis`) so they don't leak in the public payload —
- * `pricesAtLastAnalysis` in particular duplicates the entire stocks
- * array and reveals the AI gating logic. The frontend only consumes
- * `stocks`, `analysis`, and `updatedAt`. */
+ * trigger-route bookkeeping fields (`lastFetch`, mood-gating timestamps,
+ * mood-baseline prices) so they don't leak in the public payload — the
+ * baseline duplicates the entire stocks array and reveals gating logic.
+ * The frontend only consumes `stocks`, `analysis`, and `updatedAt`. */
 export type PublicStoredData = Omit<
   StoredData,
-  | "lastFetch"
-  | "analyzedAt"
-  | "pricesAtLastAnalysis"
-  | "moodGeneratedAt"
-  | "pricesAtLastMood"
+  "lastFetch" | "moodGeneratedAt" | "pricesAtLastMood"
 >;
 
 /** What the dashboard reads. Bundles the live snapshot, the optional
@@ -189,19 +184,6 @@ export type StoredData = {
   updatedAt: string;
   /** Epoch ms of when prices were last refreshed (every cron / trigger). */
   lastFetch: number;
-  /**
-   * Epoch ms of when the per-ticker Haiku COMMENTS were last regenerated.
-   * Distinct from lastFetch — the AI runs less often than the price
-   * refresh. Optional only because legacy snapshots may predate this.
-   */
-  analyzedAt?: number;
-  /**
-   * Snapshot of price data at the moment the comments call was last run.
-   * Used by shouldRerunComments to decide "did anything move enough to
-   * warrant a new comments pass?" Optional only because legacy snapshots
-   * may predate this.
-   */
-  pricesAtLastAnalysis?: StockPrice[];
   /**
    * Epoch ms of when the Sonnet MOOD line was last regenerated. The mood
    * is a separate AI call from the per-ticker comments and fires on its
