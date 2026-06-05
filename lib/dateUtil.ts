@@ -64,8 +64,8 @@ export function inPostCloseWindow(d: Date): boolean {
 export function inRecapWindow(d: Date): boolean {
   const { weekday, minutes } = partsInStockholm(d);
   if (weekday === "Sat" || weekday === "Sun") return true;
-  // Friday after NY close (22:00 STO) — whole portfolio done for the week.
-  if (weekday === "Fri" && minutes >= 22 * 60) return true;
+  // Friday after NY close (22:30 STO) — whole portfolio done for the week.
+  if (weekday === "Fri" && minutes >= 22 * 60 + 30) return true;
   // Monday before Stockholm opens (09:00 STO) — week hasn't started yet.
   if (weekday === "Mon" && minutes < 9 * 60) return true;
   return false;

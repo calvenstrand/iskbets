@@ -16,6 +16,7 @@ import type {
   WeeklyChampion,
 } from "@/lib/types";
 import { useGridSort } from "@/hooks/useGridSort";
+import { stockholmMondayOfWeek } from "@/lib/dateUtil";
 import { useNow } from "@/hooks/useNow";
 import { usePollDashboard } from "@/hooks/usePollDashboard";
 import { CelebrationCard } from "./CelebrationCard";
@@ -282,7 +283,7 @@ export function Dashboard({
           (50/50 on desktop, stacked on narrow). When only one is
           available (e.g. weeklyChampion missing the first week after
           deploy), it renders standalone with its native layout. */}
-      {inRecap && weeklyChampion ? (
+      {inRecap && weeklyChampion && weeklyChampion.weekStart === stockholmMondayOfWeek(now) ? (
         <div className="recap-row">
           <WeeklyChampionCard champion={weeklyChampion} />
           <Leaderboard
