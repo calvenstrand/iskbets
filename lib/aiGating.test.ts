@@ -89,6 +89,28 @@ describe("shouldRerunMood", () => {
     expect(d.reason).toMatch(/09:30/);
   });
 
+  it("holds the first mood of a new STO day until 09:30 even on a big overnight gap", () => {
+    // The reported bug: Monday 09:03 STO with a >4pp SE gap vs Friday's
+    // close was firing the first mood at ~09:03 (cross-day branch fell
+    // through to the delta backstop). The 09:30 settle buffer should
+    // suppress the backstop until SE has settled.
+    const fridayClose = utc(2026, 6, 5, 20, 3); // Fri 22:03 STO
+    const monOpen = utc(2026, 6, 8, 7, 3); // Mon 09:03 STO — new day, before 09:30
+    const sePrices = [stock("VOLV-B.ST", 6.2), stock("NVDA", 1.0)]; // VOLV +5.2pp gap
+    const baseline = [stock("VOLV-B.ST", 1.0), stock("NVDA", 1.0)];
+    const d = shouldRerunMood(sePrices, baseline, fridayClose, monOpen);
+    expect(d.rerun).toBe(false);
+    expect(d.reason).toMatch(/before 09:30 STO on a new day/);
+  });
+
+  it("does fire at the next tick after 09:30 on the new STO day (with or without a gap)", () => {
+    const fridayClose = utc(2026, 6, 5, 20, 3); // Fri 22:03 STO
+    const monAfter930 = utc(2026, 6, 8, 7, 33); // Mon 09:33 STO — past 09:30
+    const d = shouldRerunMood(SAME_PRICES, BASELINE, fridayClose, monAfter930);
+    expect(d.rerun).toBe(true);
+    expect(d.reason).toMatch(/09:30/);
+  });
+
   it("uses the delta backstop when no checkpoint was crossed", () => {
     // Mood generated at 12:30 STO (after 12:00 cp), now 14:30 STO (before 16:00 cp).
     // Elapsed 120 min > 89 min floor. No checkpoint between 12:30 and 14:30.

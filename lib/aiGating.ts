@@ -136,17 +136,29 @@ export function shouldRerunMood(
     if (nowMin >= MOOD_CHECKPOINTS_STO_MIN[0]) {
       return { rerun: true, reason: "first 09:30 STO checkpoint of a new day" };
     }
-  } else {
-    for (const cp of MOOD_CHECKPOINTS_STO_MIN) {
-      if (lastMin < cp && nowMin >= cp) {
-        const hh = Math.floor(cp / 60).toString().padStart(2, "0");
-        const mm = (cp % 60).toString().padStart(2, "0");
-        return { rerun: true, reason: `crossed ${hh}:${mm} STO checkpoint` };
-      }
+    // Before 09:30 on a new STO day: hold off entirely, even if the delta
+    // backstop would fire. The opening-auction print (~09:00 STO + a
+    // couple of minutes) can show a big gap vs Friday's close that
+    // settles within the first 30 min — exactly what the 09:30 settle
+    // buffer was designed to filter out. Without this guard, a >4pp
+    // weekend gap on any SE ticker would short-circuit the buffer and
+    // fire the first mood at ~09:03 on a thin opening print.
+    return {
+      rerun: false,
+      reason: "before 09:30 STO on a new day — waiting for SE to settle",
+    };
+  }
+  for (const cp of MOOD_CHECKPOINTS_STO_MIN) {
+    if (lastMin < cp && nowMin >= cp) {
+      const hh = Math.floor(cp / 60).toString().padStart(2, "0");
+      const mm = (cp % 60).toString().padStart(2, "0");
+      return { rerun: true, reason: `crossed ${hh}:${mm} STO checkpoint` };
     }
   }
 
   // Delta backstop: a big intraday move overrides the checkpoint cadence.
+  // Same-day only — the cross-day path returned above with its own settle
+  // guard.
   const baselineByTicker = new Map(baseline.map((p) => [p.ticker, p]));
   let maxDelta = 0;
   let maxTicker = "";
