@@ -81,6 +81,18 @@ describe("shouldRerunMood", () => {
     expect(d.reason).toMatch(/12:00/);
   });
 
+  it("skips before 09:30 STO on a new day even when the delta backstop would fire", () => {
+    // Regression: the 09:03 cron tick (first SE prints after open) used
+    // to fall through to the >4pp delta backstop and fire the mood off
+    // noisy opening-auction data vs yesterday's baseline.
+    const yesterday = utc(2026, 6, 2, 20, 0); // Tue 22:00 STO
+    const now = utc(2026, 6, 3, 7, 3); // Wed 09:03 STO — new day, before 09:30
+    const bigMove = [stock("NVDA", 6), stock("TSLA", -2)]; // NVDA +5pp vs baseline
+    const d = shouldRerunMood(bigMove, BASELINE, yesterday, now);
+    expect(d.rerun).toBe(false);
+    expect(d.reason).toMatch(/09:30/);
+  });
+
   it("reruns on first tick of a new STO day past the 09:30 checkpoint", () => {
     const yesterday = utc(2026, 6, 2, 20, 0); // Tue 22:00 STO
     const now = utc(2026, 6, 3, 8, 0); // Wed 10:00 STO — new day, past 09:30
