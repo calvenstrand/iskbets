@@ -76,13 +76,16 @@ function stockholmIsWeekday(d: Date): boolean {
  *  2. Skip outright on weekends — the dashboard hides the mood banner
  *     during the recap window (Fri 22:00 → Mon 09:00 STO), so a fresh
  *     mood would never render. Mood from Friday persists.
- *  3. < 90min since last mood (floor — prevents rapid-fire refreshes
+ *  3. Skip outright before 09:30 STO — the SE opening auction is still
+ *     settling and Avanza prints are noisy, so neither the checkpoints
+ *     nor the delta backstop may fire on pre-09:30 data.
+ *  4. < 90min since last mood (floor — prevents rapid-fire refreshes
  *     even on a volatile day).
- *  4. Crossed a daily Stockholm checkpoint (09:30 / 12:00 / 16:00 /
+ *  5. Crossed a daily Stockholm checkpoint (09:30 / 12:00 / 16:00 /
  *     22:00) we haven't already covered — these are the moments the
  *     mood framing genuinely shifts (SE settled / lunch check-in / NY
  *     settled / NY close).
- *  5. Backstop: > 4pp single-ticker delta since the mood baseline
+ *  6. Backstop: > 4pp single-ticker delta since the mood baseline
  *     captured the portfolio.
  */
 export function shouldRerunMood(
@@ -120,6 +123,19 @@ export function shouldRerunMood(
     return { rerun: false, reason: "weekend — mood banner hidden, no refresh" };
   }
 
+  // Before the first daily checkpoint (09:30 STO) nothing fires — not
+  // even the delta backstop. The SE opening auction is still settling
+  // and Avanza prints are noisy until ~09:20; without this gate the
+  // 09:03 cron tick fired the >4pp backstop off opening-auction garbage
+  // vs yesterday's baseline.
+  const nowMin = stockholmMinutesOfDay(nowD);
+  if (nowMin < MOOD_CHECKPOINTS_STO_MIN[0]) {
+    return {
+      rerun: false,
+      reason: "before 09:30 STO — wait for SE open to settle",
+    };
+  }
+
   const elapsed = now - moodGeneratedAt;
   if (elapsed < MOOD_FLOOR_MS) {
     const min = Math.round(elapsed / 60_000);
@@ -128,14 +144,12 @@ export function shouldRerunMood(
 
   // Crossed a daily checkpoint?
   const lastD = new Date(moodGeneratedAt);
-  const nowMin = stockholmMinutesOfDay(nowD);
   const lastMin = stockholmMinutesOfDay(lastD);
   const sameDay = stockholmDateKey(nowD) === stockholmDateKey(lastD);
   if (!sameDay) {
-    // New STO day — fire if past the first checkpoint, regardless of delta.
-    if (nowMin >= MOOD_CHECKPOINTS_STO_MIN[0]) {
-      return { rerun: true, reason: "first 09:30 STO checkpoint of a new day" };
-    }
+    // New STO day — already past the 09:30 gate above, so this is the
+    // first mood of the day. Fire regardless of delta.
+    return { rerun: true, reason: "first 09:30 STO checkpoint of a new day" };
   } else {
     for (const cp of MOOD_CHECKPOINTS_STO_MIN) {
       if (lastMin < cp && nowMin >= cp) {
