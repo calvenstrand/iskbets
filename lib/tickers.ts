@@ -6,8 +6,6 @@ export const PEOPLE = {
   eric: "Eric",
   johan: "Johan",
   oskar: "Oskar",
-  william: "William",
-  jesper: "Jesper",
 } as const;
 
 export type Person = keyof typeof PEOPLE;
@@ -180,27 +178,6 @@ export const TICKERS: Ticker[] = [
     avanzaId: 1292424,
     owners: ["chris", "oskar"],
   },
-  {
-    symbol: "LUC.ST",
-    name: "Lucara Diamond Corp",
-    market: "SE",
-    avanzaId: 325050,
-    owners: ["william"],
-  },
-  {
-    symbol: "KLAR.ST",
-    name: "Klaria Pharma Holding",
-    market: "SE",
-    avanzaId: 603362,
-    owners: ["william"],
-  },
-  {
-    symbol: "CIBUS.ST",
-    name: "Cibus Real Estate",
-    market: "SE",
-    avanzaId: 831975,
-    owners: ["william"],
-  },
   // WSB darlings — fetched via Finnhub
   {
     symbol: "NVDA",
@@ -285,12 +262,6 @@ export const TICKERS: Ticker[] = [
     name: "IonQ",
     market: "US",
     owners: ["chris", "johan"],
-  },
-  {
-    symbol: "SMCI",
-    name: "Super Micro Computer",
-    market: "US",
-    owners: ["jesper"],
   },
   {
     symbol: "RDDT",
