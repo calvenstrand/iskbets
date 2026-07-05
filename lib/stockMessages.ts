@@ -189,25 +189,6 @@ const MESSAGES: Record<string, MessageTable> = {
     down: "{owner}Flat Capital slipping, NAV discount widening",
     rekt: "{owner}Flat Capital rekt — Klarna delay still stinging",
   },
-  "LUC.ST": {
-    moon: "{owner}Lucara mooning, another 1000+ carat stone surfaced",
-    up: "{owner}Lucara grinding green, diamond prices firming",
-    down: "{owner}Lucara slipping, underground capex overhang biting",
-    rekt: "{owner}Lucara rekt — Karowe drilling deeper, share price too",
-  },
-  "KLAR.ST": {
-    moon: "{owner}Klaria mooning, oral-film trial smashing expectations",
-    up: "{owner}Klaria grinding green, sublingual delivery finding fans",
-    down: "{owner}Klaria slipping, biotech vibes cooling",
-    rekt: "{owner}Klaria rekt — penny pharma dilution doing its thing",
-  },
-  "CIBUS.ST": {
-    moon: "{owner}Cibus mooning, grocery REIT finds a bid",
-    up: "{owner}Cibus grinding green, daily-goods dividend tendies",
-    down: "{owner}Cibus slipping, rate jitters hurting REITs",
-    rekt: "{owner}Cibus rekt — rate-sensitive REIT speedrunning red",
-  },
-
   // ============== US (Finnhub) ==============
 
   "NVDA": {
@@ -299,12 +280,6 @@ const MESSAGES: Record<string, MessageTable> = {
     up: "{owner}IonQ grinding green, Microsoft halo helping",
     down: "{owner}IonQ slipping, quantum vibe cooling",
     rekt: "{owner}IonQ rekt — multi-bag-or-zero leaning zero today",
-  },
-  "SMCI": {
-    moon: "{owner}Super Micro mooning, liquid-cooled GPUs printing",
-    up: "{owner}Super Micro grinding green, AI server cycle alive",
-    down: "{owner}Super Micro slipping, governance ghosts whispering",
-    rekt: "{owner}Super Micro rekt — accounting trauma flashbacks return",
   },
   "RDDT": {
     moon: "{owner}Reddit mooning — the WSB home printing tendies",
