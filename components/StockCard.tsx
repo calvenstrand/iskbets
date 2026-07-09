@@ -5,7 +5,8 @@ import {
   deriveWeekBadge,
   moodVar,
 } from "@/lib/derive";
-import { displayTicker } from "@/lib/tickers";
+import { displayTicker, primaryOwnerName } from "@/lib/tickers";
+import { deriveTickerTier, tickerLine } from "@/lib/tickerLines";
 import type { Sentiment, StockAnalysis, StockPrice } from "@/lib/types";
 
 type Featured = "winner" | "loser";
@@ -39,6 +40,9 @@ type StockCardProps = {
    * — gray border, neutral bg, reduced opacity — so live cards stand
    * out against the stale ones. */
   marketStale?: boolean;
+  /** Stockholm calendar day (YYYY-MM-DD). Seeds the per-ticker fallback
+   * line so it's stable per stock per day (SSR-safe, no hydration drift). */
+  date: string;
 };
 
 function formatPrice(value: number, currency: string): string {
@@ -88,17 +92,6 @@ function fromGlory(price: number, high: number): string | null {
   return `${pct.toFixed(1)}% FROM GLORY`;
 }
 
-// Rule-based filler for the take slot when the analyzer left no comment.
-// Keeps every card the same skeleton height (a quiet card is a variant,
-// not an absence) and stays in the WSB voice, tinted toward the mood.
-const EMPTY_TAKE: Record<Sentiment, string> = {
-  moon: "no take — she's ripping, just vibes",
-  up: "no take — quietly in the green",
-  neutral: "no take — flat, holding the line",
-  down: "no take — bleeding a little, no panic",
-  rekt: "no take — getting rekt in silence",
-};
-
 export function StockCard({
   stock,
   analysis,
@@ -109,6 +102,7 @@ export function StockCard({
   weekChangePct,
   flashing,
   marketStale,
+  date,
 }: StockCardProps) {
   // Week-framing mode: regular grid cards during the recap window. The
   // headline change row + sentiment glow follow the week change instead
@@ -177,6 +171,17 @@ export function StockCard({
   const hasPrice = Number.isFinite(stock.regularMarketPrice);
   const glory = fromGlory(stock.regularMarketPrice, stock.fiftyTwoWeekHigh);
 
+  // Fallback take line for when there's no AI comment — a per-ticker
+  // one-liner keyed to this stock's own tier (stale → notTraded), stable
+  // per stock per day, with the owner tag filled in when there is one.
+  const lineTier = deriveTickerTier(displayPct, !marketStale);
+  const fallbackLine = tickerLine(
+    stock.ticker,
+    date,
+    lineTier,
+    primaryOwnerName(stock.ticker),
+  );
+
   const scopeLabel = featuredScope === "week" ? "WEEK" : "TODAY";
   const hasWeekChange =
     featured && Number.isFinite(featuredWeekChangePct ?? NaN);
@@ -241,9 +246,7 @@ export function StockCard({
         {analysis?.comment ? (
           <p className="comment">&ldquo;{analysis.comment}&rdquo;</p>
         ) : (
-          <p className="comment comment-empty">
-            {`// ${EMPTY_TAKE[liveSentiment]}`}
-          </p>
+          <p className="comment comment-empty">{`// ${fallbackLine}`}</p>
         )}
         {glory && <p className="meta">{glory}</p>}
       </div>

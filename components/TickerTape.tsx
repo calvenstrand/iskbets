@@ -3,6 +3,11 @@
 import { useState } from "react";
 import { pickSlogans, type Scenario } from "@/lib/slogans";
 import { displayTicker } from "@/lib/tickers";
+import {
+  deriveTickerTier,
+  tapeCarriesLine,
+  tickerLine,
+} from "@/lib/tickerLines";
 import type { StockPrice } from "@/lib/types";
 
 // How many slogans to sprinkle across one loop of the tape — kept close
@@ -17,20 +22,33 @@ function formatPct(pct: number): string {
 
 type TapeItem =
   | { kind: "slogan"; text: string }
-  | { kind: "ticker"; ticker: string; pct: number };
+  // `line` is the ticker's own one-liner, carried by only some entries
+  // (extremes always, others ~1 in TAPE_CARRY_EVERY). Owner tag omitted
+  // here — it's a card-only flourish.
+  | { kind: "ticker"; ticker: string; pct: number; line?: string };
 
 function buildTape(
   stocks: StockPrice[],
   scenario: Scenario,
-  seed: number,
+  date: string,
 ): TapeItem[] {
-  const tickers: TapeItem[] = stocks.map((s) => ({
-    kind: "ticker" as const,
-    ticker: displayTicker(s.ticker),
-    pct: s.regularMarketChangePercent,
-  }));
+  const tickers: TapeItem[] = stocks.map((s) => {
+    // Tape uses the traded tier (frozen-market lines are a card-only
+    // affordance, where marketStale is known). Deterministic per
+    // (symbol, date) — SSR-safe.
+    const tier = deriveTickerTier(s.regularMarketChangePercent, true);
+    const carry = tapeCarriesLine(s.ticker, date, tier);
+    return {
+      kind: "ticker" as const,
+      ticker: displayTicker(s.ticker),
+      pct: s.regularMarketChangePercent,
+      ...(carry ? { line: tickerLine(s.ticker, date, tier) } : {}),
+    };
+  });
+
+  const sloganSeed = Number(date.replaceAll("-", "")) || 1;
   if (tickers.length === 0) {
-    return pickSlogans(scenario, seed, SLOGANS_PER_LOOP).map((text) => ({
+    return pickSlogans(scenario, sloganSeed, SLOGANS_PER_LOOP).map((text) => ({
       kind: "slogan" as const,
       text,
     }));
@@ -39,7 +57,7 @@ function buildTape(
   // Seeded, scenario-biased slogans (SSR-safe — no random), spread evenly
   // across the ticker run so they don't cluster at the front of the loop.
   const count = Math.min(SLOGANS_PER_LOOP, tickers.length);
-  const slogans = pickSlogans(scenario, seed, count);
+  const slogans = pickSlogans(scenario, sloganSeed, count);
   const out: TapeItem[] = [];
   let si = 0;
   for (let i = 0; i < tickers.length; i++) {
@@ -66,6 +84,7 @@ function renderItem(item: TapeItem, key: string) {
       <span className="tape-diamond">◆</span>
       <span>{item.ticker}</span>
       <span className={cls}>{formatPct(item.pct)}</span>
+      {item.line && <span className="tape-line">— {item.line}</span>}
     </span>
   );
 }
@@ -73,16 +92,17 @@ function renderItem(item: TapeItem, key: string) {
 export function TickerTape({
   stocks,
   scenario,
-  seed,
+  date,
 }: {
   stocks: StockPrice[];
   /** Active tape scenario (resolveScenario, computed in Dashboard). */
   scenario: Scenario;
-  /** Stable per-day seed so the slogan mix is SSR-safe and refreshes daily. */
-  seed: number;
+  /** Stockholm calendar day (YYYY-MM-DD). Seeds the slogan mix and the
+   * per-ticker lines — SSR-safe, stable per day. */
+  date: string;
 }) {
   const [paused, setPaused] = useState(false);
-  const items = buildTape(stocks, scenario, seed);
+  const items = buildTape(stocks, scenario, date);
 
   return (
     <div

@@ -262,7 +262,9 @@ export function Dashboard({
     inRecap,
     marketClosed,
   });
-  const tapeSeed = Number(stockholmDate(now).replaceAll("-", ""));
+  // Stockholm calendar day — seeds the tape slogan mix and every card /
+  // tape per-ticker line, so all copy is SSR-safe and stable per day.
+  const today = stockholmDate(now);
 
   const featuredTickers = new Set<string>();
   if (winner) featuredTickers.add(winner.ticker);
@@ -306,7 +308,7 @@ export function Dashboard({
       <TickerTape
         stocks={snapshot.stocks}
         scenario={tapeScenario}
-        seed={tapeSeed}
+        date={today}
       />
       <Header />
 
@@ -385,6 +387,7 @@ export function Dashboard({
                     : {})}
                   index={0}
                   flashing={flashedTickers.has(winner.ticker)}
+                  date={today}
                 />
               )
             )}
@@ -409,6 +412,7 @@ export function Dashboard({
                     : {})}
                   index={1}
                   flashing={flashedTickers.has(loser.ticker)}
+                  date={today}
                 />
               )
             )}
@@ -455,6 +459,7 @@ export function Dashboard({
                 index={i + 2}
                 flashing={flashedTickers.has(stock.ticker)}
                 marketStale={stale}
+                date={today}
                 {...(wk !== undefined ? { weekChangePct: wk } : {})}
               />
             );
