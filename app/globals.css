@@ -3,12 +3,9 @@
 :root {
   --bg: #080b0a;
   --bg-elev: #0d1110;
-  --border: #1a2620;
   --border-bright: #2a3a32;
   --green: #00e676;
   --green-dim: #00b32d;
-  --green-deep: #033a14;
-  --green-glow: rgba(0, 230, 118, 0.12);
 
   /* Drawer footer height. Adjust to match content, then main's
      margin-bottom (set off this same var) keeps the reveal in sync. */
@@ -17,10 +14,30 @@
   --gold-dim: #b08e1f;
   --red: #ff2244;
   --red-dim: #b3161e;
-  --red-deep: #3a0612;
   --text: #d8e6dc;
   --text-dim: #6b7d72;
   --text-faint: #3a4a40;
+
+  /* surface ramp — one green-cooled neutral, elevation = one step lighter */
+  --surface-0: #080b0a;
+  --surface-1: #0d1110;
+  --surface-2: #181d1b;
+  --border: #252e2a;
+  --border-strong: #37433d;
+  /* text ramp — all AA on surface-1 */
+  --text-0: #d7e6dd;
+  --text-1: #a9b8b0;
+  --text-2: #7c8a83;
+  --text-3: #43514a;
+  /* diverging MOOD family — color encodes direction AND magnitude */
+  --mood-moon: oklch(0.86 0.19 158); /* #33f5a0  > +5%  */
+  --mood-up: oklch(0.74 0.13 160); /* #53c48e +.5–5%  (maps deriveSentiment "up") */
+  --mood-neutral: oklch(0.82 0.13 92); /* #e2c157  ±.5%   */
+  --mood-down: oklch(0.72 0.15 55); /* #eb883b -.5–5%  (orange caution, "down") */
+  --mood-rekt: oklch(0.63 0.2 28); /* #e9483d  bigger down */
+  --mood-liquidated: oklch(0.5 0.19 22); /* #b7162d  < -5%  */
+  /* glow is a token, not a per-card literal */
+  --glow-mood: 0 0 24px color-mix(in oklch, var(--mood) 30%, transparent);
 
   --font-display: var(--font-bebas-neue), "Bebas Neue", sans-serif;
   --font-mono: var(--font-share-tech-mono), "Share Tech Mono", "Courier New",
@@ -123,22 +140,22 @@ a {
 
 @keyframes ai-update-pulse {
   0% {
-    outline-color: rgba(0, 255, 65, 0.95);
+    outline-color: color-mix(in oklch, var(--green) 95%, transparent);
     box-shadow:
-      0 0 38px 4px rgba(0, 255, 65, 0.55),
-      0 0 80px 12px rgba(0, 255, 65, 0.18);
+      0 0 38px 4px color-mix(in oklch, var(--green) 55%, transparent),
+      0 0 80px 12px color-mix(in oklch, var(--green) 18%, transparent);
   }
   60% {
-    outline-color: rgba(0, 255, 65, 0.4);
+    outline-color: color-mix(in oklch, var(--green) 40%, transparent);
     box-shadow:
-      0 0 12px 0 rgba(0, 255, 65, 0.18),
-      0 0 0 0 rgba(0, 255, 65, 0);
+      0 0 12px 0 color-mix(in oklch, var(--green) 18%, transparent),
+      0 0 0 0 transparent;
   }
   100% {
-    outline-color: rgba(0, 255, 65, 0);
+    outline-color: transparent;
     box-shadow:
-      0 0 0 0 rgba(0, 255, 65, 0),
-      0 0 0 0 rgba(0, 255, 65, 0);
+      0 0 0 0 transparent,
+      0 0 0 0 transparent;
   }
 }
 
@@ -151,7 +168,7 @@ a {
 @media (prefers-reduced-motion: reduce) {
   .ai-update {
     animation: none;
-    outline: 2px solid rgba(0, 255, 65, 0.6);
+    outline: 2px solid color-mix(in oklch, var(--green) 60%, transparent);
   }
 }
 
@@ -190,34 +207,6 @@ a {
   }
   52% {
     opacity: 1;
-  }
-}
-
-@keyframes pulse-green {
-  0%,
-  100% {
-    box-shadow:
-      0 0 28px rgba(0, 255, 65, 0.45),
-      0 0 60px rgba(0, 255, 65, 0.18);
-  }
-  50% {
-    box-shadow:
-      0 0 42px rgba(0, 255, 65, 0.65),
-      0 0 90px rgba(0, 255, 65, 0.28);
-  }
-}
-
-@keyframes pulse-red {
-  0%,
-  100% {
-    box-shadow:
-      0 0 28px rgba(255, 34, 68, 0.4),
-      0 0 60px rgba(255, 34, 68, 0.16);
-  }
-  50% {
-    box-shadow:
-      0 0 42px rgba(255, 34, 68, 0.6),
-      0 0 90px rgba(255, 34, 68, 0.26);
   }
 }
 
@@ -264,6 +253,9 @@ a {
 .tape-track {
   display: inline-flex;
   gap: 1.75rem;
+  /* Recede to ambient — the tape is atmosphere, not the headline. Lower
+     contrast so the brief + featured pair below it lead the eye. */
+  opacity: 0.72;
   /* Intentionally runs regardless of prefers-reduced-motion — the tape is
      core to the app's identity, and tap-to-pause (.tape onClick) is the
      escape hatch for anyone who wants it stopped. Don't re-add a
@@ -282,10 +274,12 @@ a {
   gap: 0.6rem;
 }
 
-/* Ticker+price segments stay at full green so live data pops. */
+/* Ticker segments recede with the rest of the tape — no glow, so the
+   tape stays ambient and the featured pair below carries the live-data
+   drama. */
 .tape-ticker {
   color: var(--green);
-  text-shadow: 0 0 6px rgba(0, 230, 118, 0.35);
+  text-shadow: none;
 }
 
 /* Slogans drop to --green-dim so the marquee has visual rhythm —
@@ -297,7 +291,7 @@ a {
 
 .tape-diamond {
   color: var(--gold);
-  text-shadow: 0 0 6px rgba(245, 200, 66, 0.4);
+  text-shadow: 0 0 6px color-mix(in oklch, var(--gold) 40%, transparent);
 }
 
 .tape-up {
@@ -335,7 +329,7 @@ a {
   font-family: var(--font-mono);
   font-size: 0.85rem;
   letter-spacing: 0.12em;
-  text-shadow: 0 0 6px rgba(0, 255, 65, 0.4);
+  text-shadow: 0 0 6px color-mix(in oklch, var(--green) 40%, transparent);
 }
 
 .ptr-spin {
@@ -346,6 +340,12 @@ a {
 @keyframes ptr-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ptr-spin {
+    animation: none;
   }
 }
 
@@ -366,17 +366,26 @@ a {
   font-family: var(--font-display);
   font-size: clamp(3.8rem, 14vw, 9rem);
   line-height: 0.9;
-  color: var(--text);
+  /* Recede to ambient — dimmer than the brief below it and with a
+     fainter glow, so the wordmark reads as the chrome/brand frame
+     rather than competing with the day's read for the eye. */
+  color: var(--text-1);
   letter-spacing: 0.04em;
-  text-shadow: 0 0 18px rgba(0, 255, 65, 0.18);
+  text-shadow: 0 0 14px color-mix(in oklch, var(--green) 8%, transparent);
   animation: flicker 4s infinite;
   margin: 0;
   white-space: nowrap;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .masthead-brand {
+    animation: none;
+  }
+}
+
 .masthead-brand .dollar {
   color: var(--gold);
-  text-shadow: 0 0 14px rgba(245, 200, 66, 0.5);
+  text-shadow: 0 0 14px color-mix(in oklch, var(--gold) 50%, transparent);
 }
 
 .masthead-rule {
@@ -392,7 +401,7 @@ a {
     var(--gold-dim) 88%,
     transparent 100%
   );
-  box-shadow: 0 0 6px rgba(245, 200, 66, 0.25);
+  box-shadow: 0 0 6px color-mix(in oklch, var(--gold) 25%, transparent);
 }
 
 .masthead-dateline {
@@ -415,7 +424,7 @@ a {
 
 .masthead-dateline .motto {
   color: var(--gold);
-  text-shadow: 0 0 6px rgba(245, 200, 66, 0.25);
+  text-shadow: 0 0 6px color-mix(in oklch, var(--gold) 25%, transparent);
 }
 
 .masthead-dateline-placeholder {
@@ -454,7 +463,7 @@ html.booting body > *:not(.boot-overlay) {
   padding: 2rem 1.2rem;
   font-family: var(--font-mono);
   color: var(--green);
-  text-shadow: 0 0 6px rgba(0, 255, 65, 0.45);
+  text-shadow: 0 0 6px color-mix(in oklch, var(--green) 45%, transparent);
   animation: boot-flicker 1.4s linear;
   cursor: pointer;
 }
@@ -501,7 +510,7 @@ html.booting .boot-overlay,
 
 .boot-ok {
   color: var(--gold);
-  text-shadow: 0 0 6px rgba(245, 200, 66, 0.4);
+  text-shadow: 0 0 6px color-mix(in oklch, var(--gold) 40%, transparent);
 }
 
 .boot-cursor {
@@ -638,7 +647,7 @@ html.booting .boot-overlay,
 
 .market-pip.pre {
   background: var(--gold);
-  box-shadow: 0 0 8px rgba(245, 200, 66, 0.6);
+  box-shadow: 0 0 8px color-mix(in oklch, var(--gold) 60%, transparent);
 }
 
 .market-status-open {
@@ -651,45 +660,165 @@ html.booting .boot-overlay,
   color: var(--gold);
 }
 
-/* ============= Mood banner ============= */
+/* ============= Daily brief (hero line under the masthead) =============
+   The one human-readable AI sentence, promoted out of the old glowing
+   mood banner to lead the above-the-fold descent. Restrained chrome: a
+   small directional tag + the sentence, no full-bleed glow — so it reads
+   as the calm lead, with the featured pair below it carrying the color. */
 
-.mood-banner {
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
+.brief {
   text-align: center;
-  font-family: var(--font-display);
-  font-size: clamp(1.4rem, 2.6vw, 2.2rem);
-  letter-spacing: 0.05em;
-  line-height: 1.15;
-  color: var(--text);
-  padding: 1.5rem 1rem;
+  padding: 0.2rem 1.2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
   position: relative;
 }
 
-.mood-bull {
-  background: linear-gradient(
-    180deg,
-    rgba(0, 255, 65, 0.08) 0%,
-    var(--green-deep) 100%
-  );
-  border-color: rgba(0, 255, 65, 0.25);
-  text-shadow: 0 0 10px rgba(0, 255, 65, 0.4);
+.brief-tag {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--text-2);
 }
 
-.mood-bear {
-  background: linear-gradient(
-    180deg,
-    rgba(255, 34, 68, 0.06) 0%,
-    var(--red-deep) 100%
-  );
-  border-color: rgba(255, 34, 68, 0.25);
-  text-shadow: 0 0 10px rgba(255, 34, 68, 0.35);
+.brief-line {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 2.8vw, 2.4rem);
+  letter-spacing: 0.04em;
+  line-height: 1.18;
+  color: var(--text-0);
+  max-width: 44ch;
 }
 
-.mood-flat {
-  background: linear-gradient(180deg, #0a0e0c 0%, #060807 100%);
+/* Direction lives in the tag, not a glow — bull green, bear red, flat
+   gold — so the sentence itself stays maximally readable. */
+.brief-bull .brief-tag {
+  color: var(--green);
+}
+
+.brief-bear .brief-tag {
+  color: var(--red);
+}
+
+.brief-flat .brief-tag {
   color: var(--gold);
-  text-shadow: 0 0 8px rgba(245, 200, 66, 0.3);
+}
+
+/* Gallows-humor line, only present during a market-wide sweep. Sits
+   under the AI read in the mono voice; color leans to the event but
+   stays bright enough to read (rekt red / moon green, not the deep
+   liquidated tones). */
+.brief-sweep {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+  line-height: 1.4;
+}
+
+.brief-sweep-bloodbath {
+  color: var(--mood-rekt);
+}
+
+.brief-sweep-clean-sweep {
+  color: var(--mood-moon);
+}
+
+/* ============= Daymood page skin (bloodbath / clean-sweep) =============
+   Lifted from detectSweep: when EVERY eligible stock is one direction
+   the whole terminal reskins into an event, not just a grid of same-
+   colored cards. Keyed off <main data-daymood> set in Dashboard.tsx —
+   same eligibility as the featured cards, so skin and cards agree.
+
+   Two levers:
+   1. Re-point the "wrong-direction" --mood-* tokens so any stray card
+      (a stale ticker frozen the other way) desaturates into the event
+      instead of fighting it. The already-correct side is left untouched.
+   2. A fixed, pointer-events:none wash over the surface. It lives inside
+      main's stacking context (main is z-index:1), so it sits BELOW the
+      body-level scanline (z-9999) and vignette (z-9998) overlays. */
+
+main[data-daymood="bloodbath"] {
+  /* Pull the greens toward the red end; the reds stay as-is. */
+  --mood-moon: var(--mood-rekt);
+  --mood-up: var(--mood-down);
+  --mood-neutral: var(--mood-down);
+  /* Warm the chrome slightly (literal base values — a custom property
+     can't reference itself). */
+  --border: color-mix(in oklch, #252e2a 82%, var(--mood-liquidated));
+  --border-strong: color-mix(in oklch, #37433d 78%, var(--mood-liquidated));
+}
+
+main[data-daymood="clean-sweep"] {
+  /* Mirror: pull the reds toward the green end; the greens stay as-is. */
+  --mood-liquidated: var(--mood-up);
+  --mood-rekt: var(--mood-up);
+  --mood-down: var(--mood-up);
+  --mood-neutral: var(--mood-up);
+  --border: color-mix(in oklch, #252e2a 82%, var(--mood-moon));
+  --border-strong: color-mix(in oklch, #37433d 78%, var(--mood-moon));
+}
+
+main[data-daymood]::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  /* Below the scanline (9999) + vignette (9998) body overlays; above the
+     dashboard content inside main. */
+  z-index: 9990;
+  /* A slow breath, not a throb — event texture, disabled for
+     reduced-motion below. */
+  animation: daymood-wash 7s ease-in-out infinite;
+}
+
+main[data-daymood="bloodbath"]::before {
+  background:
+    radial-gradient(
+      ellipse at 50% 0%,
+      color-mix(in oklch, var(--mood-liquidated) 20%, transparent) 0%,
+      transparent 62%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in oklch, var(--mood-liquidated) 8%, transparent) 0%,
+      color-mix(in oklch, var(--mood-liquidated) 15%, transparent) 100%
+    );
+}
+
+main[data-daymood="clean-sweep"]::before {
+  background:
+    radial-gradient(
+      ellipse at 50% 0%,
+      color-mix(in oklch, var(--mood-moon) 16%, transparent) 0%,
+      transparent 62%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in oklch, var(--mood-moon) 6%, transparent) 0%,
+      color-mix(in oklch, var(--mood-moon) 12%, transparent) 100%
+    );
+}
+
+@keyframes daymood-wash {
+  0%,
+  100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  main[data-daymood]::before {
+    animation: none;
+    opacity: 1;
+  }
 }
 
 /* ============= Recap row (Champion + Standings side-by-side) ============= */
@@ -728,11 +857,11 @@ html.booting .boot-overlay,
    visual hierarchy — this is the supporting column. */
 .recap-row > .leaderboard {
   padding: 1.4rem 1.5rem 1.5rem;
-  border: 1px solid rgba(245, 200, 66, 0.22);
+  border: 1px solid color-mix(in oklch, var(--gold) 22%, transparent);
   background: linear-gradient(
     135deg,
-    rgba(245, 200, 66, 0.05) 0%,
-    rgba(245, 200, 66, 0.015) 50%,
+    color-mix(in oklch, var(--gold) 5%, transparent) 0%,
+    color-mix(in oklch, var(--gold) 1.5%, transparent) 50%,
     var(--bg-elev) 100%
   );
 }
@@ -771,16 +900,16 @@ html.booting .boot-overlay,
   margin: 1.75rem auto 0;
   width: min(1000px, calc(100% - 2 * clamp(1rem, 4vw, 3rem)));
   padding: 1.4rem 1.5rem 1.5rem;
-  border: 1px solid rgba(245, 200, 66, 0.55);
+  border: 1px solid color-mix(in oklch, var(--gold) 55%, transparent);
   background: linear-gradient(
     135deg,
-    rgba(245, 200, 66, 0.18) 0%,
-    rgba(245, 200, 66, 0.06) 50%,
+    color-mix(in oklch, var(--gold) 18%, transparent) 0%,
+    color-mix(in oklch, var(--gold) 6%, transparent) 50%,
     var(--bg-elev) 100%
   );
   box-shadow:
-    0 0 28px rgba(245, 200, 66, 0.18),
-    0 0 14px rgba(245, 200, 66, 0.18) inset;
+    0 0 28px color-mix(in oklch, var(--gold) 18%, transparent),
+    0 0 14px color-mix(in oklch, var(--gold) 18%, transparent) inset;
   font-family: var(--font-mono);
   position: relative;
   overflow: hidden;
@@ -801,7 +930,7 @@ html.booting .boot-overlay,
   font-size: clamp(1rem, 2vw, 1.25rem);
   letter-spacing: 0.22em;
   color: var(--gold);
-  text-shadow: 0 0 10px rgba(245, 200, 66, 0.5);
+  text-shadow: 0 0 10px color-mix(in oklch, var(--gold) 50%, transparent);
   /* Neutralise <h2> default margins — was a <span> previously, promoted
      to <h2> for SEO/semantic-headings reasons. */
   margin: 0;
@@ -843,7 +972,7 @@ html.booting .boot-overlay,
   font-size: clamp(1.4rem, 3vw, 1.9rem);
   letter-spacing: 0.04em;
   color: var(--green);
-  text-shadow: 0 0 8px rgba(0, 255, 65, 0.35);
+  text-shadow: 0 0 8px color-mix(in oklch, var(--green) 35%, transparent);
   line-height: 1;
 }
 
@@ -853,7 +982,7 @@ html.booting .boot-overlay,
   font-style: italic;
   line-height: 1.55;
   color: var(--gold);
-  text-shadow: 0 0 8px rgba(245, 200, 66, 0.2);
+  text-shadow: 0 0 8px color-mix(in oklch, var(--gold) 20%, transparent);
   max-width: 70ch;
 }
 
@@ -862,6 +991,17 @@ html.booting .boot-overlay,
 .leaderboard {
   padding: 1.75rem clamp(1rem, 4vw, 3rem) 0.5rem;
   font-family: var(--font-mono);
+}
+
+/* Day scope nested under the featured pair — the card section already
+   supplies the horizontal gutter, so drop the standalone one so the
+   standings line up with the featured cards + grid instead of
+   double-indenting. */
+.leaderboard-inline {
+  padding-left: 0;
+  padding-right: 0;
+  padding-top: 0.25rem;
+  margin-bottom: 1.5rem;
 }
 
 .leaderboard-header {
@@ -878,7 +1018,7 @@ html.booting .boot-overlay,
   font-size: clamp(1.4rem, 3vw, 2rem);
   letter-spacing: 0.18em;
   color: var(--gold);
-  text-shadow: 0 0 12px rgba(245, 200, 66, 0.4);
+  text-shadow: 0 0 12px color-mix(in oklch, var(--gold) 40%, transparent);
   /* Neutralise <h2> default margins — was a <span> previously, promoted
      to <h2> for SEO/semantic-headings reasons. */
   margin: 0;
@@ -897,14 +1037,14 @@ html.booting .boot-overlay,
 .leader-champion {
   background: linear-gradient(
     135deg,
-    rgba(245, 200, 66, 0.14) 0%,
-    rgba(245, 200, 66, 0.04) 50%,
+    color-mix(in oklch, var(--gold) 14%, transparent) 0%,
+    color-mix(in oklch, var(--gold) 4%, transparent) 50%,
     var(--bg-elev) 100%
   );
-  border: 1px solid rgba(245, 200, 66, 0.55);
+  border: 1px solid color-mix(in oklch, var(--gold) 55%, transparent);
   box-shadow:
-    0 0 24px rgba(245, 200, 66, 0.15),
-    0 0 12px rgba(245, 200, 66, 0.18) inset;
+    0 0 24px color-mix(in oklch, var(--gold) 15%, transparent),
+    0 0 12px color-mix(in oklch, var(--gold) 18%, transparent) inset;
   padding: 1.25rem 1.4rem;
   margin-bottom: 0.8rem;
   position: relative;
@@ -920,7 +1060,7 @@ html.booting .boot-overlay,
   font-size: 0.78rem;
   letter-spacing: 0.22em;
   color: var(--gold);
-  text-shadow: 0 0 10px rgba(245, 200, 66, 0.55);
+  text-shadow: 0 0 10px color-mix(in oklch, var(--gold) 55%, transparent);
 }
 
 .leader-champion-row {
@@ -944,7 +1084,7 @@ html.booting .boot-overlay,
   font-size: clamp(2rem, 5vw, 3rem);
   letter-spacing: 0.06em;
   color: var(--gold);
-  text-shadow: 0 0 14px rgba(245, 200, 66, 0.55);
+  text-shadow: 0 0 14px color-mix(in oklch, var(--gold) 55%, transparent);
   line-height: 1;
 }
 
@@ -993,6 +1133,10 @@ html.booting .boot-overlay,
 .leader-card {
   background: linear-gradient(180deg, var(--bg-elev) 0%, #090c0b 100%);
   border: 1px solid var(--border);
+  /* Left spine tinted by the friend's score (--mood set inline), same
+     signal language as the stock cards. Replaces the old full-card
+     glow-* tint. */
+  border-left: 3px solid var(--mood, var(--border));
   padding: 0.85rem 1rem 0.95rem;
   display: flex;
   flex-direction: column;
@@ -1056,16 +1200,40 @@ html.booting .boot-overlay,
 
 .leader-up {
   color: var(--green);
-  text-shadow: 0 0 6px rgba(0, 255, 65, 0.3);
+  text-shadow: 0 0 6px color-mix(in oklch, var(--green) 30%, transparent);
 }
 
 .leader-down {
   color: var(--red);
-  text-shadow: 0 0 6px rgba(255, 34, 68, 0.3);
+  text-shadow: 0 0 6px color-mix(in oklch, var(--red) 30%, transparent);
 }
 
 .leader-flat {
   color: var(--text-dim);
+}
+
+/* 5-tier mood-family text colors for the payoff line (best/worst mover).
+   Same tokens as the stock-card family, so they re-point under the
+   bloodbath / clean-sweep skin. rekt uses --mood-rekt (not the deep
+   liquidated fill) so it stays readable as text; a flat/no-data mover
+   drops to a dim neutral rather than the caution gold. */
+.mood-text-moon {
+  color: var(--mood-moon);
+}
+.mood-text-up {
+  color: var(--mood-up);
+}
+.mood-text-neutral {
+  color: var(--mood-neutral);
+}
+.mood-text-down {
+  color: var(--mood-down);
+}
+.mood-text-rekt {
+  color: var(--mood-rekt);
+}
+.mood-text-flat {
+  color: var(--text-2);
 }
 
 /* Per-friend "what moved this number" line — best + worst owned ticker
@@ -1089,7 +1257,7 @@ html.booting .boot-overlay,
 .leader-champion .leader-impact {
   margin-top: 0.9rem;
   padding-top: 0.85rem;
-  border-top-color: rgba(245, 200, 66, 0.25);
+  border-top-color: color-mix(in oklch, var(--gold) 25%, transparent);
 }
 .leader-champion .leader-impact-cell {
   font-size: 0.9rem;
@@ -1103,8 +1271,13 @@ html.booting .boot-overlay,
     gap: 1.1rem;
     width: 100%;
   }
+  /* auto-fit, not a hard `1fr 1fr`: a friend card can't compress below
+     ~165px (its stats row + impact line don't wrap), so forcing two
+     columns overflows the page at ~320px. auto-fit drops to a single
+     full-width column on the narrowest phones and gives two columns as
+     soon as there's room (~375px+). */
   .leaderboard-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
   }
 }
 
@@ -1115,9 +1288,13 @@ html.booting .boot-overlay,
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
 }
 
+/* Asymmetric featured pair: the winner slot leads wide, the loser slot
+   supports narrower — so the eye lands on the day's win first instead of
+   two equal-weight cards fighting for attention. Collapses to a single
+   stacked column (winner on top) on phones, below. */
 .stock-grid-featured {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: 1.6fr 1fr;
 }
 
 @media (max-width: 640px) {
@@ -1185,8 +1362,8 @@ html.booting .boot-overlay,
 .sort-pill.active {
   color: var(--green);
   border-color: var(--green);
-  background: var(--green-glow);
-  text-shadow: 0 0 8px rgba(0, 230, 118, 0.4);
+  background: color-mix(in oklch, var(--green) 12%, transparent);
+  text-shadow: 0 0 8px color-mix(in oklch, var(--green) 40%, transparent);
 }
 
 @media (max-width: 640px) {
@@ -1318,30 +1495,76 @@ html.booting .boot-overlay,
   font-size: 0.88rem;
 }
 
+/* Price + change share one row; change trails to the right edge so the
+   eye reads "price … how it moved" in a single sweep. Wraps to its own
+   line on the narrowest cards. */
+.stock-card .price-row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.6rem;
+  margin-top: 0.5rem;
+}
+
+.stock-card .price-row .change {
+  margin-left: auto;
+}
+
+/* Divided info strip — the take + meta area, split from the price row
+   by a hairline so the card reads as header / price / commentary. */
+.stock-card .card-strip {
+  margin-top: 0.8rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+/* Mood chip. Tinted + outlined by default so mild movers stay quiet;
+   .rating-solid fills at the extremes (moon / liquidated) where the
+   card wants to shout. Color follows the per-card --mood token. */
 .stock-card .rating {
   display: inline-block;
   font-family: var(--font-mono);
   font-size: 0.7rem;
   letter-spacing: 0.06em;
   padding: 0.2rem 0.5rem;
-  border: 1px solid var(--border-bright);
-  background: #0a0e0c;
-  color: var(--text);
+  border: 1px solid color-mix(in oklch, var(--mood, var(--border-bright)) 50%, transparent);
+  background: color-mix(in oklch, var(--mood, transparent) 12%, transparent);
+  color: var(--mood, var(--text));
   white-space: nowrap;
+}
+
+.stock-card .rating.rating-solid {
+  border-color: var(--mood);
+  background: var(--mood);
+  color: var(--mood-ink, var(--surface-0));
 }
 
 .stock-card .comment {
   font-style: italic;
   /* Was var(--text-dim) (#6b7d72) — sat right at 4.2:1 contrast on
      the dark card bg, technically AA but strained for italic body
-     text. This shade lands ~9:1 against #0d1110 while still reading
-     as "supportive prose" rather than competing with the bigger
-     name/price/rating elements above. */
-  color: #c5d3c9;
+     text. var(--text-1) lands ~9:1 against surface-1 while still
+     reading as "supportive prose" rather than competing with the
+     bigger name/price/rating elements above. */
+  color: var(--text-1);
   font-size: 0.86rem;
   line-height: 1.5;
-  border-left: 2px solid var(--border-bright);
+  /* Accent tied to the card's mood so the take reads as part of the
+     same signal as the spine + chip, not a stray gray rule. */
+  border-left: 2px solid color-mix(in oklch, var(--mood, var(--border-strong)) 45%, var(--border));
   padding-left: 0.65rem;
+}
+
+/* Empty-take variant — the rule-based filler when the analyzer left no
+   comment. Dimmer than a real take (it's a placeholder, not a quote)
+   but still mood-tinted so the card reads as a complete unit. */
+.stock-card .comment-empty {
+  color: var(--text-2);
+  font-style: normal;
+  letter-spacing: 0.02em;
 }
 
 .stock-card .meta {
@@ -1351,75 +1574,36 @@ html.booting .boot-overlay,
   text-transform: uppercase;
 }
 
-/* Sentiment-driven card border + glow + bg tint. Three intensity tiers
-   per direction so >5% movers stand out from merely-up/down ones.
-   Buckets defined in lib/derive.ts:
-     moon  > +5%      — strongest green
-     up    +0.5..+5%  — mild green
-     neutral          — gold border, no glow
-     down  -0.5..-5%  — mild red
-     rekt  < -5%      — strongest red
+/* Mood is carried by a 3px left spine (colored via the per-card --mood
+   token, set in StockCard.tsx) instead of a full-card border + glow +
+   bg tint. One restrained signal per card — the spine + the chip — so
+   the grid reads as a system rather than a wall of glowing boxes.
+   Buckets defined in lib/derive.ts / mapped to --mood-* in StockCard:
+     moon  > +5%      — mood-moon
+     up    +0.5..+5%  — mood-up
+     neutral          — mood-neutral
+     down  -0.5..-5%  — mood-down
+     rekt  < -5%      — mood-liquidated
 
-   Featured cards (.stock-card.featured.winner / .loser) have higher
-   specificity (2 classes) so they keep their dedicated styling — only
-   regular grid cards pick this up. */
-
-/* Mild up — small/medium gain. Card is clearly green-tinted without
-   being neon. Border carries enough alpha to read at a glance, flat
-   bg fill replaces the old fade-to-near-transparent gradient. */
-.glow-up {
-  border-color: rgba(0, 230, 118, 0.5);
-  box-shadow: 0 0 22px rgba(0, 230, 118, 0.12);
-  background: rgba(0, 230, 118, 0.07);
+   Featured cards (.stock-card.featured.winner / .loser) keep their own
+   dedicated styling and opt out of the spine (see :not(.featured)). */
+.stock-card:not(.featured) {
+  border-left: 3px solid var(--mood, var(--border));
 }
 
-/* Big up — flex the glow. Border near opaque, bigger outer spread +
-   inset glow for the "lit from within" feel, and a top-heavy gradient
-   that gives the moon-tier card visible volume. */
-.glow-moon {
-  border-color: rgba(0, 230, 118, 0.8);
-  box-shadow:
-    0 0 36px rgba(0, 230, 118, 0.35),
-    0 0 18px rgba(0, 230, 118, 0.16) inset;
-  background: linear-gradient(
-    180deg,
-    rgba(0, 230, 118, 0.2) 0%,
-    rgba(0, 230, 118, 0.1) 100%
-  );
-}
-
-.glow-neutral {
-  border-color: rgba(245, 200, 66, 0.2);
-  box-shadow: none;
-  background: transparent;
-}
-
-/* Mild down — symmetric to .glow-up. */
-.glow-down {
-  border-color: rgba(255, 34, 68, 0.5);
-  box-shadow: 0 0 22px rgba(255, 34, 68, 0.12);
-  background: rgba(255, 34, 68, 0.07);
-}
-
-/* Big down — symmetric to .glow-moon. The bleeding card. */
-.glow-rekt {
-  border-color: rgba(255, 34, 68, 0.8);
-  box-shadow:
-    0 0 36px rgba(255, 34, 68, 0.35),
-    0 0 18px rgba(255, 34, 68, 0.16) inset;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 34, 68, 0.2) 0%,
-    rgba(255, 34, 68, 0.1) 100%
-  );
+/* Extreme movers (moon / liquidated) keep a static mood glow so they
+   still pop out of the grid. One-shot / static, never pulsing — the
+   --glow-mood token resolves against the card's own --mood. */
+.stock-card.mood-extreme {
+  box-shadow: var(--glow-mood);
 }
 
 /* Stale-market card. Applied when the ticker's market hasn't opened
    in this Stockholm calendar day (US tickers Mon morning before NY
-   opens, etc). Two-class selector wins specificity over any single
-   .glow-X — sentiment color washes out, replaced by neutral gray.
-   Reduced opacity completes the "this is yesterday's data, deal with
-   it later" treatment without removing the card entirely. */
+   opens, etc). Two-class selector wins specificity over the single-
+   class spine rule — the mood color washes out, replaced by neutral
+   gray. Reduced opacity completes the "this is yesterday's data, deal
+   with it later" treatment without removing the card entirely. */
 .stock-card.market-closed {
   border-color: rgba(120, 130, 125, 0.25);
   box-shadow: none;
@@ -1461,23 +1645,26 @@ html.booting .boot-overlay,
   font-size: 1.05rem;
 }
 
+/* Static presence, never pulsing. The one-shot glow on data change is
+   carried by the .ai-update class (added via the `flashing` prop) — same
+   pattern as the rest of the app — so nothing above the fold animates
+   forever. */
 .stock-card.featured.winner {
-  animation:
-    card-in 0.45s ease-out backwards,
-    pulse-green 3.2s ease-in-out infinite 0.45s;
+  animation: card-in 0.45s ease-out backwards;
   background: linear-gradient(
     180deg,
-    rgba(0, 255, 65, 0.1) 0%,
-    rgba(0, 255, 65, 0.025) 35%,
+    color-mix(in oklch, var(--green) 10%, transparent) 0%,
+    color-mix(in oklch, var(--green) 2.5%, transparent) 35%,
     var(--bg-elev) 70%
   );
-  border-color: rgba(0, 255, 65, 0.55);
+  border-color: color-mix(in oklch, var(--green) 55%, transparent);
   border-top-color: var(--green);
+  box-shadow: 0 0 26px color-mix(in oklch, var(--green) 20%, transparent);
 }
 
 .stock-card.featured.winner .name {
   color: var(--green);
-  text-shadow: 0 0 14px rgba(0, 255, 65, 0.45);
+  text-shadow: 0 0 14px color-mix(in oklch, var(--green) 45%, transparent);
 }
 
 .stock-card.featured.winner .price {
@@ -1485,22 +1672,21 @@ html.booting .boot-overlay,
 }
 
 .stock-card.featured.loser {
-  animation:
-    card-in 0.45s ease-out backwards,
-    pulse-red 3.2s ease-in-out infinite 0.45s;
+  animation: card-in 0.45s ease-out backwards;
   background: linear-gradient(
     180deg,
-    rgba(255, 34, 68, 0.1) 0%,
-    rgba(255, 34, 68, 0.025) 35%,
+    color-mix(in oklch, var(--red) 10%, transparent) 0%,
+    color-mix(in oklch, var(--red) 2.5%, transparent) 35%,
     var(--bg-elev) 70%
   );
-  border-color: rgba(255, 34, 68, 0.55);
+  border-color: color-mix(in oklch, var(--red) 55%, transparent);
   border-top-color: var(--red);
+  box-shadow: 0 0 22px color-mix(in oklch, var(--red) 14%, transparent);
 }
 
 .stock-card.featured.loser .name {
   color: var(--red);
-  text-shadow: 0 0 14px rgba(255, 34, 68, 0.45);
+  text-shadow: 0 0 14px color-mix(in oklch, var(--red) 45%, transparent);
 }
 
 .stock-card.featured.loser .price {
@@ -1511,8 +1697,8 @@ html.booting .boot-overlay,
    Drop-in replacement for a featured StockCard slot when there's no
    real loser to show (clean sweep) or no real winner (bloodbath). Same
    ~footprint as a featured card so the .stock-grid-featured layout is
-   unchanged. Reuses the existing pulse-green / pulse-red keyframes
-   from the featured cards above for visual continuity. */
+   unchanged. Matches the featured cards' static (non-pulsing) glow for
+   visual continuity. */
 
 .celebration-card {
   padding: 1.15rem 1.15rem 1.2rem;
@@ -1532,31 +1718,27 @@ html.booting .boot-overlay,
 .celebration-clean-sweep {
   background: linear-gradient(
     180deg,
-    rgba(0, 230, 118, 0.18) 0%,
-    rgba(0, 230, 118, 0.05) 50%,
+    color-mix(in oklch, var(--green) 18%, transparent) 0%,
+    color-mix(in oklch, var(--green) 5%, transparent) 50%,
     var(--bg-elev) 100%
   );
-  border-color: rgba(0, 230, 118, 0.55);
+  border-color: color-mix(in oklch, var(--green) 55%, transparent);
   border-top-color: var(--green);
-  box-shadow: 0 0 26px rgba(0, 230, 118, 0.18);
-  animation:
-    card-in 0.45s ease-out backwards,
-    pulse-green 3.2s ease-in-out infinite 0.45s;
+  box-shadow: 0 0 26px color-mix(in oklch, var(--green) 18%, transparent);
+  animation: card-in 0.45s ease-out backwards;
 }
 
 .celebration-bloodbath {
   background: linear-gradient(
     180deg,
-    rgba(255, 34, 68, 0.18) 0%,
-    rgba(255, 34, 68, 0.05) 50%,
+    color-mix(in oklch, var(--red) 18%, transparent) 0%,
+    color-mix(in oklch, var(--red) 5%, transparent) 50%,
     var(--bg-elev) 100%
   );
-  border-color: rgba(255, 34, 68, 0.55);
+  border-color: color-mix(in oklch, var(--red) 55%, transparent);
   border-top-color: var(--red);
-  box-shadow: 0 0 26px rgba(255, 34, 68, 0.18);
-  animation:
-    card-in 0.45s ease-out backwards,
-    pulse-red 3.2s ease-in-out infinite 0.45s;
+  box-shadow: 0 0 26px color-mix(in oklch, var(--red) 18%, transparent);
+  animation: card-in 0.45s ease-out backwards;
 }
 
 .celebration-badge {
@@ -1568,12 +1750,12 @@ html.booting .boot-overlay,
 
 .celebration-clean-sweep .celebration-badge {
   color: var(--green);
-  text-shadow: 0 0 10px rgba(0, 230, 118, 0.45);
+  text-shadow: 0 0 10px color-mix(in oklch, var(--green) 45%, transparent);
 }
 
 .celebration-bloodbath .celebration-badge {
   color: var(--red);
-  text-shadow: 0 0 10px rgba(255, 34, 68, 0.45);
+  text-shadow: 0 0 10px color-mix(in oklch, var(--red) 45%, transparent);
 }
 
 .celebration-headline {
@@ -1605,7 +1787,7 @@ html.booting .boot-overlay,
   font-style: italic;
   font-size: 0.92rem;
   line-height: 1.5;
-  color: #c5d3c9;
+  color: var(--text-1);
   max-width: 32ch;
   align-self: center;
 }
@@ -1627,11 +1809,11 @@ html.booting .boot-overlay,
 
 .featured-label.win {
   color: var(--green);
-  text-shadow: 0 0 8px rgba(0, 255, 65, 0.45);
+  text-shadow: 0 0 8px color-mix(in oklch, var(--green) 45%, transparent);
 }
 .featured-label.lose {
   color: var(--red);
-  text-shadow: 0 0 8px rgba(255, 34, 68, 0.45);
+  text-shadow: 0 0 8px color-mix(in oklch, var(--red) 45%, transparent);
 }
 
 /* Headline week% line on featured cards. Sits right under the
@@ -1646,11 +1828,11 @@ html.booting .boot-overlay,
 }
 .featured-week.change-up {
   color: var(--green);
-  text-shadow: 0 0 8px rgba(0, 255, 65, 0.45);
+  text-shadow: 0 0 8px color-mix(in oklch, var(--green) 45%, transparent);
 }
 .featured-week.change-down {
   color: var(--red);
-  text-shadow: 0 0 8px rgba(255, 34, 68, 0.45);
+  text-shadow: 0 0 8px color-mix(in oklch, var(--red) 45%, transparent);
 }
 .featured-week.change-neutral {
   color: var(--text-dim);
@@ -1687,9 +1869,17 @@ html.booting .boot-overlay,
   animation: live-pulse 2.2s ease-in-out infinite;
 }
 
+/* The "live" pip pulses forever, so it must stop for reduced-motion —
+   it stays green + lit, just static. */
+@media (prefers-reduced-motion: reduce) {
+  .live-pip.fresh {
+    animation: none;
+  }
+}
+
 .live-pip.stale {
   background: var(--gold);
-  box-shadow: 0 0 4px rgba(245, 200, 66, 0.4);
+  box-shadow: 0 0 4px color-mix(in oklch, var(--gold) 40%, transparent);
 }
 
 .live-pip.dead {
@@ -1726,8 +1916,14 @@ html.booting .boot-overlay,
   font-size: clamp(2.6rem, 7vw, 5rem);
   letter-spacing: 0.08em;
   color: var(--green);
-  text-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
+  text-shadow: 0 0 20px color-mix(in oklch, var(--green) 50%, transparent);
   animation: flicker 2.4s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .empty-state .signal {
+    animation: none;
+  }
 }
 
 .empty-state .hint {
@@ -1818,12 +2014,12 @@ main {
   color: var(--text);
   line-height: 1;
   font-weight: 400;
-  text-shadow: 0 0 14px rgba(0, 230, 118, 0.12);
+  text-shadow: 0 0 14px color-mix(in oklch, var(--green) 12%, transparent);
 }
 
 .drawer-footer-brand .dollar {
   color: var(--gold);
-  text-shadow: 0 0 12px rgba(245, 200, 66, 0.5);
+  text-shadow: 0 0 12px color-mix(in oklch, var(--gold) 50%, transparent);
 }
 
 /* Tagline — uses var(--text), not --text-dim, so it's actually
@@ -1869,7 +2065,7 @@ main {
 .drawer-footer-links .footer-link-button:hover,
 .drawer-footer-links .footer-link-button:focus-visible {
   border-bottom-color: var(--green);
-  text-shadow: 0 0 8px rgba(0, 230, 118, 0.4);
+  text-shadow: 0 0 8px color-mix(in oklch, var(--green) 40%, transparent);
   outline: none;
 }
 
@@ -1910,7 +2106,7 @@ main {
 .drawer-footer-credit:hover,
 .drawer-footer-credit:focus-visible {
   border-bottom-color: var(--gold);
-  text-shadow: 0 0 8px rgba(245, 200, 66, 0.4);
+  text-shadow: 0 0 8px color-mix(in oklch, var(--gold) 40%, transparent);
   outline: none;
 }
 
@@ -1953,10 +2149,10 @@ main {
 
 .disclaimer-panel {
   background: linear-gradient(180deg, #0d1110 0%, #060807 100%);
-  border: 1px solid rgba(245, 200, 66, 0.4);
+  border: 1px solid color-mix(in oklch, var(--gold) 40%, transparent);
   box-shadow:
     0 0 40px rgba(0, 0, 0, 0.6),
-    0 0 18px rgba(245, 200, 66, 0.18) inset;
+    0 0 18px color-mix(in oklch, var(--gold) 18%, transparent) inset;
   font-family: var(--font-mono);
   display: flex;
   flex-direction: column;
@@ -1978,7 +2174,7 @@ main {
   font-size: clamp(1.2rem, 2.5vw, 1.6rem);
   letter-spacing: 0.18em;
   color: var(--gold);
-  text-shadow: 0 0 10px rgba(245, 200, 66, 0.4);
+  text-shadow: 0 0 10px color-mix(in oklch, var(--gold) 40%, transparent);
 }
 
 .disclaimer-close {
@@ -2004,7 +2200,7 @@ main {
 .disclaimer-close:focus-visible {
   color: var(--text);
   border-color: var(--gold);
-  background: rgba(245, 200, 66, 0.08);
+  background: color-mix(in oklch, var(--gold) 8%, transparent);
   outline: none;
 }
 

@@ -2,6 +2,10 @@ import { hasTradedToday } from "./marketHours";
 import { buildOwnersByPerson, PEOPLE, type Person, TICKERS } from "./tickers";
 import type { StockPrice } from "./types";
 
+// Symbol → market, so the day-scope stale filter can ask hasTradedToday
+// without threading the whole TICKERS list through every call.
+const MARKET_BY_TICKER = new Map(TICKERS.map((t) => [t.symbol, t.market]));
+
 export type Mover = {
   /** Internal ticker symbol — call `displayTicker(ticker)` for UI. */
   ticker: string;
@@ -15,7 +19,9 @@ export type LeaderboardEntry = {
   name: string;
   /** Tickers this person owns. */
   tickers: string[];
-  /** Mean of owned-ticker `regularMarketChangePercent`. Always defined. */
+  /** Mean of owned-ticker `regularMarketChangePercent`. In day scope
+   * (a `now` was passed) only tickers that traded today are counted;
+   * `NaN` when the friend has a valid WTD but no ticker traded today. */
   todayPct: number;
   /** Mean of (price - weekStartPrice) / weekStartPrice * 100 across owned
    * tickers that have a baseline. `null` when no baseline is available
@@ -52,13 +58,21 @@ export type LeaderboardEntry = {
  * Pass `sortBy: "wtd"` for the recap-window flip — friends ranked by
  * the actual week story instead of today's intraday noise. Entries
  * without a wtdPct sink to the bottom under WTD sort.
+ *
+ * Pass `now` (the day-scope path) to stale-filter the TODAY aggregate:
+ * a ticker whose market hasn't traded in this Stockholm calendar day is
+ * excluded from today% + the day movers, so a US ticker frozen at
+ * Friday's close can't skew a friend's Monday-morning score. The WTD
+ * aggregate is baseline-based and always counts every owned ticker with
+ * a Monday price — a frozen ticker's week change is still valid.
  */
 export function computeLeaderboard(
   stocks: StockPrice[],
   weekStartPrices: Record<string, number> | undefined,
-  opts?: { sortBy?: "today" | "wtd" },
+  opts?: { sortBy?: "today" | "wtd"; now?: Date },
 ): LeaderboardEntry[] {
   const sortBy = opts?.sortBy ?? "today";
+  const now = opts?.now;
   const priceByTicker = new Map(stocks.map((s) => [s.ticker, s]));
   const ownersByPerson = buildOwnersByPerson();
 
@@ -79,11 +93,21 @@ export function computeLeaderboard(
       const stock = priceByTicker.get(ticker);
       if (!stock) continue;
       const pct = stock.regularMarketChangePercent;
-      if (!Number.isFinite(pct)) continue;
-      todaySum += pct;
-      todayCount++;
-      if (!topMover || pct > topMover.pct) topMover = { ticker, pct };
-      if (!bottomMover || pct < bottomMover.pct) bottomMover = { ticker, pct };
+
+      // TODAY aggregate — a finite move that actually printed today when
+      // `now` is supplied (day scope). Without `now` (recap/week scope)
+      // the stale filter is a no-op, matching prior behavior.
+      const market = MARKET_BY_TICKER.get(ticker);
+      const tradedToday =
+        !now || (market ? hasTradedToday(stock.lastTradeAt, market, now) : true);
+      if (Number.isFinite(pct) && tradedToday) {
+        todaySum += pct;
+        todayCount++;
+        if (!topMover || pct > topMover.pct) topMover = { ticker, pct };
+        if (!bottomMover || pct < bottomMover.pct) bottomMover = { ticker, pct };
+      }
+
+      // WTD aggregate — baseline-based, independent of today's print.
       const baseline = weekStartPrices?.[ticker];
       if (baseline && baseline > 0 && Number.isFinite(stock.regularMarketPrice)) {
         const weekPct =
@@ -99,13 +123,16 @@ export function computeLeaderboard(
       }
     }
 
-    if (todayCount === 0) continue;
+    // Drop a friend only when they have nothing to show for EITHER
+    // period — otherwise a friend whose bags are all stale today (e.g.
+    // US-only before NY opens) still ranks on their valid WTD.
+    if (todayCount === 0 && wtdCoverage === 0) continue;
 
     entries.push({
       person,
       name,
       tickers,
-      todayPct: todaySum / todayCount,
+      todayPct: todayCount > 0 ? todaySum / todayCount : NaN,
       wtdPct: wtdCoverage > 0 ? wtdSum / wtdCoverage : null,
       wtdCoverage,
       ...(topMover ? { topMover } : {}),
@@ -115,6 +142,12 @@ export function computeLeaderboard(
     });
   }
 
+  // todayPct can be NaN (a friend with only stale tickers today but a
+  // valid WTD) — coerce to -Infinity so those friends sink instead of
+  // producing NaN comparisons that leave the order undefined.
+  const todayOf = (e: LeaderboardEntry): number =>
+    Number.isFinite(e.todayPct) ? e.todayPct : -Infinity;
+
   entries.sort((a, b) => {
     if (sortBy === "wtd") {
       // Recap-window sort: rank by the actual week story. Friends
@@ -123,10 +156,10 @@ export function computeLeaderboard(
       const aw = a.wtdPct ?? -Infinity;
       const bw = b.wtdPct ?? -Infinity;
       if (aw !== bw) return bw - aw;
-      if (a.todayPct !== b.todayPct) return b.todayPct - a.todayPct;
+      if (todayOf(a) !== todayOf(b)) return todayOf(b) - todayOf(a);
       return a.name.localeCompare(b.name);
     }
-    if (a.todayPct !== b.todayPct) return b.todayPct - a.todayPct;
+    if (todayOf(a) !== todayOf(b)) return todayOf(b) - todayOf(a);
     const aw = a.wtdPct ?? -Infinity;
     const bw = b.wtdPct ?? -Infinity;
     if (aw !== bw) return bw - aw;

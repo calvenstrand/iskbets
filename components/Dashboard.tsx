@@ -233,6 +233,13 @@ export function Dashboard({
           .map((s) => ({ pct: s.regularMarketChangePercent })),
       );
 
+  // Lift the sweep signal to a page-level skin. When the whole eligible
+  // board is one direction the terminal reskins into an event (red
+  // bloodbath / green clean-sweep) via <main data-daymood>. Same
+  // eligibility as the featured cards above, so the skin and the cards
+  // always agree — partial-red days stay neutral.
+  const dayMood = sweep.type ?? undefined;
+
   const featuredTickers = new Set<string>();
   if (winner) featuredTickers.add(winner.ticker);
   if (loser) featuredTickers.add(loser.ticker);
@@ -270,10 +277,27 @@ export function Dashboard({
     : 0;
 
   return (
-    <main>
+    <main {...(dayMood ? { "data-daymood": dayMood } : {})}>
       <PullToRefresh />
-      <TickerTape stocks={snapshot.stocks} />
+      <TickerTape stocks={snapshot.stocks} sweep={dayMood} />
       <Header />
+
+      {/* Daily brief leads the descent — the one human-readable AI
+          sentence, promoted to its own hero line directly under the
+          masthead. Hides during the recap window (Fri 22:00 → Mon 09:00
+          STO): Friday's close would masquerade as a live "today" read on
+          Sat/Sun, and the Champion of the Week card already owns the
+          weekend's editorial framing. Returns Monday at 09:00 STO. */}
+      {!inRecap && (
+        <MoodBanner
+          mood={snapshot.analysis.overallMood}
+          avgChangePct={avgChangePct}
+          flash={moodFlash}
+          sweep={dayMood}
+          seed={snapshot.updatedAt}
+        />
+      )}
+
       <MarketStatus />
       {/* Champion of the Week + Friend Leaderboard are recap-window
           content — they only earn screen real estate when there's a
@@ -289,7 +313,7 @@ export function Dashboard({
           <Leaderboard
             stocks={snapshot.stocks}
             weekStartPrices={weekStartPrices}
-            recapMode
+            scope="week"
           />
         </div>
       ) : (
@@ -297,22 +321,9 @@ export function Dashboard({
           <Leaderboard
             stocks={snapshot.stocks}
             weekStartPrices={weekStartPrices}
-            recapMode
+            scope="week"
           />
         )
-      )}
-
-      {/* Mood banner hides during the recap window — Friday's close
-          would otherwise masquerade as a live "today" mood on Sat/Sun,
-          and the Champion of the Week card already owns the editorial
-          framing for the whole weekend. Returns Monday at 09:00 STO
-          when the live trading day begins again. */}
-      {!inRecap && (
-        <MoodBanner
-          mood={snapshot.analysis.overallMood}
-          avgChangePct={avgChangePct}
-          flash={moodFlash}
-        />
       )}
 
       {/* relative z-0: the stock cards set `container-type: inline-size`
@@ -374,6 +385,24 @@ export function Dashboard({
               )
             )}
           </div>
+        )}
+
+        {/* Always-on daily standings — for a 5-friend group the
+            leaderboard IS the game, so it earns a spot every weekday, not
+            just the weekend recap. Sits below the brief + featured pair
+            (so the above-the-fold descent still leads) and above the
+            grid. Ranked by each friend's own bags' move today, stale
+            tickers filtered via the server-seeded `now`. Hidden during
+            the recap window, where the WEEK STANDINGS variant above owns
+            the standings role. */}
+        {!inRecap && (
+          <Leaderboard
+            stocks={snapshot.stocks}
+            weekStartPrices={weekStartPrices}
+            scope="day"
+            now={now}
+            inline
+          />
         )}
 
         <GridSort value={sortMode} onChange={handleSortChange} />
