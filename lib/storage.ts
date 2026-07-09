@@ -4,6 +4,7 @@ import type { MockMode } from "./mockData";
 import type {
   AnalysisPayload,
   DailyResult,
+  DailySnapshot,
   DashboardData,
   PublicStoredData,
   StockPrice,
@@ -19,6 +20,14 @@ const WEEK_START_KEY = "iskbets:weekStart";
 const ARCHIVE_KEY = "iskbets:archive"; // Redis hash, fields = weekStart dates
 const DAILY_ARCHIVE_KEY = "iskbets:dailyArchive"; // Redis hash, fields = YYYY-MM-DD
 const WEEKLY_CHAMPION_KEY = "iskbets:weeklyChampion";
+
+// Dated end-of-day history. Each day is its own string key
+// `iskbets:snapshot:YYYY-MM-DD`; `iskbets:snapshot:index` is a sorted
+// set of the dates that exist (score = YYYYMMDD) so history can be
+// enumerated without KEYS/SCAN. Capped at SNAPSHOT_RETENTION_DAYS.
+const SNAPSHOT_HISTORY_PREFIX = "iskbets:snapshot:";
+const SNAPSHOT_INDEX_KEY = "iskbets:snapshot:index";
+const SNAPSHOT_RETENTION_DAYS = 400;
 
 // Deprecated keys left orphaned in Redis after the brief subsystem
 // was removed. Listed here so anyone debugging stale data knows
@@ -251,6 +260,128 @@ export async function listDailyResults(
     b.date.localeCompare(a.date),
   );
   return limit ? sorted.slice(0, limit) : sorted;
+}
+
+// ============== Dated history snapshots (end-of-day, 400-day cap) ==============
+
+/**
+ * Slim, dated end-of-day snapshots for long-term history. Written on
+ * every trigger; the last write of a Stockholm calendar day wins (one
+ * key per day, overwritten intraday). Enables future mood timelines,
+ * streaks, weekly recaps, per-stock charts.
+ *
+ * Storage shape:
+ *   iskbets:snapshot:YYYY-MM-DD  → DailySnapshot (string key, JSON)
+ *   iskbets:snapshot:index       → sorted set, member = date,
+ *                                  score = YYYYMMDD (chronological)
+ *
+ * Retention: capped at SNAPSHOT_RETENTION_DAYS (400). On write, any
+ * overflow (oldest dates beyond the cap) is deleted key-and-index.
+ */
+
+function snapshotDateKey(date: string): string {
+  return `${SNAPSHOT_HISTORY_PREFIX}${date}`;
+}
+
+/** YYYY-MM-DD → numeric score for the index sorted set (chronological). */
+function snapshotDateScore(date: string): number {
+  return Number(date.replaceAll("-", ""));
+}
+
+/**
+ * Write today's dated snapshot and register it in the index. Idempotent
+ * per day: re-writing the same date overwrites the key and the index
+ * entry (zadd on an existing member just updates its score) rather than
+ * duplicating. After writing, trims history down to the 400-day cap by
+ * deleting the oldest snapshot keys + index members.
+ *
+ * Throws on Redis failure — the caller (trigger route) wraps this so a
+ * snapshot-write failure never breaks the main pipeline.
+ */
+export async function saveDailySnapshot(snapshot: DailySnapshot): Promise<void> {
+  const redis = getRedis();
+  const key = snapshotDateKey(snapshot.date);
+  await redis.set(key, snapshot);
+  await redis.zadd(SNAPSHOT_INDEX_KEY, {
+    score: snapshotDateScore(snapshot.date),
+    member: snapshot.date,
+  });
+
+  // Retention: cap at SNAPSHOT_RETENTION_DAYS. On a normal day this
+  // trims at most one date (the 401st), but the loop handles any
+  // backlog (e.g. after a cap change) in one pass.
+  const count = await redis.zcard(SNAPSHOT_INDEX_KEY);
+  if (count > SNAPSHOT_RETENTION_DAYS) {
+    const overflow = count - SNAPSHOT_RETENTION_DAYS;
+    const oldest = await redis.zrange<string[]>(
+      SNAPSHOT_INDEX_KEY,
+      0,
+      overflow - 1,
+    );
+    if (oldest.length > 0) {
+      await redis.del(...oldest.map(snapshotDateKey));
+      await redis.zrem(SNAPSHOT_INDEX_KEY, ...oldest);
+      console.log(
+        `[storage] snapshot retention trimmed ${oldest.length} day(s): ` +
+          oldest.join(", "),
+      );
+    }
+  }
+}
+
+/** A single day's history snapshot, or null if that date wasn't archived. */
+export async function getDailySnapshot(
+  date: string,
+): Promise<DailySnapshot | null> {
+  if (shouldUseMock().use) return null;
+  const v = await getRedis().get<DailySnapshot>(snapshotDateKey(date));
+  return v ?? null;
+}
+
+/**
+ * All history snapshots with `from ≤ date ≤ to`, oldest→newest. Uses the
+ * index sorted set for the date range then a single MGET for the bodies,
+ * so no KEYS/SCAN. Both bounds inclusive; caller passes them already
+ * ordered (from ≤ to).
+ */
+export async function getDailySnapshotsInRange(
+  from: string,
+  to: string,
+): Promise<DailySnapshot[]> {
+  if (shouldUseMock().use) return [];
+  const redis = getRedis();
+  const dates = await redis.zrange<string[]>(
+    SNAPSHOT_INDEX_KEY,
+    snapshotDateScore(from),
+    snapshotDateScore(to),
+    { byScore: true },
+  );
+  if (dates.length === 0) return [];
+  const rows = await redis.mget<(DailySnapshot | null)[]>(
+    ...dates.map(snapshotDateKey),
+  );
+  return rows.filter((r): r is DailySnapshot => r !== null);
+}
+
+/**
+ * The most recent `limit` history snapshots, oldest→newest (so the
+ * result reads left-to-right as a time series). `limit` is clamped to
+ * [1, SNAPSHOT_RETENTION_DAYS].
+ */
+export async function getRecentDailySnapshots(
+  limit: number,
+): Promise<DailySnapshot[]> {
+  if (shouldUseMock().use) return [];
+  const redis = getRedis();
+  const n = Math.max(1, Math.min(Math.floor(limit), SNAPSHOT_RETENTION_DAYS));
+  // Negative-rank range returns the top-N by score (newest) in ascending
+  // order — exactly the oldest→newest ordering a time series wants.
+  const dates = await redis.zrange<string[]>(SNAPSHOT_INDEX_KEY, -n, -1);
+  if (dates.length === 0) return [];
+  const rows = await redis.mget<(DailySnapshot | null)[]>(
+    ...dates.map(snapshotDateKey),
+  );
+  return rows.filter((r): r is DailySnapshot => r !== null);
 }
 
 /**
