@@ -49,6 +49,28 @@ export function deriveSentiment(pct: number): Sentiment {
 }
 
 /**
+ * Maps a sentiment bucket to its --mood-* token (defined in globals.css).
+ * rekt (≤ -5%) uses --mood-liquidated — the deepest red — so the worst
+ * cards read as more than "mild down". Used for fills / spines (chip
+ * backgrounds, card spines). Shared by the stock cards and the friend
+ * leaderboard so one move gets one color everywhere.
+ */
+export function moodVar(sentiment: Sentiment): string {
+  switch (sentiment) {
+    case "moon":
+      return "var(--mood-moon)";
+    case "up":
+      return "var(--mood-up)";
+    case "neutral":
+      return "var(--mood-neutral)";
+    case "down":
+      return "var(--mood-down)";
+    case "rekt":
+      return "var(--mood-liquidated)";
+  }
+}
+
+/**
  * Dedicated badges for the WEEK'S BIGGEST WINNER / LOSER featured
  * cards during the recap window. Distinct from the regular daily
  * rating set so a card labelled "WEEK'S BIGGEST WINNER" can't end up

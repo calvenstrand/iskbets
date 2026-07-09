@@ -37,6 +37,12 @@ export type Rating = (typeof RATINGS)[number];
 export const SENTIMENTS = ["moon", "up", "neutral", "down", "rekt"] as const;
 export type Sentiment = (typeof SENTIMENTS)[number];
 
+/** A market-wide sweep, lifted from detectSweep to a page-level skin.
+ * "bloodbath" = every eligible stock red, "clean-sweep" = every one
+ * green. Drives the <main data-daymood> reskin, the brief's gallows-
+ * humor line, and the ticker tape's slogan bias. */
+export type DayMood = "bloodbath" | "clean-sweep";
+
 export type StockAnalysis = {
   ticker: string;
   /** Optional. Only present when the move is big enough to warrant a
@@ -175,6 +181,45 @@ export type WeeklyResult = {
   }>;
   /** Friday's `overallMood` carried forward. */
   overallMood: string;
+};
+
+/** One ticker's slot inside a dated history snapshot. Deliberately
+ * slim — just the fields the history API surfaces (symbol, price,
+ * day change, mood rating + sentiment, and the WSB one-liner). Drops
+ * everything the live snapshot carries for the dashboard/gating that
+ * history doesn't need (volume, 52-week high/low, marketState,
+ * lastTradeAt) so 400 days of history stays ~2 MB instead of ~9 MB. */
+export type DailySnapshotStock = {
+  ticker: string;
+  price: number;
+  /** regularMarketChangePercent, rounded to 2dp. */
+  changePct: number;
+  /** Emoji mood badge — optional (quiet ±0.5% band gets none). */
+  rating?: Rating;
+  /** Always present — the colored-glow mood band. Serves as the
+   * "mood" dimension in the per-ticker time series. */
+  sentiment: Sentiment;
+  /** Optional WSB one-liner, carried from the analyzer. */
+  comment?: string;
+};
+
+/** One end-of-day history snapshot, written on every trigger under
+ * `iskbets:snapshot:YYYY-MM-DD` (last run of the day wins — we want
+ * end-of-day state, not intraday noise). Enumerable via the
+ * `iskbets:snapshot:index` sorted set. Foundation for future mood
+ * timelines, streaks, weekly recaps, per-stock history. */
+export type DailySnapshot = {
+  /** YYYY-MM-DD (Stockholm). The day this captures; also the Redis
+   * key suffix and the index member. */
+  date: string;
+  /** Epoch ms when this snapshot was written (last write of the day). */
+  capturedAt: number;
+  /** ISO of the underlying price refresh (the live snapshot's updatedAt). */
+  updatedAt: string;
+  /** The day's `overallMood` headline — the "daily brief". */
+  overallMood: string;
+  /** Per-ticker slim rows. */
+  stocks: DailySnapshotStock[];
 };
 
 export type StoredData = {
