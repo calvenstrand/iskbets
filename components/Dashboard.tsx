@@ -274,6 +274,21 @@ export function Dashboard({
       <PullToRefresh />
       <TickerTape stocks={snapshot.stocks} />
       <Header />
+
+      {/* Daily brief leads the descent — the one human-readable AI
+          sentence, promoted to its own hero line directly under the
+          masthead. Hides during the recap window (Fri 22:00 → Mon 09:00
+          STO): Friday's close would masquerade as a live "today" read on
+          Sat/Sun, and the Champion of the Week card already owns the
+          weekend's editorial framing. Returns Monday at 09:00 STO. */}
+      {!inRecap && (
+        <MoodBanner
+          mood={snapshot.analysis.overallMood}
+          avgChangePct={avgChangePct}
+          flash={moodFlash}
+        />
+      )}
+
       <MarketStatus />
       {/* Champion of the Week + Friend Leaderboard are recap-window
           content — they only earn screen real estate when there's a
@@ -300,19 +315,6 @@ export function Dashboard({
             recapMode
           />
         )
-      )}
-
-      {/* Mood banner hides during the recap window — Friday's close
-          would otherwise masquerade as a live "today" mood on Sat/Sun,
-          and the Champion of the Week card already owns the editorial
-          framing for the whole weekend. Returns Monday at 09:00 STO
-          when the live trading day begins again. */}
-      {!inRecap && (
-        <MoodBanner
-          mood={snapshot.analysis.overallMood}
-          avgChangePct={avgChangePct}
-          flash={moodFlash}
-        />
       )}
 
       {/* relative z-0: the stock cards set `container-type: inline-size`

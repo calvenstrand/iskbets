@@ -214,34 +214,6 @@ a {
   }
 }
 
-@keyframes pulse-green {
-  0%,
-  100% {
-    box-shadow:
-      0 0 28px color-mix(in oklch, var(--green) 45%, transparent),
-      0 0 60px color-mix(in oklch, var(--green) 18%, transparent);
-  }
-  50% {
-    box-shadow:
-      0 0 42px color-mix(in oklch, var(--green) 65%, transparent),
-      0 0 90px color-mix(in oklch, var(--green) 28%, transparent);
-  }
-}
-
-@keyframes pulse-red {
-  0%,
-  100% {
-    box-shadow:
-      0 0 28px rgba(255, 34, 68, 0.4),
-      0 0 60px rgba(255, 34, 68, 0.16);
-  }
-  50% {
-    box-shadow:
-      0 0 42px rgba(255, 34, 68, 0.6),
-      0 0 90px rgba(255, 34, 68, 0.26);
-  }
-}
-
 /* ============= Typography ============= */
 
 .font-display {
@@ -285,6 +257,9 @@ a {
 .tape-track {
   display: inline-flex;
   gap: 1.75rem;
+  /* Recede to ambient — the tape is atmosphere, not the headline. Lower
+     contrast so the brief + featured pair below it lead the eye. */
+  opacity: 0.72;
   /* Intentionally runs regardless of prefers-reduced-motion — the tape is
      core to the app's identity, and tap-to-pause (.tape onClick) is the
      escape hatch for anyone who wants it stopped. Don't re-add a
@@ -303,10 +278,12 @@ a {
   gap: 0.6rem;
 }
 
-/* Ticker+price segments stay at full green so live data pops. */
+/* Ticker segments recede with the rest of the tape — no glow, so the
+   tape stays ambient and the featured pair below carries the live-data
+   drama. */
 .tape-ticker {
   color: var(--green);
-  text-shadow: 0 0 6px rgba(0, 230, 118, 0.35);
+  text-shadow: none;
 }
 
 /* Slogans drop to --green-dim so the marquee has visual rhythm —
@@ -387,12 +364,21 @@ a {
   font-family: var(--font-display);
   font-size: clamp(3.8rem, 14vw, 9rem);
   line-height: 0.9;
-  color: var(--text);
+  /* Recede to ambient — dimmer than the brief below it and with a
+     fainter glow, so the wordmark reads as the chrome/brand frame
+     rather than competing with the day's read for the eye. */
+  color: var(--text-1);
   letter-spacing: 0.04em;
-  text-shadow: 0 0 18px color-mix(in oklch, var(--green) 18%, transparent);
+  text-shadow: 0 0 14px color-mix(in oklch, var(--green) 8%, transparent);
   animation: flicker 4s infinite;
   margin: 0;
   white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .masthead-brand {
+    animation: none;
+  }
 }
 
 .masthead-brand .dollar {
@@ -672,45 +658,52 @@ html.booting .boot-overlay,
   color: var(--gold);
 }
 
-/* ============= Mood banner ============= */
+/* ============= Daily brief (hero line under the masthead) =============
+   The one human-readable AI sentence, promoted out of the old glowing
+   mood banner to lead the above-the-fold descent. Restrained chrome: a
+   small directional tag + the sentence, no full-bleed glow — so it reads
+   as the calm lead, with the featured pair below it carrying the color. */
 
-.mood-banner {
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
+.brief {
   text-align: center;
-  font-family: var(--font-display);
-  font-size: clamp(1.4rem, 2.6vw, 2.2rem);
-  letter-spacing: 0.05em;
-  line-height: 1.15;
-  color: var(--text);
-  padding: 1.5rem 1rem;
+  padding: 0.2rem 1.2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
   position: relative;
 }
 
-.mood-bull {
-  background: linear-gradient(
-    180deg,
-    color-mix(in oklch, var(--green) 8%, transparent) 0%,
-    var(--green-deep) 100%
-  );
-  border-color: color-mix(in oklch, var(--green) 25%, transparent);
-  text-shadow: 0 0 10px color-mix(in oklch, var(--green) 40%, transparent);
+.brief-tag {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--text-2);
 }
 
-.mood-bear {
-  background: linear-gradient(
-    180deg,
-    rgba(255, 34, 68, 0.06) 0%,
-    var(--red-deep) 100%
-  );
-  border-color: rgba(255, 34, 68, 0.25);
-  text-shadow: 0 0 10px rgba(255, 34, 68, 0.35);
+.brief-line {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 2.8vw, 2.4rem);
+  letter-spacing: 0.04em;
+  line-height: 1.18;
+  color: var(--text-0);
+  max-width: 44ch;
 }
 
-.mood-flat {
-  background: linear-gradient(180deg, #0a0e0c 0%, #060807 100%);
+/* Direction lives in the tag, not a glow — bull green, bear red, flat
+   gold — so the sentence itself stays maximally readable. */
+.brief-bull .brief-tag {
+  color: var(--green);
+}
+
+.brief-bear .brief-tag {
+  color: var(--red);
+}
+
+.brief-flat .brief-tag {
   color: var(--gold);
-  text-shadow: 0 0 8px rgba(245, 200, 66, 0.3);
 }
 
 /* ============= Recap row (Champion + Standings side-by-side) ============= */
@@ -1136,9 +1129,13 @@ html.booting .boot-overlay,
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
 }
 
+/* Asymmetric featured pair: the winner slot leads wide, the loser slot
+   supports narrower — so the eye lands on the day's win first instead of
+   two equal-weight cards fighting for attention. Collapses to a single
+   stacked column (winner on top) on phones, below. */
 .stock-grid-featured {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: 1.6fr 1fr;
 }
 
 @media (max-width: 640px) {
@@ -1489,10 +1486,12 @@ html.booting .boot-overlay,
   font-size: 1.05rem;
 }
 
+/* Static presence, never pulsing. The one-shot glow on data change is
+   carried by the .ai-update class (added via the `flashing` prop) — same
+   pattern as the rest of the app — so nothing above the fold animates
+   forever. */
 .stock-card.featured.winner {
-  animation:
-    card-in 0.45s ease-out backwards,
-    pulse-green 3.2s ease-in-out infinite 0.45s;
+  animation: card-in 0.45s ease-out backwards;
   background: linear-gradient(
     180deg,
     color-mix(in oklch, var(--green) 10%, transparent) 0%,
@@ -1501,6 +1500,7 @@ html.booting .boot-overlay,
   );
   border-color: color-mix(in oklch, var(--green) 55%, transparent);
   border-top-color: var(--green);
+  box-shadow: 0 0 26px color-mix(in oklch, var(--green) 20%, transparent);
 }
 
 .stock-card.featured.winner .name {
@@ -1513,9 +1513,7 @@ html.booting .boot-overlay,
 }
 
 .stock-card.featured.loser {
-  animation:
-    card-in 0.45s ease-out backwards,
-    pulse-red 3.2s ease-in-out infinite 0.45s;
+  animation: card-in 0.45s ease-out backwards;
   background: linear-gradient(
     180deg,
     rgba(255, 34, 68, 0.1) 0%,
@@ -1524,6 +1522,7 @@ html.booting .boot-overlay,
   );
   border-color: rgba(255, 34, 68, 0.55);
   border-top-color: var(--red);
+  box-shadow: 0 0 22px rgba(255, 34, 68, 0.14);
 }
 
 .stock-card.featured.loser .name {
@@ -1539,8 +1538,8 @@ html.booting .boot-overlay,
    Drop-in replacement for a featured StockCard slot when there's no
    real loser to show (clean sweep) or no real winner (bloodbath). Same
    ~footprint as a featured card so the .stock-grid-featured layout is
-   unchanged. Reuses the existing pulse-green / pulse-red keyframes
-   from the featured cards above for visual continuity. */
+   unchanged. Matches the featured cards' static (non-pulsing) glow for
+   visual continuity. */
 
 .celebration-card {
   padding: 1.15rem 1.15rem 1.2rem;
@@ -1567,9 +1566,7 @@ html.booting .boot-overlay,
   border-color: rgba(0, 230, 118, 0.55);
   border-top-color: var(--green);
   box-shadow: 0 0 26px rgba(0, 230, 118, 0.18);
-  animation:
-    card-in 0.45s ease-out backwards,
-    pulse-green 3.2s ease-in-out infinite 0.45s;
+  animation: card-in 0.45s ease-out backwards;
 }
 
 .celebration-bloodbath {
@@ -1582,9 +1579,7 @@ html.booting .boot-overlay,
   border-color: rgba(255, 34, 68, 0.55);
   border-top-color: var(--red);
   box-shadow: 0 0 26px rgba(255, 34, 68, 0.18);
-  animation:
-    card-in 0.45s ease-out backwards,
-    pulse-red 3.2s ease-in-out infinite 0.45s;
+  animation: card-in 0.45s ease-out backwards;
 }
 
 .celebration-badge {
