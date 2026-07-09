@@ -271,6 +271,22 @@ export const TICKERS: Ticker[] = [
   },
 ];
 
+// Symbol → first owner's display name, for owner-aware ticker lines.
+const OWNER_NAME_BY_SYMBOL = new Map<string, string>(
+  TICKERS.flatMap((t) =>
+    t.owners && t.owners.length > 0
+      ? [[t.symbol, PEOPLE[t.owners[0]!]] as const]
+      : [],
+  ),
+);
+
+/** Display name of a ticker's primary (first-listed) owner, or undefined
+ * if nobody in the friend group owns it. Used to fill the owner slot on
+ * owner-aware ticker lines. */
+export function primaryOwnerName(symbol: string): string | undefined {
+  return OWNER_NAME_BY_SYMBOL.get(symbol);
+}
+
 /** Maps each person to the tickers they own. Derived from TICKERS so it
  * stays in sync automatically as the ticker list grows. */
 export function buildOwnersByPerson(): Map<Person, string[]> {

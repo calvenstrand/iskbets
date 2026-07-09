@@ -302,6 +302,13 @@ a {
   color: var(--red);
 }
 
+/* Per-ticker one-liner after a price — dim + italic so it reads as an
+   aside to the number, not a competing headline. */
+.tape-line {
+  color: var(--text-2);
+  font-style: italic;
+}
+
 /* ============= Pull-to-refresh ============= */
 
 .ptr {
