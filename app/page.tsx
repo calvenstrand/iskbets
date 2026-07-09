@@ -58,6 +58,7 @@ export default async function Home({
       data={data.snapshot}
       weeklyChampion={data.weeklyChampion}
       weekStartPrices={data.weekStartPrices}
+      moodHistory={data.moodHistory}
       initialInRecap={inRecap}
       initialNowMs={now.getTime()}
     />
