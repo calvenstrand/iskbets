@@ -10,6 +10,7 @@ import {
 import { hasTradedToday } from "@/lib/marketHours";
 import { TICKERS } from "@/lib/tickers";
 import type {
+  MoodRecord,
   PublicStoredData,
   StockAnalysis,
   StockPrice,
@@ -25,6 +26,7 @@ import { Header } from "./Header";
 import { Leaderboard } from "./Leaderboard";
 import { MarketStatus } from "./MarketStatus";
 import { MoodBanner } from "./MoodBanner";
+import { MoodStrip } from "./MoodStrip";
 import { PullToRefresh } from "./PullToRefresh";
 import { StockCard } from "./StockCard";
 import { TickerTape } from "./TickerTape";
@@ -35,6 +37,10 @@ type DashboardProps = {
   data: PublicStoredData;
   weeklyChampion?: WeeklyChampion;
   weekStartPrices?: Record<string, number>;
+  /** Rolling per-day sentiment (oldest→newest) backing the historical
+   * mood strip near the footer. Absent until the first day is recorded;
+   * the strip renders an all-placeholder "building history" window then. */
+  moodHistory?: MoodRecord[];
   /** Server-computed initial value for the recap window (Fri 22:00 STO →
    * Mon 09:00 STO). Dashboard re-checks every minute on the client so
    * the UI flips automatically when the window opens / closes — but
@@ -147,6 +153,7 @@ export function Dashboard({
   data: initialData,
   weeklyChampion: initialWeeklyChampion,
   weekStartPrices: initialWeekStart,
+  moodHistory,
   initialInRecap,
   initialNowMs,
 }: DashboardProps) {
@@ -433,6 +440,18 @@ export function Dashboard({
           })}
         </div>
       </section>
+
+      {/* The site's memory: a 30-day ribbon of the group's daily mood.
+          Deliberately low on the page — it's context, not headline — so
+          it doesn't re-crowd the above-the-fold hierarchy. Renders even
+          with no history (all-placeholder "building" state). */}
+      <MoodStrip
+        label="30-Day Mood"
+        history={(moodHistory ?? []).map((r) => ({
+          date: r.date,
+          sentiment: r.overall,
+        }))}
+      />
 
       <UpdatedFooter updatedAt={snapshot.updatedAt} />
     </main>

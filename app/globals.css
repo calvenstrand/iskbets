@@ -1838,6 +1838,67 @@ main[data-daymood="clean-sweep"]::before {
   color: var(--text-dim);
 }
 
+/* ============= Mood strip (historical sentiment ribbon) =============
+   The site's "memory": a `days`-cell grid, one cell per calendar slot,
+   filled from the right with recorded days (mood-token color) and padded
+   left with --surface-2 placeholders so it never implies data it doesn't
+   have. Static — no animation. Lives low on the page, near the footer. */
+
+.mood-strip {
+  width: min(760px, calc(100% - 2 * clamp(1rem, 4vw, 3rem)));
+  margin: 2rem auto 0;
+  font-family: var(--font-mono);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mood-strip-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.mood-strip-grid {
+  display: grid;
+  gap: 2px;
+}
+
+.mood-cell {
+  height: 26px;
+  border-radius: 1px;
+}
+
+/* Days with no record — quiet, one surface step up from the page so the
+   ribbon's shape reads without implying a mood. */
+.mood-cell-empty {
+  background: var(--surface-2);
+}
+
+.mood-strip-ends {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.mood-strip-building {
+  color: var(--text-2);
+  letter-spacing: 0.08em;
+}
+
+@media (max-width: 640px) {
+  .mood-strip-grid {
+    gap: 1px;
+  }
+  .mood-cell {
+    height: 22px;
+  }
+}
+
 /* ============= Footer ============= */
 
 .terminal-footer {
