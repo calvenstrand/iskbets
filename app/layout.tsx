@@ -146,8 +146,12 @@ export const viewport: Viewport = {
 
 export default function RootLayout({
   children,
+  modal,
 }: {
   children: React.ReactNode;
+  /** @modal parallel slot — the intercepting stock-detail modal (or the
+   * default null renderer on non-modal routes). */
+  modal: React.ReactNode;
 }) {
   return (
     // `booting` is set server-side so the very first paint already hides
@@ -180,6 +184,10 @@ export default function RootLayout({
         />
         <BootSequence />
         {children}
+        {/* Intercepting stock-detail modal renders on top of the current
+            page (which stays mounted underneath, so it inherits the
+            day-mood skin). Null on every non-modal route. */}
+        {modal}
         {/* Drawer footer renders OUTSIDE/BELOW main so the reveal-on-scroll
             mechanism works. Sits at z-index: 0 with main at z-index: 1
             covering it until you scroll past main's content. */}

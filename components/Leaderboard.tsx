@@ -111,7 +111,7 @@ export function Leaderboard({
     .join(" ");
 
   return (
-    <section className={sectionClass}>
+    <section id="leaderboard" className={sectionClass}>
       <header className="leaderboard-header">
         <h2 className="leaderboard-kind">
           {isWeek ? "WEEK STANDINGS" : "FRIEND LEADERBOARD"}

@@ -333,7 +333,10 @@ export async function saveDailySnapshot(snapshot: DailySnapshot): Promise<void> 
 export async function getDailySnapshot(
   date: string,
 ): Promise<DailySnapshot | null> {
-  if (shouldUseMock().use) return null;
+  if (shouldUseMock().use) {
+    const { getMockDailySnapshots } = await import("./mockData");
+    return getMockDailySnapshots().find((s) => s.date === date) ?? null;
+  }
   const v = await getRedis().get<DailySnapshot>(snapshotDateKey(date));
   return v ?? null;
 }
@@ -348,7 +351,12 @@ export async function getDailySnapshotsInRange(
   from: string,
   to: string,
 ): Promise<DailySnapshot[]> {
-  if (shouldUseMock().use) return [];
+  if (shouldUseMock().use) {
+    const { getMockDailySnapshots } = await import("./mockData");
+    return getMockDailySnapshots().filter(
+      (s) => s.date >= from && s.date <= to,
+    );
+  }
   const redis = getRedis();
   const dates = await redis.zrange<string[]>(
     SNAPSHOT_INDEX_KEY,
@@ -371,7 +379,12 @@ export async function getDailySnapshotsInRange(
 export async function getRecentDailySnapshots(
   limit: number,
 ): Promise<DailySnapshot[]> {
-  if (shouldUseMock().use) return [];
+  if (shouldUseMock().use) {
+    const { getMockDailySnapshots } = await import("./mockData");
+    const all = getMockDailySnapshots();
+    const n = Math.max(1, Math.min(Math.floor(limit), SNAPSHOT_RETENTION_DAYS));
+    return all.slice(Math.max(0, all.length - n));
+  }
   const redis = getRedis();
   const n = Math.max(1, Math.min(Math.floor(limit), SNAPSHOT_RETENTION_DAYS));
   // Negative-rank range returns the top-N by score (newest) in ascending

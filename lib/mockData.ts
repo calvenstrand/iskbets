@@ -2,6 +2,8 @@ import { deriveRating, deriveSentiment } from "./derive";
 import { stockholmMondayOfWeek } from "./dateUtil";
 import type {
   DailyResult,
+  DailySnapshot,
+  DailySnapshotStock,
   DashboardData,
   StockAnalysis,
   StockPrice,
@@ -885,4 +887,91 @@ export function getMockWeeklyResults(): WeeklyResult[] {
         "Johan's quantum stocks printed a generational week. He hasn't shut up about it.",
     },
   ];
+}
+
+// ============== Mock dated snapshot history (detail-view preview) ==============
+
+/** How many recent weekdays of fake history the detail view gets in dev
+ * mode. Deliberately < the 30-day sparkline gate so the locked "receipts"
+ * state is visible in preview; bump past 30 to preview the unlocked SVG. */
+const MOCK_HISTORY_DAYS = 18;
+
+/** Deterministic 0..1 hash of a string — used to vary the fake per-day
+ * moves without Math.random (stable across renders / SSR). */
+function hash01(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  // >>> 0 → unsigned; scale to 0..1.
+  return ((h >>> 0) % 100000) / 100000;
+}
+
+/** YYYY-MM-DD for a UTC day offset back from today. */
+function dateBack(daysBack: number): { date: string; weekday: number } {
+  const now = new Date();
+  const ms = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) -
+    daysBack * 86_400_000;
+  const dt = new Date(ms);
+  const y = dt.getUTCFullYear();
+  const m = String(dt.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(dt.getUTCDate()).padStart(2, "0");
+  return { date: `${y}-${m}-${d}`, weekday: dt.getUTCDay() };
+}
+
+/**
+ * Fabricated dated history so the per-stock detail view renders a real
+ * ANALYST LOG + mood strip in dev mode (no Redis). Pure dev affordance —
+ * only the mock branch in storage.ts ever calls it. Skips weekends (so
+ * the mood strip shows honest gaps) and only attaches a commentary line
+ * on the bigger-move days, mirroring the production comment rule. Ordered
+ * oldest→newest, matching the real storage layer.
+ */
+export function getMockDailySnapshots(): DailySnapshot[] {
+  const snapshots: DailySnapshot[] = [];
+  // Walk back far enough to collect MOCK_HISTORY_DAYS *weekdays*.
+  for (let back = 40; back >= 1 && snapshots.length < MOCK_HISTORY_DAYS; back--) {
+    const { date, weekday } = dateBack(back);
+    if (weekday === 0 || weekday === 6) continue; // skip Sat/Sun → gaps
+
+    const stocks: DailySnapshotStock[] = STOCKS.filter((s) =>
+      Number.isFinite(s.regularMarketPrice),
+    ).map((s) => {
+      // Deterministic day move in roughly [-6, +6]%, biased per ticker.
+      const raw = hash01(`${s.ticker}:${date}`);
+      const changePct = Number(((raw - 0.5) * 12).toFixed(2));
+      const rating = deriveRating(changePct);
+      const sentiment = deriveSentiment(changePct);
+      // Mirror the production comment rule: a line only on a big move,
+      // and only for tickers that have an authored one.
+      const authored = COMMENTS[s.ticker];
+      const comment =
+        authored && Math.abs(changePct) > 3 ? authored : undefined;
+      // Reconstruct a plausible historical price from the move.
+      const price = Number(
+        (s.regularMarketPrice * (1 + (raw - 0.5) * 0.08)).toFixed(
+          s.regularMarketPrice >= 100 ? 2 : 4,
+        ),
+      );
+      return {
+        ticker: s.ticker,
+        price,
+        changePct,
+        ...(rating ? { rating } : {}),
+        sentiment,
+        ...(comment ? { comment } : {}),
+      };
+    });
+
+    snapshots.push({
+      date,
+      capturedAt: 0,
+      updatedAt: `${date}T20:00:00.000Z`,
+      overallMood: OVERALL_MOOD,
+      stocks,
+    });
+  }
+  // Collected newest→oldest above; flip to oldest→newest like storage.
+  return snapshots.reverse();
 }

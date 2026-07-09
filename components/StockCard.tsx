@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { CSSProperties } from "react";
 import {
   deriveRating,
@@ -182,6 +183,11 @@ export function StockCard({
     featured && Number.isFinite(featuredWeekChangePct ?? NaN);
 
   return (
+    <Link
+      href={`/stock/${encodeURIComponent(stock.ticker)}`}
+      className="stock-card-link"
+      aria-label={`${stock.name} detail`}
+    >
     <article className={cardClass} style={style}>
       {featured === "winner" && (
         <div className="featured-label win">
@@ -248,5 +254,6 @@ export function StockCard({
         {glory && <p className="meta">{glory}</p>}
       </div>
     </article>
+    </Link>
   );
 }
