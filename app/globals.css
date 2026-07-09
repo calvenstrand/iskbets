@@ -3,12 +3,9 @@
 :root {
   --bg: #080b0a;
   --bg-elev: #0d1110;
-  --border: #1a2620;
   --border-bright: #2a3a32;
   --green: #00e676;
   --green-dim: #00b32d;
-  --green-deep: #033a14;
-  --green-glow: rgba(0, 230, 118, 0.12);
 
   /* Drawer footer height. Adjust to match content, then main's
      margin-bottom (set off this same var) keeps the reveal in sync. */
@@ -17,7 +14,6 @@
   --gold-dim: #b08e1f;
   --red: #ff2244;
   --red-dim: #b3161e;
-  --red-deep: #3a0612;
   --text: #d8e6dc;
   --text-dim: #6b7d72;
   --text-faint: #3a4a40;
@@ -295,7 +291,7 @@ a {
 
 .tape-diamond {
   color: var(--gold);
-  text-shadow: 0 0 6px rgba(245, 200, 66, 0.4);
+  text-shadow: 0 0 6px color-mix(in oklch, var(--gold) 40%, transparent);
 }
 
 .tape-up {
@@ -347,6 +343,12 @@ a {
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .ptr-spin {
+    animation: none;
+  }
+}
+
 /* ============= Masthead ============= */
 
 .masthead {
@@ -383,7 +385,7 @@ a {
 
 .masthead-brand .dollar {
   color: var(--gold);
-  text-shadow: 0 0 14px rgba(245, 200, 66, 0.5);
+  text-shadow: 0 0 14px color-mix(in oklch, var(--gold) 50%, transparent);
 }
 
 .masthead-rule {
@@ -399,7 +401,7 @@ a {
     var(--gold-dim) 88%,
     transparent 100%
   );
-  box-shadow: 0 0 6px rgba(245, 200, 66, 0.25);
+  box-shadow: 0 0 6px color-mix(in oklch, var(--gold) 25%, transparent);
 }
 
 .masthead-dateline {
@@ -422,7 +424,7 @@ a {
 
 .masthead-dateline .motto {
   color: var(--gold);
-  text-shadow: 0 0 6px rgba(245, 200, 66, 0.25);
+  text-shadow: 0 0 6px color-mix(in oklch, var(--gold) 25%, transparent);
 }
 
 .masthead-dateline-placeholder {
@@ -508,7 +510,7 @@ html.booting .boot-overlay,
 
 .boot-ok {
   color: var(--gold);
-  text-shadow: 0 0 6px rgba(245, 200, 66, 0.4);
+  text-shadow: 0 0 6px color-mix(in oklch, var(--gold) 40%, transparent);
 }
 
 .boot-cursor {
@@ -645,7 +647,7 @@ html.booting .boot-overlay,
 
 .market-pip.pre {
   background: var(--gold);
-  box-shadow: 0 0 8px rgba(245, 200, 66, 0.6);
+  box-shadow: 0 0 8px color-mix(in oklch, var(--gold) 60%, transparent);
 }
 
 .market-status-open {
@@ -855,11 +857,11 @@ main[data-daymood="clean-sweep"]::before {
    visual hierarchy — this is the supporting column. */
 .recap-row > .leaderboard {
   padding: 1.4rem 1.5rem 1.5rem;
-  border: 1px solid rgba(245, 200, 66, 0.22);
+  border: 1px solid color-mix(in oklch, var(--gold) 22%, transparent);
   background: linear-gradient(
     135deg,
-    rgba(245, 200, 66, 0.05) 0%,
-    rgba(245, 200, 66, 0.015) 50%,
+    color-mix(in oklch, var(--gold) 5%, transparent) 0%,
+    color-mix(in oklch, var(--gold) 1.5%, transparent) 50%,
     var(--bg-elev) 100%
   );
 }
@@ -898,16 +900,16 @@ main[data-daymood="clean-sweep"]::before {
   margin: 1.75rem auto 0;
   width: min(1000px, calc(100% - 2 * clamp(1rem, 4vw, 3rem)));
   padding: 1.4rem 1.5rem 1.5rem;
-  border: 1px solid rgba(245, 200, 66, 0.55);
+  border: 1px solid color-mix(in oklch, var(--gold) 55%, transparent);
   background: linear-gradient(
     135deg,
-    rgba(245, 200, 66, 0.18) 0%,
-    rgba(245, 200, 66, 0.06) 50%,
+    color-mix(in oklch, var(--gold) 18%, transparent) 0%,
+    color-mix(in oklch, var(--gold) 6%, transparent) 50%,
     var(--bg-elev) 100%
   );
   box-shadow:
-    0 0 28px rgba(245, 200, 66, 0.18),
-    0 0 14px rgba(245, 200, 66, 0.18) inset;
+    0 0 28px color-mix(in oklch, var(--gold) 18%, transparent),
+    0 0 14px color-mix(in oklch, var(--gold) 18%, transparent) inset;
   font-family: var(--font-mono);
   position: relative;
   overflow: hidden;
@@ -928,7 +930,7 @@ main[data-daymood="clean-sweep"]::before {
   font-size: clamp(1rem, 2vw, 1.25rem);
   letter-spacing: 0.22em;
   color: var(--gold);
-  text-shadow: 0 0 10px rgba(245, 200, 66, 0.5);
+  text-shadow: 0 0 10px color-mix(in oklch, var(--gold) 50%, transparent);
   /* Neutralise <h2> default margins — was a <span> previously, promoted
      to <h2> for SEO/semantic-headings reasons. */
   margin: 0;
@@ -980,7 +982,7 @@ main[data-daymood="clean-sweep"]::before {
   font-style: italic;
   line-height: 1.55;
   color: var(--gold);
-  text-shadow: 0 0 8px rgba(245, 200, 66, 0.2);
+  text-shadow: 0 0 8px color-mix(in oklch, var(--gold) 20%, transparent);
   max-width: 70ch;
 }
 
@@ -1016,7 +1018,7 @@ main[data-daymood="clean-sweep"]::before {
   font-size: clamp(1.4rem, 3vw, 2rem);
   letter-spacing: 0.18em;
   color: var(--gold);
-  text-shadow: 0 0 12px rgba(245, 200, 66, 0.4);
+  text-shadow: 0 0 12px color-mix(in oklch, var(--gold) 40%, transparent);
   /* Neutralise <h2> default margins — was a <span> previously, promoted
      to <h2> for SEO/semantic-headings reasons. */
   margin: 0;
@@ -1035,14 +1037,14 @@ main[data-daymood="clean-sweep"]::before {
 .leader-champion {
   background: linear-gradient(
     135deg,
-    rgba(245, 200, 66, 0.14) 0%,
-    rgba(245, 200, 66, 0.04) 50%,
+    color-mix(in oklch, var(--gold) 14%, transparent) 0%,
+    color-mix(in oklch, var(--gold) 4%, transparent) 50%,
     var(--bg-elev) 100%
   );
-  border: 1px solid rgba(245, 200, 66, 0.55);
+  border: 1px solid color-mix(in oklch, var(--gold) 55%, transparent);
   box-shadow:
-    0 0 24px rgba(245, 200, 66, 0.15),
-    0 0 12px rgba(245, 200, 66, 0.18) inset;
+    0 0 24px color-mix(in oklch, var(--gold) 15%, transparent),
+    0 0 12px color-mix(in oklch, var(--gold) 18%, transparent) inset;
   padding: 1.25rem 1.4rem;
   margin-bottom: 0.8rem;
   position: relative;
@@ -1058,7 +1060,7 @@ main[data-daymood="clean-sweep"]::before {
   font-size: 0.78rem;
   letter-spacing: 0.22em;
   color: var(--gold);
-  text-shadow: 0 0 10px rgba(245, 200, 66, 0.55);
+  text-shadow: 0 0 10px color-mix(in oklch, var(--gold) 55%, transparent);
 }
 
 .leader-champion-row {
@@ -1082,7 +1084,7 @@ main[data-daymood="clean-sweep"]::before {
   font-size: clamp(2rem, 5vw, 3rem);
   letter-spacing: 0.06em;
   color: var(--gold);
-  text-shadow: 0 0 14px rgba(245, 200, 66, 0.55);
+  text-shadow: 0 0 14px color-mix(in oklch, var(--gold) 55%, transparent);
   line-height: 1;
 }
 
@@ -1203,7 +1205,7 @@ main[data-daymood="clean-sweep"]::before {
 
 .leader-down {
   color: var(--red);
-  text-shadow: 0 0 6px rgba(255, 34, 68, 0.3);
+  text-shadow: 0 0 6px color-mix(in oklch, var(--red) 30%, transparent);
 }
 
 .leader-flat {
@@ -1255,7 +1257,7 @@ main[data-daymood="clean-sweep"]::before {
 .leader-champion .leader-impact {
   margin-top: 0.9rem;
   padding-top: 0.85rem;
-  border-top-color: rgba(245, 200, 66, 0.25);
+  border-top-color: color-mix(in oklch, var(--gold) 25%, transparent);
 }
 .leader-champion .leader-impact-cell {
   font-size: 0.9rem;
@@ -1269,8 +1271,13 @@ main[data-daymood="clean-sweep"]::before {
     gap: 1.1rem;
     width: 100%;
   }
+  /* auto-fit, not a hard `1fr 1fr`: a friend card can't compress below
+     ~165px (its stats row + impact line don't wrap), so forcing two
+     columns overflows the page at ~320px. auto-fit drops to a single
+     full-width column on the narrowest phones and gives two columns as
+     soon as there's room (~375px+). */
   .leaderboard-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
   }
 }
 
@@ -1355,8 +1362,8 @@ main[data-daymood="clean-sweep"]::before {
 .sort-pill.active {
   color: var(--green);
   border-color: var(--green);
-  background: var(--green-glow);
-  text-shadow: 0 0 8px rgba(0, 230, 118, 0.4);
+  background: color-mix(in oklch, var(--green) 12%, transparent);
+  text-shadow: 0 0 8px color-mix(in oklch, var(--green) 40%, transparent);
 }
 
 @media (max-width: 640px) {
@@ -1668,18 +1675,18 @@ main[data-daymood="clean-sweep"]::before {
   animation: card-in 0.45s ease-out backwards;
   background: linear-gradient(
     180deg,
-    rgba(255, 34, 68, 0.1) 0%,
-    rgba(255, 34, 68, 0.025) 35%,
+    color-mix(in oklch, var(--red) 10%, transparent) 0%,
+    color-mix(in oklch, var(--red) 2.5%, transparent) 35%,
     var(--bg-elev) 70%
   );
-  border-color: rgba(255, 34, 68, 0.55);
+  border-color: color-mix(in oklch, var(--red) 55%, transparent);
   border-top-color: var(--red);
-  box-shadow: 0 0 22px rgba(255, 34, 68, 0.14);
+  box-shadow: 0 0 22px color-mix(in oklch, var(--red) 14%, transparent);
 }
 
 .stock-card.featured.loser .name {
   color: var(--red);
-  text-shadow: 0 0 14px rgba(255, 34, 68, 0.45);
+  text-shadow: 0 0 14px color-mix(in oklch, var(--red) 45%, transparent);
 }
 
 .stock-card.featured.loser .price {
@@ -1711,26 +1718,26 @@ main[data-daymood="clean-sweep"]::before {
 .celebration-clean-sweep {
   background: linear-gradient(
     180deg,
-    rgba(0, 230, 118, 0.18) 0%,
-    rgba(0, 230, 118, 0.05) 50%,
+    color-mix(in oklch, var(--green) 18%, transparent) 0%,
+    color-mix(in oklch, var(--green) 5%, transparent) 50%,
     var(--bg-elev) 100%
   );
-  border-color: rgba(0, 230, 118, 0.55);
+  border-color: color-mix(in oklch, var(--green) 55%, transparent);
   border-top-color: var(--green);
-  box-shadow: 0 0 26px rgba(0, 230, 118, 0.18);
+  box-shadow: 0 0 26px color-mix(in oklch, var(--green) 18%, transparent);
   animation: card-in 0.45s ease-out backwards;
 }
 
 .celebration-bloodbath {
   background: linear-gradient(
     180deg,
-    rgba(255, 34, 68, 0.18) 0%,
-    rgba(255, 34, 68, 0.05) 50%,
+    color-mix(in oklch, var(--red) 18%, transparent) 0%,
+    color-mix(in oklch, var(--red) 5%, transparent) 50%,
     var(--bg-elev) 100%
   );
-  border-color: rgba(255, 34, 68, 0.55);
+  border-color: color-mix(in oklch, var(--red) 55%, transparent);
   border-top-color: var(--red);
-  box-shadow: 0 0 26px rgba(255, 34, 68, 0.18);
+  box-shadow: 0 0 26px color-mix(in oklch, var(--red) 18%, transparent);
   animation: card-in 0.45s ease-out backwards;
 }
 
@@ -1743,12 +1750,12 @@ main[data-daymood="clean-sweep"]::before {
 
 .celebration-clean-sweep .celebration-badge {
   color: var(--green);
-  text-shadow: 0 0 10px rgba(0, 230, 118, 0.45);
+  text-shadow: 0 0 10px color-mix(in oklch, var(--green) 45%, transparent);
 }
 
 .celebration-bloodbath .celebration-badge {
   color: var(--red);
-  text-shadow: 0 0 10px rgba(255, 34, 68, 0.45);
+  text-shadow: 0 0 10px color-mix(in oklch, var(--red) 45%, transparent);
 }
 
 .celebration-headline {
@@ -1780,7 +1787,7 @@ main[data-daymood="clean-sweep"]::before {
   font-style: italic;
   font-size: 0.92rem;
   line-height: 1.5;
-  color: #c5d3c9;
+  color: var(--text-1);
   max-width: 32ch;
   align-self: center;
 }
@@ -1806,7 +1813,7 @@ main[data-daymood="clean-sweep"]::before {
 }
 .featured-label.lose {
   color: var(--red);
-  text-shadow: 0 0 8px rgba(255, 34, 68, 0.45);
+  text-shadow: 0 0 8px color-mix(in oklch, var(--red) 45%, transparent);
 }
 
 /* Headline week% line on featured cards. Sits right under the
@@ -1825,7 +1832,7 @@ main[data-daymood="clean-sweep"]::before {
 }
 .featured-week.change-down {
   color: var(--red);
-  text-shadow: 0 0 8px rgba(255, 34, 68, 0.45);
+  text-shadow: 0 0 8px color-mix(in oklch, var(--red) 45%, transparent);
 }
 .featured-week.change-neutral {
   color: var(--text-dim);
@@ -1862,9 +1869,17 @@ main[data-daymood="clean-sweep"]::before {
   animation: live-pulse 2.2s ease-in-out infinite;
 }
 
+/* The "live" pip pulses forever, so it must stop for reduced-motion —
+   it stays green + lit, just static. */
+@media (prefers-reduced-motion: reduce) {
+  .live-pip.fresh {
+    animation: none;
+  }
+}
+
 .live-pip.stale {
   background: var(--gold);
-  box-shadow: 0 0 4px rgba(245, 200, 66, 0.4);
+  box-shadow: 0 0 4px color-mix(in oklch, var(--gold) 40%, transparent);
 }
 
 .live-pip.dead {
@@ -1903,6 +1918,12 @@ main[data-daymood="clean-sweep"]::before {
   color: var(--green);
   text-shadow: 0 0 20px color-mix(in oklch, var(--green) 50%, transparent);
   animation: flicker 2.4s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .empty-state .signal {
+    animation: none;
+  }
 }
 
 .empty-state .hint {
@@ -1993,12 +2014,12 @@ main {
   color: var(--text);
   line-height: 1;
   font-weight: 400;
-  text-shadow: 0 0 14px rgba(0, 230, 118, 0.12);
+  text-shadow: 0 0 14px color-mix(in oklch, var(--green) 12%, transparent);
 }
 
 .drawer-footer-brand .dollar {
   color: var(--gold);
-  text-shadow: 0 0 12px rgba(245, 200, 66, 0.5);
+  text-shadow: 0 0 12px color-mix(in oklch, var(--gold) 50%, transparent);
 }
 
 /* Tagline — uses var(--text), not --text-dim, so it's actually
@@ -2044,7 +2065,7 @@ main {
 .drawer-footer-links .footer-link-button:hover,
 .drawer-footer-links .footer-link-button:focus-visible {
   border-bottom-color: var(--green);
-  text-shadow: 0 0 8px rgba(0, 230, 118, 0.4);
+  text-shadow: 0 0 8px color-mix(in oklch, var(--green) 40%, transparent);
   outline: none;
 }
 
@@ -2085,7 +2106,7 @@ main {
 .drawer-footer-credit:hover,
 .drawer-footer-credit:focus-visible {
   border-bottom-color: var(--gold);
-  text-shadow: 0 0 8px rgba(245, 200, 66, 0.4);
+  text-shadow: 0 0 8px color-mix(in oklch, var(--gold) 40%, transparent);
   outline: none;
 }
 
@@ -2128,10 +2149,10 @@ main {
 
 .disclaimer-panel {
   background: linear-gradient(180deg, #0d1110 0%, #060807 100%);
-  border: 1px solid rgba(245, 200, 66, 0.4);
+  border: 1px solid color-mix(in oklch, var(--gold) 40%, transparent);
   box-shadow:
     0 0 40px rgba(0, 0, 0, 0.6),
-    0 0 18px rgba(245, 200, 66, 0.18) inset;
+    0 0 18px color-mix(in oklch, var(--gold) 18%, transparent) inset;
   font-family: var(--font-mono);
   display: flex;
   flex-direction: column;
@@ -2153,7 +2174,7 @@ main {
   font-size: clamp(1.2rem, 2.5vw, 1.6rem);
   letter-spacing: 0.18em;
   color: var(--gold);
-  text-shadow: 0 0 10px rgba(245, 200, 66, 0.4);
+  text-shadow: 0 0 10px color-mix(in oklch, var(--gold) 40%, transparent);
 }
 
 .disclaimer-close {
@@ -2179,7 +2200,7 @@ main {
 .disclaimer-close:focus-visible {
   color: var(--text);
   border-color: var(--gold);
-  background: rgba(245, 200, 66, 0.08);
+  background: color-mix(in oklch, var(--gold) 8%, transparent);
   outline: none;
 }
 
