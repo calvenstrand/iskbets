@@ -1,8 +1,10 @@
 import { deriveRating, deriveSentiment } from "./derive";
-import { stockholmMondayOfWeek } from "./dateUtil";
+import { stockholmDate, stockholmMondayOfWeek } from "./dateUtil";
+import { upsertMoodRecords } from "./mood";
 import type {
   DailyResult,
   DashboardData,
+  MoodRecord,
   StockAnalysis,
   StockPrice,
   StoredData,
@@ -654,6 +656,55 @@ export function getMockWeekStartSnapshot(): WeekStartSnapshot {
  * side-by-side), run the dashboard during the actual recap window
  * (Fri 22:00 → Mon 09:00 STO) — inRecapWindow keys off real time.
  */
+/**
+ * Fake mood history for dev mode — a partially-filled 30-day window so
+ * the strip shows the intended "records packed to today, placeholders on
+ * the left" behavior. `count` controls how many days exist: the default
+ * fills ~18 of 30; `fresh` mode passes a tiny count to preview the
+ * "building history…" empty state. Sentiments follow a hand-picked
+ * avgPct walk so every mood band appears at least once.
+ */
+export function getMockMoodHistory(count = 18): MoodRecord[] {
+  // Deterministic walk through the bands: moon / up / neutral / down /
+  // rekt all represented. Sampled from the tail so `count` most-recent
+  // days end at "today".
+  const walk = [
+    0.2, 1.4, 3.1, 6.4, 2.2, -0.2, -1.9, -4.1, -6.2, -2.3, 0.6, 2.0, 4.9, 7.2,
+    -0.1, -3.4, -5.6, 1.5, 0.3, -0.8,
+  ];
+  const symbols = getMockData().stocks.map((s) => s.ticker);
+  const today = new Date();
+  const todayMs = Date.UTC(
+    today.getUTCFullYear(),
+    today.getUTCMonth(),
+    today.getUTCDate(),
+  );
+  const n = Math.min(count, walk.length);
+
+  let history: MoodRecord[] = [];
+  for (let i = 0; i < n; i++) {
+    const dayMs = todayMs - (n - 1 - i) * 86_400_000;
+    const date = stockholmDate(new Date(dayMs));
+    const avgPct = walk[walk.length - n + i] ?? 0;
+    const tickers: Record<string, ReturnType<typeof deriveSentiment>> = {};
+    symbols.forEach((sym, t) => {
+      // Deterministic jitter around the day's average so per-ticker
+      // strips differ from the overall one.
+      const jitter = (((i * 7 + t * 13) % 11) - 5) * 0.9;
+      tickers[sym] = deriveSentiment(avgPct + jitter);
+    });
+    // Route through the real upsert so the mock exercises the same
+    // sort/cap path the storage layer does.
+    history = upsertMoodRecords(history, {
+      date,
+      overall: deriveSentiment(avgPct),
+      avgPct,
+      tickers,
+    });
+  }
+  return history;
+}
+
 export function getMockDashboardData(mode: MockMode): DashboardData | null {
   if (mode === "empty") return null;
 
@@ -675,10 +726,15 @@ export function getMockDashboardData(mode: MockMode): DashboardData | null {
 
   const weeklyChampion = includeWeekData ? getMockWeeklyChampion() : null;
 
+  // "fresh" previews the first-deploy state: only a couple of days
+  // recorded, so the strip shows the "building history…" state.
+  const moodHistory = getMockMoodHistory(includeWeekData ? 18 : 2);
+
   return {
     snapshot,
     ...(weeklyChampion ? { weeklyChampion } : {}),
     ...(weekStartPrices ? { weekStartPrices } : {}),
+    ...(moodHistory.length > 0 ? { moodHistory } : {}),
   };
 }
 

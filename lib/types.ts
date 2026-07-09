@@ -37,6 +37,24 @@ export type Rating = (typeof RATINGS)[number];
 export const SENTIMENTS = ["moon", "up", "neutral", "down", "rekt"] as const;
 export type Sentiment = (typeof SENTIMENTS)[number];
 
+/** One day's captured sentiment — the atom of the historical mood strip.
+ * A pure function of the day's change %s (no LLM); see computeMoodRecord
+ * in lib/mood.ts. Written once per Stockholm calendar day, last-write-
+ * wins (recordDailyMood). Deliberately compact — enums + one average, no
+ * prices — so ~90 of them ride along in the dashboard read cheaply. */
+export type MoodRecord = {
+  /** Stockholm calendar day, YYYY-MM-DD. The upsert key. */
+  date: string;
+  /** Group mood that day = deriveSentiment(avgPct). */
+  overall: Sentiment;
+  /** The day's mean regularMarketChangePercent across finite-priced tickers. */
+  avgPct: number;
+  /** Per-ticker sentiment for every tracked ticker with finite data that
+   * day. A ticker missing here (non-finite price) renders as a gap in the
+   * per-ticker strip — history is never faked. */
+  tickers: Record<string, Sentiment>;
+};
+
 /** A market-wide sweep, lifted from detectSweep to a page-level skin.
  * "bloodbath" = every eligible stock red, "clean-sweep" = every one
  * green. Drives the <main data-daymood> reskin, the brief's gallows-
@@ -108,6 +126,11 @@ export type DashboardData = {
    * Optional — at the very first deploy or if Monday's archive missed,
    * the leaderboard gracefully hides the WTD column. */
   weekStartPrices?: Record<string, number>;
+  /** Rolling per-day sentiment, oldest→newest, for the historical mood
+   * strip. Starts empty at deploy and fills one day at a time — the UI
+   * renders a partially-filled window and never invents unrecorded days.
+   * Absent until the first day is captured. */
+  moodHistory?: MoodRecord[];
 };
 
 /** Snapshot taken at the first Monday trigger of the week — baseline for
