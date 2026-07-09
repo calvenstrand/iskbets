@@ -23,6 +23,7 @@ import {
   getWeeklyResult,
   getWeekStartSnapshot,
   markAttempt,
+  saveDailySnapshot,
   saveStockData,
   setDailyResult,
   setWeeklyChampion,
@@ -31,6 +32,7 @@ import {
 } from "@/lib/storage";
 import type { StoredData } from "@/lib/types";
 import { computeDailyResult } from "@/lib/dailyResult";
+import { computeDailySnapshot } from "@/lib/dailySnapshot";
 import { computeWeeklyResult, fridayFromMonday } from "@/lib/weeklyResult";
 
 export const dynamic = "force-dynamic";
@@ -242,6 +244,38 @@ async function maybeGenerateWeeklyChampion(
 }
 
 /**
+ * Persist the run's slim end-of-day snapshot to dated history
+ * (`iskbets:snapshot:YYYY-MM-DD` + the `iskbets:snapshot:index` sorted
+ * set). Runs every trigger — the last write of the Stockholm day wins,
+ * so the key ends up holding end-of-day state rather than intraday
+ * noise. Retention (400-day cap) is enforced inside saveDailySnapshot.
+ *
+ * Fully isolated: any failure here is logged and swallowed so the main
+ * pipeline (which already saved the live snapshot) still completes and
+ * the site keeps updating.
+ */
+async function maybeSaveDailySnapshot(
+  snapshot: StoredData,
+  now: Date,
+): Promise<void> {
+  try {
+    const date = stockholmDate(now);
+    const daily = computeDailySnapshot({
+      data: snapshot,
+      date,
+      capturedAt: now.getTime(),
+    });
+    await saveDailySnapshot(daily);
+    console.log(
+      `[trigger] daily snapshot saved for ${date} (${daily.stocks.length} stocks)`,
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[trigger] daily snapshot save failed: ${msg}`);
+  }
+}
+
+/**
  * Archive the snapshot as this week's baseline if we don't already have
  * one for the current Stockholm-week's Monday. Used by the leaderboard's
  * WTD column and the Weekend Wire's week-over-week recap.
@@ -365,6 +399,10 @@ export async function GET(request: Request): Promise<NextResponse> {
     });
 
     const triggerNow = new Date();
+
+    // Persist the slim dated history snapshot (every run; last write of
+    // the day wins). Isolated — a failure here won't break the run.
+    await maybeSaveDailySnapshot(saved, triggerNow);
 
     // Archive the Monday baseline once per week (no-op other days, or
     // on subsequent Monday triggers after the first one this week).
