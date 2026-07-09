@@ -1339,16 +1339,51 @@ html.booting .boot-overlay,
   font-size: 0.88rem;
 }
 
+/* Price + change share one row; change trails to the right edge so the
+   eye reads "price … how it moved" in a single sweep. Wraps to its own
+   line on the narrowest cards. */
+.stock-card .price-row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.6rem;
+  margin-top: 0.5rem;
+}
+
+.stock-card .price-row .change {
+  margin-left: auto;
+}
+
+/* Divided info strip — the take + meta area, split from the price row
+   by a hairline so the card reads as header / price / commentary. */
+.stock-card .card-strip {
+  margin-top: 0.8rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+/* Mood chip. Tinted + outlined by default so mild movers stay quiet;
+   .rating-solid fills at the extremes (moon / liquidated) where the
+   card wants to shout. Color follows the per-card --mood token. */
 .stock-card .rating {
   display: inline-block;
   font-family: var(--font-mono);
   font-size: 0.7rem;
   letter-spacing: 0.06em;
   padding: 0.2rem 0.5rem;
-  border: 1px solid var(--border-bright);
-  background: #0a0e0c;
-  color: var(--text);
+  border: 1px solid color-mix(in oklch, var(--mood, var(--border-bright)) 50%, transparent);
+  background: color-mix(in oklch, var(--mood, transparent) 12%, transparent);
+  color: var(--mood, var(--text));
   white-space: nowrap;
+}
+
+.stock-card .rating.rating-solid {
+  border-color: var(--mood);
+  background: var(--mood);
+  color: var(--mood-ink, var(--surface-0));
 }
 
 .stock-card .comment {
@@ -1361,8 +1396,19 @@ html.booting .boot-overlay,
   color: var(--text-1);
   font-size: 0.86rem;
   line-height: 1.5;
-  border-left: 2px solid var(--border-bright);
+  /* Accent tied to the card's mood so the take reads as part of the
+     same signal as the spine + chip, not a stray gray rule. */
+  border-left: 2px solid color-mix(in oklch, var(--mood, var(--border-strong)) 45%, var(--border));
   padding-left: 0.65rem;
+}
+
+/* Empty-take variant — the rule-based filler when the analyzer left no
+   comment. Dimmer than a real take (it's a placeholder, not a quote)
+   but still mood-tinted so the card reads as a complete unit. */
+.stock-card .comment-empty {
+  color: var(--text-2);
+  font-style: normal;
+  letter-spacing: 0.02em;
 }
 
 .stock-card .meta {
@@ -1372,75 +1418,36 @@ html.booting .boot-overlay,
   text-transform: uppercase;
 }
 
-/* Sentiment-driven card border + glow + bg tint. Three intensity tiers
-   per direction so >5% movers stand out from merely-up/down ones.
-   Buckets defined in lib/derive.ts:
-     moon  > +5%      — strongest green
-     up    +0.5..+5%  — mild green
-     neutral          — gold border, no glow
-     down  -0.5..-5%  — mild red
-     rekt  < -5%      — strongest red
+/* Mood is carried by a 3px left spine (colored via the per-card --mood
+   token, set in StockCard.tsx) instead of a full-card border + glow +
+   bg tint. One restrained signal per card — the spine + the chip — so
+   the grid reads as a system rather than a wall of glowing boxes.
+   Buckets defined in lib/derive.ts / mapped to --mood-* in StockCard:
+     moon  > +5%      — mood-moon
+     up    +0.5..+5%  — mood-up
+     neutral          — mood-neutral
+     down  -0.5..-5%  — mood-down
+     rekt  < -5%      — mood-liquidated
 
-   Featured cards (.stock-card.featured.winner / .loser) have higher
-   specificity (2 classes) so they keep their dedicated styling — only
-   regular grid cards pick this up. */
-
-/* Mild up — small/medium gain. Card is clearly green-tinted without
-   being neon. Border carries enough alpha to read at a glance, flat
-   bg fill replaces the old fade-to-near-transparent gradient. */
-.glow-up {
-  border-color: rgba(0, 230, 118, 0.5);
-  box-shadow: 0 0 22px rgba(0, 230, 118, 0.12);
-  background: rgba(0, 230, 118, 0.07);
+   Featured cards (.stock-card.featured.winner / .loser) keep their own
+   dedicated styling and opt out of the spine (see :not(.featured)). */
+.stock-card:not(.featured) {
+  border-left: 3px solid var(--mood, var(--border));
 }
 
-/* Big up — flex the glow. Border near opaque, bigger outer spread +
-   inset glow for the "lit from within" feel, and a top-heavy gradient
-   that gives the moon-tier card visible volume. */
-.glow-moon {
-  border-color: rgba(0, 230, 118, 0.8);
-  box-shadow:
-    0 0 36px rgba(0, 230, 118, 0.35),
-    0 0 18px rgba(0, 230, 118, 0.16) inset;
-  background: linear-gradient(
-    180deg,
-    rgba(0, 230, 118, 0.2) 0%,
-    rgba(0, 230, 118, 0.1) 100%
-  );
-}
-
-.glow-neutral {
-  border-color: rgba(245, 200, 66, 0.2);
-  box-shadow: none;
-  background: transparent;
-}
-
-/* Mild down — symmetric to .glow-up. */
-.glow-down {
-  border-color: rgba(255, 34, 68, 0.5);
-  box-shadow: 0 0 22px rgba(255, 34, 68, 0.12);
-  background: rgba(255, 34, 68, 0.07);
-}
-
-/* Big down — symmetric to .glow-moon. The bleeding card. */
-.glow-rekt {
-  border-color: rgba(255, 34, 68, 0.8);
-  box-shadow:
-    0 0 36px rgba(255, 34, 68, 0.35),
-    0 0 18px rgba(255, 34, 68, 0.16) inset;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 34, 68, 0.2) 0%,
-    rgba(255, 34, 68, 0.1) 100%
-  );
+/* Extreme movers (moon / liquidated) keep a static mood glow so they
+   still pop out of the grid. One-shot / static, never pulsing — the
+   --glow-mood token resolves against the card's own --mood. */
+.stock-card.mood-extreme {
+  box-shadow: var(--glow-mood);
 }
 
 /* Stale-market card. Applied when the ticker's market hasn't opened
    in this Stockholm calendar day (US tickers Mon morning before NY
-   opens, etc). Two-class selector wins specificity over any single
-   .glow-X — sentiment color washes out, replaced by neutral gray.
-   Reduced opacity completes the "this is yesterday's data, deal with
-   it later" treatment without removing the card entirely. */
+   opens, etc). Two-class selector wins specificity over the single-
+   class spine rule — the mood color washes out, replaced by neutral
+   gray. Reduced opacity completes the "this is yesterday's data, deal
+   with it later" treatment without removing the card entirely. */
 .stock-card.market-closed {
   border-color: rgba(120, 130, 125, 0.25);
   box-shadow: none;

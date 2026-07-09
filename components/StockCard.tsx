@@ -73,9 +73,33 @@ function changeArrow(value: number): string {
   return "·";
 }
 
-function sentimentGlow(sentiment: Sentiment | undefined): string {
-  if (!sentiment) return "";
-  return `glow-${sentiment}`;
+/**
+ * Maps deriveSentiment's five buckets onto the diverging --mood-* token
+ * family (defined in globals.css). The rekt bucket (≤ -5%) uses
+ * --mood-liquidated — the deepest red — so the worst cards read as more
+ * than "mild down". Drives the card's left spine, its chip, and the
+ * comment accent via the --mood custom property.
+ */
+function moodVar(sentiment: Sentiment): string {
+  switch (sentiment) {
+    case "moon":
+      return "var(--mood-moon)";
+    case "up":
+      return "var(--mood-up)";
+    case "neutral":
+      return "var(--mood-neutral)";
+    case "down":
+      return "var(--mood-down)";
+    case "rekt":
+      return "var(--mood-liquidated)";
+  }
+}
+
+// The chip fills SOLID only at the extremes — a moon-tier ripper or a
+// liquidated bagholder. Mild tiers get the outlined/tinted chip so the
+// grid doesn't turn into a wall of solid blocks.
+function isExtreme(sentiment: Sentiment): boolean {
+  return sentiment === "moon" || sentiment === "rekt";
 }
 
 function fromGlory(price: number, high: number): string | null {
@@ -84,6 +108,17 @@ function fromGlory(price: number, high: number): string | null {
   if (pct < 0) return "ALL TIME HIGH";
   return `${pct.toFixed(1)}% FROM GLORY`;
 }
+
+// Rule-based filler for the take slot when the analyzer left no comment.
+// Keeps every card the same skeleton height (a quiet card is a variant,
+// not an absence) and stays in the WSB voice, tinted toward the mood.
+const EMPTY_TAKE: Record<Sentiment, string> = {
+  moon: "no take — she's ripping, just vibes",
+  up: "no take — quietly in the green",
+  neutral: "no take — flat, holding the line",
+  down: "no take — bleeding a little, no panic",
+  rekt: "no take — getting rekt in silence",
+};
 
 export function StockCard({
   stock,
@@ -116,7 +151,8 @@ export function StockCard({
   // border because that's what it was 30 min ago when the AI last ran.
   const liveRating = deriveRating(stock.regularMarketChangePercent);
   const liveSentiment = deriveSentiment(displayPct);
-  const glow = sentimentGlow(liveSentiment);
+  const mood = moodVar(liveSentiment);
+  const solidChip = isExtreme(liveSentiment);
 
   // Featured cards during a week-scoped recap get a dedicated week
   // badge instead of the live daily rating — otherwise a card labelled
@@ -137,18 +173,27 @@ export function StockCard({
   const cardClass = [
     "stock-card",
     featuredClass,
-    glow,
+    // Extreme movers keep a static mood glow (via --glow-mood) so a
+    // moon-tier ripper / liquidated bagholder still pops out of the grid
+    // without every card glowing.
+    !featured && solidChip ? "mood-extreme" : null,
     flashing ? "ai-update" : null,
-    // Stale-market wins over the sentiment glow visually because its
-    // CSS rule has 2-class specificity (.stock-card.market-closed).
+    // Stale-market wins over the sentiment treatment visually because
+    // its CSS rule has 2-class specificity (.stock-card.market-closed).
     marketStale ? "market-closed" : null,
   ]
     .filter(Boolean)
     .join(" ");
 
-  const style: CSSProperties = {
+  // --mood drives the left spine, the chip, and the comment accent.
+  // --mood-ink is the text color that sits on a SOLID chip: dark ink on
+  // the bright moon green, light ink on the deep liquidated red.
+  const style = {
     animationDelay: `${index * 60}ms`,
-  };
+    "--mood": mood,
+    "--mood-ink":
+      liveSentiment === "moon" ? "var(--surface-0)" : "var(--text-0)",
+  } as CSSProperties;
 
   const hasPrice = Number.isFinite(stock.regularMarketPrice);
   const glory = fromGlory(stock.regularMarketPrice, stock.fiftyTwoWeekHigh);
@@ -182,35 +227,47 @@ export function StockCard({
           <div className="name">{stock.name}</div>
           <div className="ticker">{displayTicker(stock.ticker)}</div>
         </div>
-        {displayRating && <div className="rating">{displayRating}</div>}
+        {displayRating && (
+          <div className={`rating ${solidChip ? "rating-solid" : ""}`}>
+            {displayRating}
+          </div>
+        )}
       </div>
 
-      <div className="mt-3 flex items-baseline gap-2 flex-wrap">
+      <div className="price-row">
         <span className={`price ${hasPrice ? "" : "na"}`}>
           {hasPrice ? formatPrice(stock.regularMarketPrice, stock.currency) : "N/A"}
         </span>
         {hasPrice && stock.currency && (
           <span className="currency">{stock.currency}</span>
         )}
+        {useWeekFraming ? (
+          <span className={`change ${changeClass(displayPct)}`}>
+            {changeArrow(displayPct)} WEEK {formatChangePct(displayPct)}
+          </span>
+        ) : (
+          <span className={`change ${changeClass(stock.regularMarketChangePercent)}`}>
+            {changeArrow(stock.regularMarketChangePercent)}{" "}
+            {formatChangeAmount(stock.regularMarketChange)}{" "}
+            ({formatChangePct(stock.regularMarketChangePercent)})
+          </span>
+        )}
       </div>
 
-      {useWeekFraming ? (
-        <div className={`mt-1 ${changeClass(displayPct)}`}>
-          {changeArrow(displayPct)} WEEK {formatChangePct(displayPct)}
-        </div>
-      ) : (
-        <div className={`mt-1 ${changeClass(stock.regularMarketChangePercent)}`}>
-          {changeArrow(stock.regularMarketChangePercent)}{" "}
-          {formatChangeAmount(stock.regularMarketChange)}{" "}
-          ({formatChangePct(stock.regularMarketChangePercent)})
-        </div>
-      )}
-
-      {analysis?.comment && (
-        <p className="comment mt-3">&ldquo;{analysis.comment}&rdquo;</p>
-      )}
-
-      {glory && <p className="meta mt-3">{glory}</p>}
+      {/* Divided info strip. The take slot always renders — a quiet
+          card gets a mood-tinted rule-based line so its height and
+          rhythm match a card with a real analyst comment, instead of
+          collapsing to a shorter, broken-looking card. */}
+      <div className="card-strip">
+        {analysis?.comment ? (
+          <p className="comment">&ldquo;{analysis.comment}&rdquo;</p>
+        ) : (
+          <p className="comment comment-empty">
+            {`// ${EMPTY_TAKE[liveSentiment]}`}
+          </p>
+        )}
+        {glory && <p className="meta">{glory}</p>}
+      </div>
     </article>
   );
 }
