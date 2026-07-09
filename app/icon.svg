@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="ISKBets">
+  <defs>
+    <linearGradient id="tile" x1="88%" y1="6%" x2="12%" y2="94%">
+      <stop offset="0" stop-color="#131917"></stop>
+      <stop offset="0.55" stop-color="#0b0f0d"></stop>
+      <stop offset="1" stop-color="#060807"></stop>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#f5c842" flood-opacity="0.5"></feDropShadow>
+    </filter>
+  </defs>
+  <rect x="0" y="0" width="512" height="512" rx="92" ry="92" fill="url(#tile)"></rect>
+  <rect x="1" y="1" width="510" height="510" rx="91" ry="91" fill="none" stroke="#2a3a32" stroke-width="2"></rect>
+  <g transform="translate(256 266) scale(0.92 1)" filter="url(#glow)">
+    <text x="0" y="0" text-anchor="middle" dominant-baseline="central" font-family="&#39;Bebas Neue&#39;,&#39;Arial Black&#39;,&#39;Helvetica Neue&#39;,Arial,sans-serif" font-weight="900" font-size="372" fill="#f5c842">$</text>
+  </g>
+</svg>
