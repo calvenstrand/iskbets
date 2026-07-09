@@ -22,6 +22,27 @@
   --text-dim: #6b7d72;
   --text-faint: #3a4a40;
 
+  /* surface ramp — one green-cooled neutral, elevation = one step lighter */
+  --surface-0: #080b0a;
+  --surface-1: #0d1110;
+  --surface-2: #181d1b;
+  --border: #252e2a;
+  --border-strong: #37433d;
+  /* text ramp — all AA on surface-1 */
+  --text-0: #d7e6dd;
+  --text-1: #a9b8b0;
+  --text-2: #7c8a83;
+  --text-3: #43514a;
+  /* diverging MOOD family — color encodes direction AND magnitude */
+  --mood-moon: oklch(0.86 0.19 158); /* #33f5a0  > +5%  */
+  --mood-up: oklch(0.74 0.13 160); /* #53c48e +.5–5%  (maps deriveSentiment "up") */
+  --mood-neutral: oklch(0.82 0.13 92); /* #e2c157  ±.5%   */
+  --mood-down: oklch(0.72 0.15 55); /* #eb883b -.5–5%  (orange caution, "down") */
+  --mood-rekt: oklch(0.63 0.2 28); /* #e9483d  bigger down */
+  --mood-liquidated: oklch(0.5 0.19 22); /* #b7162d  < -5%  */
+  /* glow is a token, not a per-card literal */
+  --glow-mood: 0 0 24px color-mix(in oklch, var(--mood) 30%, transparent);
+
   --font-display: var(--font-bebas-neue), "Bebas Neue", sans-serif;
   --font-mono: var(--font-share-tech-mono), "Share Tech Mono", "Courier New",
     monospace;
@@ -123,22 +144,22 @@ a {
 
 @keyframes ai-update-pulse {
   0% {
-    outline-color: rgba(0, 255, 65, 0.95);
+    outline-color: color-mix(in oklch, var(--green) 95%, transparent);
     box-shadow:
-      0 0 38px 4px rgba(0, 255, 65, 0.55),
-      0 0 80px 12px rgba(0, 255, 65, 0.18);
+      0 0 38px 4px color-mix(in oklch, var(--green) 55%, transparent),
+      0 0 80px 12px color-mix(in oklch, var(--green) 18%, transparent);
   }
   60% {
-    outline-color: rgba(0, 255, 65, 0.4);
+    outline-color: color-mix(in oklch, var(--green) 40%, transparent);
     box-shadow:
-      0 0 12px 0 rgba(0, 255, 65, 0.18),
-      0 0 0 0 rgba(0, 255, 65, 0);
+      0 0 12px 0 color-mix(in oklch, var(--green) 18%, transparent),
+      0 0 0 0 transparent;
   }
   100% {
-    outline-color: rgba(0, 255, 65, 0);
+    outline-color: transparent;
     box-shadow:
-      0 0 0 0 rgba(0, 255, 65, 0),
-      0 0 0 0 rgba(0, 255, 65, 0);
+      0 0 0 0 transparent,
+      0 0 0 0 transparent;
   }
 }
 
@@ -151,7 +172,7 @@ a {
 @media (prefers-reduced-motion: reduce) {
   .ai-update {
     animation: none;
-    outline: 2px solid rgba(0, 255, 65, 0.6);
+    outline: 2px solid color-mix(in oklch, var(--green) 60%, transparent);
   }
 }
 
@@ -197,13 +218,13 @@ a {
   0%,
   100% {
     box-shadow:
-      0 0 28px rgba(0, 255, 65, 0.45),
-      0 0 60px rgba(0, 255, 65, 0.18);
+      0 0 28px color-mix(in oklch, var(--green) 45%, transparent),
+      0 0 60px color-mix(in oklch, var(--green) 18%, transparent);
   }
   50% {
     box-shadow:
-      0 0 42px rgba(0, 255, 65, 0.65),
-      0 0 90px rgba(0, 255, 65, 0.28);
+      0 0 42px color-mix(in oklch, var(--green) 65%, transparent),
+      0 0 90px color-mix(in oklch, var(--green) 28%, transparent);
   }
 }
 
@@ -335,7 +356,7 @@ a {
   font-family: var(--font-mono);
   font-size: 0.85rem;
   letter-spacing: 0.12em;
-  text-shadow: 0 0 6px rgba(0, 255, 65, 0.4);
+  text-shadow: 0 0 6px color-mix(in oklch, var(--green) 40%, transparent);
 }
 
 .ptr-spin {
@@ -368,7 +389,7 @@ a {
   line-height: 0.9;
   color: var(--text);
   letter-spacing: 0.04em;
-  text-shadow: 0 0 18px rgba(0, 255, 65, 0.18);
+  text-shadow: 0 0 18px color-mix(in oklch, var(--green) 18%, transparent);
   animation: flicker 4s infinite;
   margin: 0;
   white-space: nowrap;
@@ -454,7 +475,7 @@ html.booting body > *:not(.boot-overlay) {
   padding: 2rem 1.2rem;
   font-family: var(--font-mono);
   color: var(--green);
-  text-shadow: 0 0 6px rgba(0, 255, 65, 0.45);
+  text-shadow: 0 0 6px color-mix(in oklch, var(--green) 45%, transparent);
   animation: boot-flicker 1.4s linear;
   cursor: pointer;
 }
@@ -669,11 +690,11 @@ html.booting .boot-overlay,
 .mood-bull {
   background: linear-gradient(
     180deg,
-    rgba(0, 255, 65, 0.08) 0%,
+    color-mix(in oklch, var(--green) 8%, transparent) 0%,
     var(--green-deep) 100%
   );
-  border-color: rgba(0, 255, 65, 0.25);
-  text-shadow: 0 0 10px rgba(0, 255, 65, 0.4);
+  border-color: color-mix(in oklch, var(--green) 25%, transparent);
+  text-shadow: 0 0 10px color-mix(in oklch, var(--green) 40%, transparent);
 }
 
 .mood-bear {
@@ -843,7 +864,7 @@ html.booting .boot-overlay,
   font-size: clamp(1.4rem, 3vw, 1.9rem);
   letter-spacing: 0.04em;
   color: var(--green);
-  text-shadow: 0 0 8px rgba(0, 255, 65, 0.35);
+  text-shadow: 0 0 8px color-mix(in oklch, var(--green) 35%, transparent);
   line-height: 1;
 }
 
@@ -1056,7 +1077,7 @@ html.booting .boot-overlay,
 
 .leader-up {
   color: var(--green);
-  text-shadow: 0 0 6px rgba(0, 255, 65, 0.3);
+  text-shadow: 0 0 6px color-mix(in oklch, var(--green) 30%, transparent);
 }
 
 .leader-down {
@@ -1334,10 +1355,10 @@ html.booting .boot-overlay,
   font-style: italic;
   /* Was var(--text-dim) (#6b7d72) — sat right at 4.2:1 contrast on
      the dark card bg, technically AA but strained for italic body
-     text. This shade lands ~9:1 against #0d1110 while still reading
-     as "supportive prose" rather than competing with the bigger
-     name/price/rating elements above. */
-  color: #c5d3c9;
+     text. var(--text-1) lands ~9:1 against surface-1 while still
+     reading as "supportive prose" rather than competing with the
+     bigger name/price/rating elements above. */
+  color: var(--text-1);
   font-size: 0.86rem;
   line-height: 1.5;
   border-left: 2px solid var(--border-bright);
@@ -1467,17 +1488,17 @@ html.booting .boot-overlay,
     pulse-green 3.2s ease-in-out infinite 0.45s;
   background: linear-gradient(
     180deg,
-    rgba(0, 255, 65, 0.1) 0%,
-    rgba(0, 255, 65, 0.025) 35%,
+    color-mix(in oklch, var(--green) 10%, transparent) 0%,
+    color-mix(in oklch, var(--green) 2.5%, transparent) 35%,
     var(--bg-elev) 70%
   );
-  border-color: rgba(0, 255, 65, 0.55);
+  border-color: color-mix(in oklch, var(--green) 55%, transparent);
   border-top-color: var(--green);
 }
 
 .stock-card.featured.winner .name {
   color: var(--green);
-  text-shadow: 0 0 14px rgba(0, 255, 65, 0.45);
+  text-shadow: 0 0 14px color-mix(in oklch, var(--green) 45%, transparent);
 }
 
 .stock-card.featured.winner .price {
@@ -1627,7 +1648,7 @@ html.booting .boot-overlay,
 
 .featured-label.win {
   color: var(--green);
-  text-shadow: 0 0 8px rgba(0, 255, 65, 0.45);
+  text-shadow: 0 0 8px color-mix(in oklch, var(--green) 45%, transparent);
 }
 .featured-label.lose {
   color: var(--red);
@@ -1646,7 +1667,7 @@ html.booting .boot-overlay,
 }
 .featured-week.change-up {
   color: var(--green);
-  text-shadow: 0 0 8px rgba(0, 255, 65, 0.45);
+  text-shadow: 0 0 8px color-mix(in oklch, var(--green) 45%, transparent);
 }
 .featured-week.change-down {
   color: var(--red);
@@ -1726,7 +1747,7 @@ html.booting .boot-overlay,
   font-size: clamp(2.6rem, 7vw, 5rem);
   letter-spacing: 0.08em;
   color: var(--green);
-  text-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
+  text-shadow: 0 0 20px color-mix(in oklch, var(--green) 50%, transparent);
   animation: flicker 2.4s infinite;
 }
 
