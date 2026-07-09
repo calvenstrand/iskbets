@@ -6,7 +6,7 @@ import {
   pickWeekChampion,
   pickWeekWinnerLoser,
 } from "./leaderboard";
-import { TICKERS } from "./tickers";
+import { buildOwnersByPerson, TICKERS } from "./tickers";
 import type { StockPrice } from "./types";
 
 /** Build a StockPrice with sensible defaults; override what a test cares
@@ -214,6 +214,78 @@ describe("computeLeaderboard", () => {
       const pw = prev.wtdPct ?? -Infinity;
       const cw = cur.wtdPct ?? -Infinity;
       expect(pw).toBeGreaterThanOrEqual(cw);
+    }
+  });
+
+  it("surfaces each friend's best and worst OWNED ticker as the movers", () => {
+    // Pick a real friend who owns ≥2 tickers, spread their bags so a
+    // clear best + worst exist, and confirm the movers come from THEIR
+    // ownership — not the whole board.
+    const owned = [...buildOwnersByPerson()].find(([, ts]) => ts.length >= 2);
+    if (!owned) throw new Error("expected a friend with ≥2 owned tickers");
+    const [person, tickers] = owned;
+    const best = tickers[0]!;
+    const worst = tickers[tickers.length - 1]!;
+    const stocks = TICKERS.map((t) => {
+      if (t.symbol === best) return stock(t.symbol, 8);
+      if (t.symbol === worst) return stock(t.symbol, -8);
+      return stock(t.symbol, 1);
+    });
+    const entry = computeLeaderboard(stocks, undefined).find(
+      (e) => e.person === person,
+    );
+    expect(entry).toBeDefined();
+    expect(entry?.topMover?.ticker).toBe(best);
+    expect(entry?.bottomMover?.ticker).toBe(worst);
+  });
+
+  it("day scope drops a ticker that hasn't traded today from score + movers", () => {
+    // Wed 16:00 STO — SE + NY both open. One owned SE ticker is a wild
+    // outlier frozen at yesterday's close; the stale filter must exclude
+    // it so it can't inflate the mean or hijack the top mover.
+    const now = new Date(Date.UTC(2026, 5, 3, 14, 0));
+    const today = now.getTime();
+    const yesterday = today - 86_400_000;
+    const target = TICKERS.find((t) => t.market === "SE" && t.owners?.length);
+    if (!target?.owners) throw new Error("expected an owned SE ticker");
+    const owner = target.owners[0];
+    const stocks = TICKERS.map((t) =>
+      t.symbol === target.symbol
+        ? stock(t.symbol, 99, 100, { lastTradeAt: yesterday })
+        : stock(t.symbol, 2, 100, { lastTradeAt: today }),
+    );
+
+    const raw = computeLeaderboard(stocks, undefined).find(
+      (e) => e.person === owner,
+    );
+    const filtered = computeLeaderboard(stocks, undefined, { now }).find(
+      (e) => e.person === owner,
+    );
+
+    // Without the filter the +99% carry-forward inflates the mean and is
+    // the top mover.
+    expect(raw?.topMover?.ticker).toBe(target.symbol);
+    expect(raw?.todayPct as number).toBeGreaterThan(2);
+    // With it, the frozen ticker is gone: the mean is the clean +2% and
+    // the top mover is a different, actually-traded ticker.
+    expect(filtered?.todayPct as number).toBeCloseTo(2);
+    expect(filtered?.topMover?.ticker).not.toBe(target.symbol);
+  });
+
+  it("keeps a friend on WTD when nothing in their bags traded today", () => {
+    // Wed 08:00 STO — before any market opens, so every ticker is stale
+    // today. With a Monday baseline the friends still rank on WTD; their
+    // today% is NaN (nothing to average) rather than a bogus 0.
+    const preOpen = new Date(Date.UTC(2026, 5, 3, 6, 0));
+    const baseline = Object.fromEntries(TICKERS.map((t) => [t.symbol, 100]));
+    const stocks = TICKERS.map((t) =>
+      stock(t.symbol, 3, 110, { lastTradeAt: preOpen.getTime() }),
+    );
+    const entries = computeLeaderboard(stocks, baseline, { now: preOpen });
+    expect(entries.length).toBeGreaterThan(0);
+    for (const e of entries) {
+      expect(Number.isNaN(e.todayPct)).toBe(true);
+      expect(e.wtdPct as number).toBeCloseTo(10);
     }
   });
 });

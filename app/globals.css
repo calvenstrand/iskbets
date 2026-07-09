@@ -991,6 +991,17 @@ main[data-daymood="clean-sweep"]::before {
   font-family: var(--font-mono);
 }
 
+/* Day scope nested under the featured pair — the card section already
+   supplies the horizontal gutter, so drop the standalone one so the
+   standings line up with the featured cards + grid instead of
+   double-indenting. */
+.leaderboard-inline {
+  padding-left: 0;
+  padding-right: 0;
+  padding-top: 0.25rem;
+  margin-bottom: 1.5rem;
+}
+
 .leaderboard-header {
   display: flex;
   align-items: baseline;
@@ -1120,6 +1131,10 @@ main[data-daymood="clean-sweep"]::before {
 .leader-card {
   background: linear-gradient(180deg, var(--bg-elev) 0%, #090c0b 100%);
   border: 1px solid var(--border);
+  /* Left spine tinted by the friend's score (--mood set inline), same
+     signal language as the stock cards. Replaces the old full-card
+     glow-* tint. */
+  border-left: 3px solid var(--mood, var(--border));
   padding: 0.85rem 1rem 0.95rem;
   display: flex;
   flex-direction: column;
@@ -1193,6 +1208,30 @@ main[data-daymood="clean-sweep"]::before {
 
 .leader-flat {
   color: var(--text-dim);
+}
+
+/* 5-tier mood-family text colors for the payoff line (best/worst mover).
+   Same tokens as the stock-card family, so they re-point under the
+   bloodbath / clean-sweep skin. rekt uses --mood-rekt (not the deep
+   liquidated fill) so it stays readable as text; a flat/no-data mover
+   drops to a dim neutral rather than the caution gold. */
+.mood-text-moon {
+  color: var(--mood-moon);
+}
+.mood-text-up {
+  color: var(--mood-up);
+}
+.mood-text-neutral {
+  color: var(--mood-neutral);
+}
+.mood-text-down {
+  color: var(--mood-down);
+}
+.mood-text-rekt {
+  color: var(--mood-rekt);
+}
+.mood-text-flat {
+  color: var(--text-2);
 }
 
 /* Per-friend "what moved this number" line — best + worst owned ticker

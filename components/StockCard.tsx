@@ -3,6 +3,7 @@ import {
   deriveRating,
   deriveSentiment,
   deriveWeekBadge,
+  moodVar,
 } from "@/lib/derive";
 import { displayTicker } from "@/lib/tickers";
 import type { Sentiment, StockAnalysis, StockPrice } from "@/lib/types";
@@ -71,28 +72,6 @@ function changeArrow(value: number): string {
   if (value > 0) return "▲";
   if (value < 0) return "▼";
   return "·";
-}
-
-/**
- * Maps deriveSentiment's five buckets onto the diverging --mood-* token
- * family (defined in globals.css). The rekt bucket (≤ -5%) uses
- * --mood-liquidated — the deepest red — so the worst cards read as more
- * than "mild down". Drives the card's left spine, its chip, and the
- * comment accent via the --mood custom property.
- */
-function moodVar(sentiment: Sentiment): string {
-  switch (sentiment) {
-    case "moon":
-      return "var(--mood-moon)";
-    case "up":
-      return "var(--mood-up)";
-    case "neutral":
-      return "var(--mood-neutral)";
-    case "down":
-      return "var(--mood-down)";
-    case "rekt":
-      return "var(--mood-liquidated)";
-  }
 }
 
 // The chip fills SOLID only at the extremes — a moon-tier ripper or a

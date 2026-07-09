@@ -313,7 +313,7 @@ export function Dashboard({
           <Leaderboard
             stocks={snapshot.stocks}
             weekStartPrices={weekStartPrices}
-            recapMode
+            scope="week"
           />
         </div>
       ) : (
@@ -321,7 +321,7 @@ export function Dashboard({
           <Leaderboard
             stocks={snapshot.stocks}
             weekStartPrices={weekStartPrices}
-            recapMode
+            scope="week"
           />
         )
       )}
@@ -385,6 +385,24 @@ export function Dashboard({
               )
             )}
           </div>
+        )}
+
+        {/* Always-on daily standings — for a 5-friend group the
+            leaderboard IS the game, so it earns a spot every weekday, not
+            just the weekend recap. Sits below the brief + featured pair
+            (so the above-the-fold descent still leads) and above the
+            grid. Ranked by each friend's own bags' move today, stale
+            tickers filtered via the server-seeded `now`. Hidden during
+            the recap window, where the WEEK STANDINGS variant above owns
+            the standings role. */}
+        {!inRecap && (
+          <Leaderboard
+            stocks={snapshot.stocks}
+            weekStartPrices={weekStartPrices}
+            scope="day"
+            now={now}
+            inline
+          />
         )}
 
         <GridSort value={sortMode} onChange={handleSortChange} />
