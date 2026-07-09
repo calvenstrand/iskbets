@@ -7,7 +7,8 @@ import {
   pickWeekWinnerLoser,
   type SweepResult,
 } from "@/lib/leaderboard";
-import { hasTradedToday } from "@/lib/marketHours";
+import { hasTradedToday, newYorkStatus, stockholmStatus } from "@/lib/marketHours";
+import { resolveScenario } from "@/lib/slogans";
 import { TICKERS } from "@/lib/tickers";
 import type {
   MoodRecord,
@@ -17,7 +18,7 @@ import type {
   WeeklyChampion,
 } from "@/lib/types";
 import { useGridSort } from "@/hooks/useGridSort";
-import { stockholmMondayOfWeek } from "@/lib/dateUtil";
+import { stockholmDate, stockholmMondayOfWeek } from "@/lib/dateUtil";
 import { useNow } from "@/hooks/useNow";
 import { usePollDashboard } from "@/hooks/usePollDashboard";
 import { CelebrationCard } from "./CelebrationCard";
@@ -247,6 +248,22 @@ export function Dashboard({
   // always agree — partial-red days stay neutral.
   const dayMood = sweep.type ?? undefined;
 
+  // Ticker-tape scenario: bias the interleaved slogans toward the day's
+  // mood (bloodbath > clean-sweep > recap > market-closed > default).
+  // "Market closed" = no tracked market currently open, outside the
+  // weekend recap window. All inputs derive from the SSR-seeded `now`
+  // (like sweep / inRecap), so the tape is SSR-safe. The slogan mix is
+  // seeded on the Stockholm calendar day so it's stable within a day and
+  // refreshes daily — deterministic, never per-render random.
+  const marketClosed =
+    stockholmStatus(now) === "CLOSED" && newYorkStatus(now) === "CLOSED";
+  const tapeScenario = resolveScenario({
+    sweep: dayMood,
+    inRecap,
+    marketClosed,
+  });
+  const tapeSeed = Number(stockholmDate(now).replaceAll("-", ""));
+
   const featuredTickers = new Set<string>();
   if (winner) featuredTickers.add(winner.ticker);
   if (loser) featuredTickers.add(loser.ticker);
@@ -286,7 +303,11 @@ export function Dashboard({
   return (
     <main {...(dayMood ? { "data-daymood": dayMood } : {})}>
       <PullToRefresh />
-      <TickerTape stocks={snapshot.stocks} sweep={dayMood} />
+      <TickerTape
+        stocks={snapshot.stocks}
+        scenario={tapeScenario}
+        seed={tapeSeed}
+      />
       <Header />
 
       {/* Daily brief leads the descent — the one human-readable AI

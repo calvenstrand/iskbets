@@ -1,64 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { pickSlogans, type Scenario } from "@/lib/slogans";
 import { displayTicker } from "@/lib/tickers";
-import type { DayMood, StockPrice } from "@/lib/types";
+import type { StockPrice } from "@/lib/types";
 
-const SLOGANS = [
-  "GREED IS GOOD",
-  "DIAMOND HANDS",
-  "TO THE MOON",
-  "STONKS ONLY GO UP",
-  "BUY HIGH SELL LOW",
-  "PRINTER GO BRRR",
-  "THIS IS THE WAY",
-  "APES TOGETHER STRONG",
-  "BTFD",
-  "LFG",
-  "MONEY NEVER SLEEPS",
-  "BAGHOLDER NATION",
-  "TENDIES INCOMING",
-  "YOLO",
-];
-
-// During a market-wide sweep the tape leans into the moment — same
-// interleave, just a themed slogan pool. Deterministic (no random), so
-// SSR and CSR agree.
-const BLOODBATH_SLOGANS = [
-  "BLOOD IN THE STREETS",
-  "THIS IS FINE",
-  "BUY THE DIP",
-  "CATCHING KNIVES",
-  "HODL",
-  "RED WEDDING",
-  "BAGHOLDER NATION",
-  "GENERATIONAL BUYING OP",
-  "DOWN BAD",
-  "DIAMOND HANDS",
-  "IT'S JUST A DIP",
-  "PAIN",
-];
-
-const CLEAN_SWEEP_SLOGANS = [
-  "GREEN DAY",
-  "UP ONLY",
-  "TO THE MOON",
-  "PRINTER GO BRRR",
-  "TENDIES INCOMING",
-  "WE ARE SO BACK",
-  "EVERYBODY EATS",
-  "STONKS ONLY GO UP",
-  "GREEN CANDLES ONLY",
-  "LFG",
-  "DIAMOND HANDS PAY OFF",
-  "TOUCH GRASS LATER",
-];
-
-function sloganPool(sweep: DayMood | null | undefined): string[] {
-  if (sweep === "bloodbath") return BLOODBATH_SLOGANS;
-  if (sweep === "clean-sweep") return CLEAN_SWEEP_SLOGANS;
-  return SLOGANS;
-}
+// How many slogans to sprinkle across one loop of the tape — kept close
+// to the previous density (a slogan every ~2-3 tickers) rather than one
+// per ticker, so prices still lead and the copy accents.
+const SLOGANS_PER_LOOP = 14;
 
 function formatPct(pct: number): string {
   const sign = pct >= 0 ? "+" : "";
@@ -71,25 +21,33 @@ type TapeItem =
 
 function buildTape(
   stocks: StockPrice[],
-  sweep: DayMood | null | undefined,
+  scenario: Scenario,
+  seed: number,
 ): TapeItem[] {
   const tickers: TapeItem[] = stocks.map((s) => ({
     kind: "ticker" as const,
     ticker: displayTicker(s.ticker),
     pct: s.regularMarketChangePercent,
   }));
-  const slogans: TapeItem[] = sloganPool(sweep).map((text) => ({
-    kind: "slogan" as const,
-    text,
-  }));
-  // Interleave: roughly one slogan per ticker
+  if (tickers.length === 0) {
+    return pickSlogans(scenario, seed, SLOGANS_PER_LOOP).map((text) => ({
+      kind: "slogan" as const,
+      text,
+    }));
+  }
+
+  // Seeded, scenario-biased slogans (SSR-safe — no random), spread evenly
+  // across the ticker run so they don't cluster at the front of the loop.
+  const count = Math.min(SLOGANS_PER_LOOP, tickers.length);
+  const slogans = pickSlogans(scenario, seed, count);
   const out: TapeItem[] = [];
-  const max = Math.max(tickers.length, slogans.length);
-  for (let i = 0; i < max; i++) {
-    const slogan = slogans[i];
-    const ticker = tickers[i];
-    if (slogan) out.push(slogan);
-    if (ticker) out.push(ticker);
+  let si = 0;
+  for (let i = 0; i < tickers.length; i++) {
+    if (si < count && i >= Math.floor((si * tickers.length) / count)) {
+      out.push({ kind: "slogan", text: slogans[si]! });
+      si++;
+    }
+    out.push(tickers[i]!);
   }
   return out;
 }
@@ -114,13 +72,17 @@ function renderItem(item: TapeItem, key: string) {
 
 export function TickerTape({
   stocks,
-  sweep,
+  scenario,
+  seed,
 }: {
   stocks: StockPrice[];
-  sweep?: DayMood | null;
+  /** Active tape scenario (resolveScenario, computed in Dashboard). */
+  scenario: Scenario;
+  /** Stable per-day seed so the slogan mix is SSR-safe and refreshes daily. */
+  seed: number;
 }) {
   const [paused, setPaused] = useState(false);
-  const items = buildTape(stocks, sweep);
+  const items = buildTape(stocks, scenario, seed);
 
   return (
     <div
