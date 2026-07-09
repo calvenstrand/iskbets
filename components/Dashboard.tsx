@@ -233,6 +233,13 @@ export function Dashboard({
           .map((s) => ({ pct: s.regularMarketChangePercent })),
       );
 
+  // Lift the sweep signal to a page-level skin. When the whole eligible
+  // board is one direction the terminal reskins into an event (red
+  // bloodbath / green clean-sweep) via <main data-daymood>. Same
+  // eligibility as the featured cards above, so the skin and the cards
+  // always agree — partial-red days stay neutral.
+  const dayMood = sweep.type ?? undefined;
+
   const featuredTickers = new Set<string>();
   if (winner) featuredTickers.add(winner.ticker);
   if (loser) featuredTickers.add(loser.ticker);
@@ -270,9 +277,9 @@ export function Dashboard({
     : 0;
 
   return (
-    <main>
+    <main {...(dayMood ? { "data-daymood": dayMood } : {})}>
       <PullToRefresh />
-      <TickerTape stocks={snapshot.stocks} />
+      <TickerTape stocks={snapshot.stocks} sweep={dayMood} />
       <Header />
 
       {/* Daily brief leads the descent — the one human-readable AI
@@ -286,6 +293,8 @@ export function Dashboard({
           mood={snapshot.analysis.overallMood}
           avgChangePct={avgChangePct}
           flash={moodFlash}
+          sweep={dayMood}
+          seed={snapshot.updatedAt}
         />
       )}
 

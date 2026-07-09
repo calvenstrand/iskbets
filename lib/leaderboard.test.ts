@@ -67,6 +67,30 @@ describe("detectSweep", () => {
       avgPct: 5,
     });
   });
+
+  it("treats a flat 0% stock as neither red nor green, so a bloodbath holds", () => {
+    // 0% is a non-move — it doesn't break the all-red sweep. The flat
+    // stock is still counted (and averaged) so the badge math is honest.
+    expect(detectSweep([{ pct: 0 }, { pct: -2 }])).toEqual({
+      type: "bloodbath",
+      count: 2,
+      avgPct: -1,
+    });
+  });
+
+  it("lets a flat 0% stock ride along in a clean sweep", () => {
+    expect(detectSweep([{ pct: 0 }, { pct: 3 }])).toEqual({
+      type: "clean-sweep",
+      count: 2,
+      avgPct: 1.5,
+    });
+  });
+
+  it("does not call an all-flat board a sweep", () => {
+    // Every stock dead flat: no positives and no negatives, so neither
+    // the euphoria nor the bloodbath skin should trigger.
+    expect(detectSweep([{ pct: 0 }, { pct: 0 }]).type).toBeNull();
+  });
 });
 
 describe("pickWeekWinnerLoser", () => {

@@ -37,6 +37,12 @@ export type Rating = (typeof RATINGS)[number];
 export const SENTIMENTS = ["moon", "up", "neutral", "down", "rekt"] as const;
 export type Sentiment = (typeof SENTIMENTS)[number];
 
+/** A market-wide sweep, lifted from detectSweep to a page-level skin.
+ * "bloodbath" = every eligible stock red, "clean-sweep" = every one
+ * green. Drives the <main data-daymood> reskin, the brief's gallows-
+ * humor line, and the ticker tape's slogan bias. */
+export type DayMood = "bloodbath" | "clean-sweep";
+
 export type StockAnalysis = {
   ticker: string;
   /** Optional. Only present when the move is big enough to warrant a

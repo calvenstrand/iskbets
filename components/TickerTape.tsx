@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { displayTicker } from "@/lib/tickers";
-import type { StockPrice } from "@/lib/types";
+import type { DayMood, StockPrice } from "@/lib/types";
 
 const SLOGANS = [
   "GREED IS GOOD",
@@ -21,6 +21,45 @@ const SLOGANS = [
   "YOLO",
 ];
 
+// During a market-wide sweep the tape leans into the moment — same
+// interleave, just a themed slogan pool. Deterministic (no random), so
+// SSR and CSR agree.
+const BLOODBATH_SLOGANS = [
+  "BLOOD IN THE STREETS",
+  "THIS IS FINE",
+  "BUY THE DIP",
+  "CATCHING KNIVES",
+  "HODL",
+  "RED WEDDING",
+  "BAGHOLDER NATION",
+  "GENERATIONAL BUYING OP",
+  "DOWN BAD",
+  "DIAMOND HANDS",
+  "IT'S JUST A DIP",
+  "PAIN",
+];
+
+const CLEAN_SWEEP_SLOGANS = [
+  "GREEN DAY",
+  "UP ONLY",
+  "TO THE MOON",
+  "PRINTER GO BRRR",
+  "TENDIES INCOMING",
+  "WE ARE SO BACK",
+  "EVERYBODY EATS",
+  "STONKS ONLY GO UP",
+  "GREEN CANDLES ONLY",
+  "LFG",
+  "DIAMOND HANDS PAY OFF",
+  "TOUCH GRASS LATER",
+];
+
+function sloganPool(sweep: DayMood | null | undefined): string[] {
+  if (sweep === "bloodbath") return BLOODBATH_SLOGANS;
+  if (sweep === "clean-sweep") return CLEAN_SWEEP_SLOGANS;
+  return SLOGANS;
+}
+
 function formatPct(pct: number): string {
   const sign = pct >= 0 ? "+" : "";
   return `${sign}${pct.toFixed(2)}%`;
@@ -30,13 +69,16 @@ type TapeItem =
   | { kind: "slogan"; text: string }
   | { kind: "ticker"; ticker: string; pct: number };
 
-function buildTape(stocks: StockPrice[]): TapeItem[] {
+function buildTape(
+  stocks: StockPrice[],
+  sweep: DayMood | null | undefined,
+): TapeItem[] {
   const tickers: TapeItem[] = stocks.map((s) => ({
     kind: "ticker" as const,
     ticker: displayTicker(s.ticker),
     pct: s.regularMarketChangePercent,
   }));
-  const slogans: TapeItem[] = SLOGANS.map((text) => ({
+  const slogans: TapeItem[] = sloganPool(sweep).map((text) => ({
     kind: "slogan" as const,
     text,
   }));
@@ -70,9 +112,15 @@ function renderItem(item: TapeItem, key: string) {
   );
 }
 
-export function TickerTape({ stocks }: { stocks: StockPrice[] }) {
+export function TickerTape({
+  stocks,
+  sweep,
+}: {
+  stocks: StockPrice[];
+  sweep?: DayMood | null;
+}) {
   const [paused, setPaused] = useState(false);
-  const items = buildTape(stocks);
+  const items = buildTape(stocks, sweep);
 
   return (
     <div

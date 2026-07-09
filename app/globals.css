@@ -706,6 +706,119 @@ html.booting .boot-overlay,
   color: var(--gold);
 }
 
+/* Gallows-humor line, only present during a market-wide sweep. Sits
+   under the AI read in the mono voice; color leans to the event but
+   stays bright enough to read (rekt red / moon green, not the deep
+   liquidated tones). */
+.brief-sweep {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+  line-height: 1.4;
+}
+
+.brief-sweep-bloodbath {
+  color: var(--mood-rekt);
+}
+
+.brief-sweep-clean-sweep {
+  color: var(--mood-moon);
+}
+
+/* ============= Daymood page skin (bloodbath / clean-sweep) =============
+   Lifted from detectSweep: when EVERY eligible stock is one direction
+   the whole terminal reskins into an event, not just a grid of same-
+   colored cards. Keyed off <main data-daymood> set in Dashboard.tsx —
+   same eligibility as the featured cards, so skin and cards agree.
+
+   Two levers:
+   1. Re-point the "wrong-direction" --mood-* tokens so any stray card
+      (a stale ticker frozen the other way) desaturates into the event
+      instead of fighting it. The already-correct side is left untouched.
+   2. A fixed, pointer-events:none wash over the surface. It lives inside
+      main's stacking context (main is z-index:1), so it sits BELOW the
+      body-level scanline (z-9999) and vignette (z-9998) overlays. */
+
+main[data-daymood="bloodbath"] {
+  /* Pull the greens toward the red end; the reds stay as-is. */
+  --mood-moon: var(--mood-rekt);
+  --mood-up: var(--mood-down);
+  --mood-neutral: var(--mood-down);
+  /* Warm the chrome slightly (literal base values — a custom property
+     can't reference itself). */
+  --border: color-mix(in oklch, #252e2a 82%, var(--mood-liquidated));
+  --border-strong: color-mix(in oklch, #37433d 78%, var(--mood-liquidated));
+}
+
+main[data-daymood="clean-sweep"] {
+  /* Mirror: pull the reds toward the green end; the greens stay as-is. */
+  --mood-liquidated: var(--mood-up);
+  --mood-rekt: var(--mood-up);
+  --mood-down: var(--mood-up);
+  --mood-neutral: var(--mood-up);
+  --border: color-mix(in oklch, #252e2a 82%, var(--mood-moon));
+  --border-strong: color-mix(in oklch, #37433d 78%, var(--mood-moon));
+}
+
+main[data-daymood]::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  /* Below the scanline (9999) + vignette (9998) body overlays; above the
+     dashboard content inside main. */
+  z-index: 9990;
+  /* A slow breath, not a throb — event texture, disabled for
+     reduced-motion below. */
+  animation: daymood-wash 7s ease-in-out infinite;
+}
+
+main[data-daymood="bloodbath"]::before {
+  background:
+    radial-gradient(
+      ellipse at 50% 0%,
+      color-mix(in oklch, var(--mood-liquidated) 20%, transparent) 0%,
+      transparent 62%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in oklch, var(--mood-liquidated) 8%, transparent) 0%,
+      color-mix(in oklch, var(--mood-liquidated) 15%, transparent) 100%
+    );
+}
+
+main[data-daymood="clean-sweep"]::before {
+  background:
+    radial-gradient(
+      ellipse at 50% 0%,
+      color-mix(in oklch, var(--mood-moon) 16%, transparent) 0%,
+      transparent 62%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in oklch, var(--mood-moon) 6%, transparent) 0%,
+      color-mix(in oklch, var(--mood-moon) 12%, transparent) 100%
+    );
+}
+
+@keyframes daymood-wash {
+  0%,
+  100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  main[data-daymood]::before {
+    animation: none;
+    opacity: 1;
+  }
+}
+
 /* ============= Recap row (Champion + Standings side-by-side) ============= */
 /* Active only during the recap window (Fri 22:00 → Mon 09:00 STO) when
  * both Champion of the Week and Week Standings are present. Lays them
