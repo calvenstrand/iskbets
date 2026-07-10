@@ -10,9 +10,12 @@ import { useRouter } from "next/navigation";
  * dashboard and the intercepted route unmounts. Data stays server-side:
  * the server-rendered <StockDetail> arrives as `children`, already HTML.
  *
- * The day-mood skin (bloodbath / clean-sweep) is inherited automatically
- * — the dashboard <main data-daymood> is still mounted underneath the
- * modal. On <=640px the shell presents as a full-screen sheet (a centered
+ * Day-mood skin: the modal renders in the @modal slot OUTSIDE <main>,
+ * so it does NOT inherit the skin's re-pointed --mood-* tokens from
+ * <main data-daymood> — globals.css extends them explicitly via
+ * `body:has(main[data-daymood]) .sd-modal`. The skinned dashboard
+ * remains visible through the translucent backdrop either way.
+ * On <=640px the shell presents as a full-screen sheet (a centered
  * dialog is unusable at 320px); the header pins and the body scrolls.
  * prefers-reduced-motion collapses the entrance to a plain appearance
  * (handled in CSS).

@@ -240,6 +240,28 @@ export function detectSweep(
 }
 
 /**
+ * Day-framing sweep: detectSweep over the stocks whose market has
+ * actually traded in this Stockholm calendar day (the hasTradedToday
+ * eligibility every day-scoped surface shares). Defined ONCE here so the
+ * dashboard skin, the OG image, and the stock page can't drift on what
+ * counts as a bloodbath / clean sweep. Week-framing sweeps (recap
+ * window) stay caller-side — they need the weekStartPrices baseline.
+ */
+export function detectTodaySweep(
+  stocks: StockPrice[],
+  now: Date,
+): SweepResult {
+  return detectSweep(
+    stocks
+      .filter((s) => {
+        const market = MARKET_BY_TICKER.get(s.ticker);
+        return market ? hasTradedToday(s.lastTradeAt, market, now) : false;
+      })
+      .map((s) => ({ pct: s.regularMarketChangePercent })),
+  );
+}
+
+/**
  * Pick today's biggest winner / loser by intraday change %, but ONLY
  * among stocks whose market has actually opened during this Stockholm
  * calendar day. Without this filter, a US ticker frozen at +1.8% from

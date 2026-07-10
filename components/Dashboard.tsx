@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import {
   detectSweep,
+  detectTodaySweep,
   pickTodayWinnerLoser,
   pickWeekWinnerLoser,
   type SweepResult,
@@ -232,14 +233,7 @@ export function Dashboard({
               .filter((x): x is { pct: number } => x !== null)
           : [],
       )
-    : detectSweep(
-        snapshot.stocks
-          .filter((s) => {
-            const market = TICKER_MARKETS.get(s.ticker);
-            return market ? hasTradedToday(s.lastTradeAt, market, now) : false;
-          })
-          .map((s) => ({ pct: s.regularMarketChangePercent })),
-      );
+    : detectTodaySweep(snapshot.stocks, now);
 
   // Lift the sweep signal to a page-level skin. When the whole eligible
   // board is one direction the terminal reskins into an event (red

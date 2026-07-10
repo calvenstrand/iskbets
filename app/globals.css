@@ -749,7 +749,13 @@ html.booting .boot-overlay,
       main's stacking context (main is z-index:1), so it sits BELOW the
       body-level scanline (z-9999) and vignette (z-9998) overlays. */
 
-main[data-daymood="bloodbath"] {
+/* The .sd-modal selectors extend the skin into the stock-detail modal:
+   the @modal slot renders OUTSIDE <main> (app/layout.tsx), so the modal
+   would otherwise resolve the un-skinned :root tokens while the skinned
+   dashboard shows through the backdrop behind it. Scoped to .sd-modal
+   (not the whole body) so the drawer footer stays neutral. */
+main[data-daymood="bloodbath"],
+body:has(main[data-daymood="bloodbath"]) .sd-modal {
   /* Pull the greens toward the red end; the reds stay as-is. */
   --mood-moon: var(--mood-rekt);
   --mood-up: var(--mood-down);
@@ -760,7 +766,8 @@ main[data-daymood="bloodbath"] {
   --border-strong: color-mix(in oklch, #37433d 78%, var(--mood-liquidated));
 }
 
-main[data-daymood="clean-sweep"] {
+main[data-daymood="clean-sweep"],
+body:has(main[data-daymood="clean-sweep"]) .sd-modal {
   /* Mirror: pull the reds toward the green end; the greens stay as-is. */
   --mood-liquidated: var(--mood-up);
   --mood-rekt: var(--mood-up);

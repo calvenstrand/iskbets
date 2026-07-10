@@ -1,8 +1,7 @@
 import { ImageResponse } from "next/og";
-import { detectSweep, pickTodayWinnerLoser } from "@/lib/leaderboard";
-import { hasTradedToday } from "@/lib/marketHours";
+import { detectTodaySweep, pickTodayWinnerLoser } from "@/lib/leaderboard";
 import { getDashboardData } from "@/lib/storage";
-import { displayTicker, TICKERS } from "@/lib/tickers";
+import { displayTicker } from "@/lib/tickers";
 import type { DayMood } from "@/lib/types";
 
 // Edge is fine: the only data fetch is Upstash (REST/fetch, edge-safe).
@@ -173,8 +172,6 @@ type Card = {
   dateline: string;
 };
 
-const MARKET_BY_TICKER = new Map(TICKERS.map((t) => [t.symbol, t.market]));
-
 /**
  * Assemble the card model from the same snapshot the dashboard reads.
  * Never throws — a broken unfurl is worse than a generic one, so any
@@ -192,16 +189,10 @@ async function gather(now: Date): Promise<Card> {
     const { snapshot } = data;
 
     // Same day-framing eligibility the dashboard uses for the sweep and
-    // the featured pair: only stocks whose market has actually traded
-    // today, so a frozen US ticker can't fake a bloodbath/clean-sweep or
-    // win the card on a Monday morning.
-    const eligible = snapshot.stocks.filter((s) => {
-      const market = MARKET_BY_TICKER.get(s.ticker);
-      return market ? hasTradedToday(s.lastTradeAt, market, now) : false;
-    });
-    const sweep = detectSweep(
-      eligible.map((s) => ({ pct: s.regularMarketChangePercent })),
-    );
+    // the featured pair (shared detectTodaySweep): only stocks whose
+    // market has actually traded today, so a frozen US ticker can't fake
+    // a bloodbath/clean-sweep or win the card on a Monday morning.
+    const sweep = detectTodaySweep(snapshot.stocks, now);
 
     const movers = pickTodayWinnerLoser(snapshot.stocks, now);
     const toChip = (ticker: string): Chip | undefined => {
