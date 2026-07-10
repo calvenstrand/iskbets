@@ -847,7 +847,7 @@ main[data-daymood="clean-sweep"]::before {
 }
 
 /* ============= Recap row (Champion + Standings side-by-side) ============= */
-/* Active only during the recap window (Fri 22:00 → Mon 09:00 STO) when
+/* Active only during the recap window (Fri 22:30 → Mon 09:00 STO) when
  * both Champion of the Week and Week Standings are present. Lays them
  * out 50/50 on desktop, stacked on narrow viewports. The children's own
  * outer margin/width rules are overridden here so they sit inside the

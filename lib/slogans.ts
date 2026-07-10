@@ -85,7 +85,7 @@ export const SCENARIO_MIX = 0.7;
  * strict priority order:
  *   1. bloodbath      (whole eligible board red — detectSweep)
  *   2. clean-sweep    (whole eligible board green — detectSweep)
- *   3. recap          (weekend recap window, Fri 22:00 → Mon 09:00 STO)
+ *   3. recap          (weekend recap window, Fri 22:30 → Mon 09:00 STO)
  *   4. stale          (weekday, all tracked markets closed right now)
  *   5. default
  * A sweep outranks the recap window (a red/green week still gets its mood

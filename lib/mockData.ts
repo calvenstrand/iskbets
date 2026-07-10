@@ -657,7 +657,7 @@ export function getMockWeekStartSnapshot(): WeekStartSnapshot {
  *
  * To preview the recap-mode layout (Champion + WEEK STANDINGS
  * side-by-side), run the dashboard during the actual recap window
- * (Fri 22:00 → Mon 09:00 STO) — inRecapWindow keys off real time.
+ * (Fri 22:30 → Mon 09:00 STO) — inRecapWindow keys off real time.
  */
 /**
  * Fake mood history for dev mode — a partially-filled 30-day window so

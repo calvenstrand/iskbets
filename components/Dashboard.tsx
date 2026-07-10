@@ -43,7 +43,7 @@ type DashboardProps = {
    * mood strip near the footer. Absent until the first day is recorded;
    * the strip renders an all-placeholder "building history" window then. */
   moodHistory?: MoodRecord[];
-  /** Server-computed initial value for the recap window (Fri 22:00 STO →
+  /** Server-computed initial value for the recap window (Fri 22:30 STO →
    * Mon 09:00 STO). Dashboard re-checks every minute on the client so
    * the UI flips automatically when the window opens / closes — but
    * seeding from the server keeps the first paint correct. */
@@ -184,7 +184,7 @@ export function Dashboard({
   );
 
   // Featured cards swap framing based on the recap window:
-  //   inside (Fri 22:00 → Mon 09:00 STO): WEEK's biggest mover, computed
+  //   inside (Fri 22:30 → Mon 09:00 STO): WEEK's biggest mover, computed
   //     from the weekStartPrices baseline.
   //   outside (live trading hours of weekdays): TODAY's biggest mover
   //     filtered to markets that have actually opened today (so a US
@@ -308,7 +308,7 @@ export function Dashboard({
 
       {/* Daily brief leads the descent — the one human-readable AI
           sentence, promoted to its own hero line directly under the
-          masthead. Hides during the recap window (Fri 22:00 → Mon 09:00
+          masthead. Hides during the recap window (Fri 22:30 → Mon 09:00
           STO): Friday's close would masquerade as a live "today" read on
           Sat/Sun, and the Champion of the Week card already owns the
           weekend's editorial framing. Returns Monday at 09:00 STO. */}
@@ -325,7 +325,7 @@ export function Dashboard({
       <MarketStatus />
       {/* Champion of the Week + Friend Leaderboard are recap-window
           content — they only earn screen real estate when there's a
-          full week to recap (Fri 22:00 STO → Mon 09:00 STO). During
+          full week to recap (Fri 22:30 STO → Mon 09:00 STO). During
           live trading, the dashboard tightens up around today's data.
           When both are present, they sit side-by-side in a .recap-row
           (50/50 on desktop, stacked on narrow). When only one is

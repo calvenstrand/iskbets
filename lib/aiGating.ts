@@ -74,7 +74,7 @@ function stockholmIsWeekday(d: Date): boolean {
  *     so the very first mood of a deploy isn't from a pre-market thin
  *     print.
  *  2. Skip outright on weekends — the dashboard hides the mood banner
- *     during the recap window (Fri 22:00 → Mon 09:00 STO), so a fresh
+ *     during the recap window (Fri 22:30 → Mon 09:00 STO), so a fresh
  *     mood would never render. Mood from Friday persists.
  *  3. Skip outright before 09:30 STO — the SE opening auction is still
  *     settling and Avanza prints are noisy, so neither the checkpoints

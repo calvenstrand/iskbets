@@ -15,7 +15,7 @@ type Props = {
   weekStartPrices?: Record<string, number>;
   /** "day" (default) = always-on weekday standings, ranked by today's
    * portfolio move (stale tickers filtered via `now`), champion #1 gets
-   * the gold hero. "week" = the recap-window surface (Fri 22:00 → Mon
+   * the gold hero. "week" = the recap-window surface (Fri 22:30 → Mon
    * 09:00 STO): ranked by WTD, TODAY column dropped (it would be
    * yesterday's close masquerading as live), no champion hero (the
    * WeeklyChampionCard above already owns that spotlight), movers pivot

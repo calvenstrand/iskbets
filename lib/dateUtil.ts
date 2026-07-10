@@ -49,15 +49,16 @@ export function inPostCloseWindow(d: Date): boolean {
 
 /**
  * "Recap window" — the stretch of the week when looking back at last
- * week's action makes more sense than tracking today's. Spans from
- * Friday's NY close (22:00 STO) through to Monday's Stockholm open
+ * week's action makes more sense than tracking today's. Opens Friday at
+ * 22:30 STO (NY closes at 22:00 STO; the half-hour buffer lets the
+ * closing prints settle) and runs through to Monday's Stockholm open
  * (09:00 STO), covering the full Sat/Sun gap.
  *
  * Inside this window: featured cards say "WEEK'S BIGGEST WINNER",
  * the leaderboard + Champion of the Week card render, the WTD column
  * is meaningful.
  *
- * Outside (Mon 09:00 → Fri 22:00 STO): live trading is active
+ * Outside (Mon 09:00 → Fri 22:30 STO): live trading is active
  * somewhere, "today" framing dominates, the leaderboard hides until
  * Friday close, the featured cards switch to "TODAY'S BIGGEST WINNER".
  */
