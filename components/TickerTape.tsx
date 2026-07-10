@@ -1,64 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import { pickSlogans, type Scenario } from "@/lib/slogans";
 import { displayTicker } from "@/lib/tickers";
-import type { DayMood, StockPrice } from "@/lib/types";
+import {
+  deriveTickerTier,
+  tapeCarriesLine,
+  tickerLine,
+} from "@/lib/tickerLines";
+import type { StockPrice } from "@/lib/types";
 
-const SLOGANS = [
-  "GREED IS GOOD",
-  "DIAMOND HANDS",
-  "TO THE MOON",
-  "STONKS ONLY GO UP",
-  "BUY HIGH SELL LOW",
-  "PRINTER GO BRRR",
-  "THIS IS THE WAY",
-  "APES TOGETHER STRONG",
-  "BTFD",
-  "LFG",
-  "MONEY NEVER SLEEPS",
-  "BAGHOLDER NATION",
-  "TENDIES INCOMING",
-  "YOLO",
-];
-
-// During a market-wide sweep the tape leans into the moment — same
-// interleave, just a themed slogan pool. Deterministic (no random), so
-// SSR and CSR agree.
-const BLOODBATH_SLOGANS = [
-  "BLOOD IN THE STREETS",
-  "THIS IS FINE",
-  "BUY THE DIP",
-  "CATCHING KNIVES",
-  "HODL",
-  "RED WEDDING",
-  "BAGHOLDER NATION",
-  "GENERATIONAL BUYING OP",
-  "DOWN BAD",
-  "DIAMOND HANDS",
-  "IT'S JUST A DIP",
-  "PAIN",
-];
-
-const CLEAN_SWEEP_SLOGANS = [
-  "GREEN DAY",
-  "UP ONLY",
-  "TO THE MOON",
-  "PRINTER GO BRRR",
-  "TENDIES INCOMING",
-  "WE ARE SO BACK",
-  "EVERYBODY EATS",
-  "STONKS ONLY GO UP",
-  "GREEN CANDLES ONLY",
-  "LFG",
-  "DIAMOND HANDS PAY OFF",
-  "TOUCH GRASS LATER",
-];
-
-function sloganPool(sweep: DayMood | null | undefined): string[] {
-  if (sweep === "bloodbath") return BLOODBATH_SLOGANS;
-  if (sweep === "clean-sweep") return CLEAN_SWEEP_SLOGANS;
-  return SLOGANS;
-}
+// How many slogans to sprinkle across one loop of the tape — kept close
+// to the previous density (a slogan every ~2-3 tickers) rather than one
+// per ticker, so prices still lead and the copy accents.
+const SLOGANS_PER_LOOP = 14;
 
 function formatPct(pct: number): string {
   const sign = pct >= 0 ? "+" : "";
@@ -67,29 +22,50 @@ function formatPct(pct: number): string {
 
 type TapeItem =
   | { kind: "slogan"; text: string }
-  | { kind: "ticker"; ticker: string; pct: number };
+  // `line` is the ticker's own one-liner, carried by only some entries
+  // (extremes always, others ~1 in TAPE_CARRY_EVERY). Owner tag omitted
+  // here — it's a card-only flourish.
+  | { kind: "ticker"; ticker: string; pct: number; line?: string };
 
 function buildTape(
   stocks: StockPrice[],
-  sweep: DayMood | null | undefined,
+  scenario: Scenario,
+  date: string,
 ): TapeItem[] {
-  const tickers: TapeItem[] = stocks.map((s) => ({
-    kind: "ticker" as const,
-    ticker: displayTicker(s.ticker),
-    pct: s.regularMarketChangePercent,
-  }));
-  const slogans: TapeItem[] = sloganPool(sweep).map((text) => ({
-    kind: "slogan" as const,
-    text,
-  }));
-  // Interleave: roughly one slogan per ticker
+  const tickers: TapeItem[] = stocks.map((s) => {
+    // Tape uses the traded tier (frozen-market lines are a card-only
+    // affordance, where marketStale is known). Deterministic per
+    // (symbol, date) — SSR-safe.
+    const tier = deriveTickerTier(s.regularMarketChangePercent, true);
+    const carry = tapeCarriesLine(s.ticker, date, tier);
+    return {
+      kind: "ticker" as const,
+      ticker: displayTicker(s.ticker),
+      pct: s.regularMarketChangePercent,
+      ...(carry ? { line: tickerLine(s.ticker, date, tier) } : {}),
+    };
+  });
+
+  const sloganSeed = Number(date.replaceAll("-", "")) || 1;
+  if (tickers.length === 0) {
+    return pickSlogans(scenario, sloganSeed, SLOGANS_PER_LOOP).map((text) => ({
+      kind: "slogan" as const,
+      text,
+    }));
+  }
+
+  // Seeded, scenario-biased slogans (SSR-safe — no random), spread evenly
+  // across the ticker run so they don't cluster at the front of the loop.
+  const count = Math.min(SLOGANS_PER_LOOP, tickers.length);
+  const slogans = pickSlogans(scenario, sloganSeed, count);
   const out: TapeItem[] = [];
-  const max = Math.max(tickers.length, slogans.length);
-  for (let i = 0; i < max; i++) {
-    const slogan = slogans[i];
-    const ticker = tickers[i];
-    if (slogan) out.push(slogan);
-    if (ticker) out.push(ticker);
+  let si = 0;
+  for (let i = 0; i < tickers.length; i++) {
+    if (si < count && i >= Math.floor((si * tickers.length) / count)) {
+      out.push({ kind: "slogan", text: slogans[si]! });
+      si++;
+    }
+    out.push(tickers[i]!);
   }
   return out;
 }
@@ -108,19 +84,25 @@ function renderItem(item: TapeItem, key: string) {
       <span className="tape-diamond">◆</span>
       <span>{item.ticker}</span>
       <span className={cls}>{formatPct(item.pct)}</span>
+      {item.line && <span className="tape-line">— {item.line}</span>}
     </span>
   );
 }
 
 export function TickerTape({
   stocks,
-  sweep,
+  scenario,
+  date,
 }: {
   stocks: StockPrice[];
-  sweep?: DayMood | null;
+  /** Active tape scenario (resolveScenario, computed in Dashboard). */
+  scenario: Scenario;
+  /** Stockholm calendar day (YYYY-MM-DD). Seeds the slogan mix and the
+   * per-ticker lines — SSR-safe, stable per day. */
+  date: string;
 }) {
   const [paused, setPaused] = useState(false);
-  const items = buildTape(stocks, sweep);
+  const items = buildTape(stocks, scenario, date);
 
   return (
     <div

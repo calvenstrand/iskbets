@@ -1,11 +1,13 @@
 import { Redis } from "@upstash/redis";
-import { stockholmMondayOfWeek } from "./dateUtil";
+import { stockholmDate, stockholmMondayOfWeek } from "./dateUtil";
+import { computeMoodRecord, selectRecentMood, upsertMoodRecords } from "./mood";
 import type { MockMode } from "./mockData";
 import type {
   AnalysisPayload,
   DailyResult,
   DailySnapshot,
   DashboardData,
+  MoodRecord,
   PublicStoredData,
   StockPrice,
   StoredData,
@@ -20,6 +22,7 @@ const WEEK_START_KEY = "iskbets:weekStart";
 const ARCHIVE_KEY = "iskbets:archive"; // Redis hash, fields = weekStart dates
 const DAILY_ARCHIVE_KEY = "iskbets:dailyArchive"; // Redis hash, fields = YYYY-MM-DD
 const WEEKLY_CHAMPION_KEY = "iskbets:weeklyChampion";
+const MOOD_HISTORY_KEY = "iskbets:moodHistory"; // JSON array of MoodRecord, oldest→newest
 
 // Dated end-of-day history. Each day is its own string key
 // `iskbets:snapshot:YYYY-MM-DD`; `iskbets:snapshot:index` is a sorted
@@ -262,6 +265,48 @@ export async function listDailyResults(
   return limit ? sorted.slice(0, limit) : sorted;
 }
 
+// ============== Daily mood history (rolling, ~90-day cap) ==============
+
+/**
+ * Capture today's group + per-ticker sentiment into the rolling mood
+ * history that backs the historical mood strip. UPSERT by Stockholm
+ * calendar day (last-write-wins), sorted oldest→newest, capped at
+ * MOOD_HISTORY_CAP — the merge/cap/sort is the pure `upsertMoodRecords`,
+ * the sentiment derivation the pure `computeMoodRecord` (both in
+ * lib/mood.ts, unit-tested there).
+ *
+ * The whole array lives under one key: it's tiny (enums + one number per
+ * day, ~90 days) so a read-modify-write per trigger is cheap, and the
+ * dashboard read gets it in one round-trip. Throws on Redis failure —
+ * the caller (trigger route) wraps this so a mood-write failure never
+ * breaks the pipeline.
+ */
+export async function recordDailyMood(
+  snapshot: Pick<StoredData, "stocks">,
+): Promise<MoodRecord> {
+  const date = stockholmDate(new Date());
+  const record = computeMoodRecord(snapshot.stocks, date);
+  const redis = getRedis();
+  const existing = (await redis.get<MoodRecord[]>(MOOD_HISTORY_KEY)) ?? [];
+  const next = upsertMoodRecords(existing, record);
+  await redis.set(MOOD_HISTORY_KEY, next);
+  return record;
+}
+
+/**
+ * Rolling mood history, oldest→newest, at most the last `days` records.
+ * Returns `[]` when nothing has been recorded yet (fresh deploy) so the
+ * UI can render an all-placeholder "building history" strip.
+ */
+export async function getMoodHistory(days = 30): Promise<MoodRecord[]> {
+  if (shouldUseMock().use) {
+    const { getMockMoodHistory } = await import("./mockData");
+    return selectRecentMood(getMockMoodHistory(), days);
+  }
+  const all = (await getRedis().get<MoodRecord[]>(MOOD_HISTORY_KEY)) ?? [];
+  return selectRecentMood(all, days);
+}
+
 // ============== Dated history snapshots (end-of-day, 400-day cap) ==============
 
 /**
@@ -420,10 +465,12 @@ export async function getDashboardData(opts?: {
     return getMockDashboardData(opts?.mode ?? "default");
   }
 
-  const [snapshot, weekStart, weeklyChampion] = await Promise.all([
+  const [snapshot, weekStart, weeklyChampion, moodHistory] = await Promise.all([
     getStockData(),
     getWeekStartSnapshot(),
     getWeeklyChampion(),
+    // Parallel with the others — adds no wall-clock latency to the read.
+    getMoodHistory(30),
   ]);
   if (!snapshot) return null;
   // Project weekStart down to a small ticker→price map. Saves ~80% of
@@ -444,6 +491,7 @@ export async function getDashboardData(opts?: {
     snapshot: toPublicSnapshot(snapshot),
     ...(weeklyChampion ? { weeklyChampion } : {}),
     ...(weekStartPrices ? { weekStartPrices } : {}),
+    ...(moodHistory.length > 0 ? { moodHistory } : {}),
   };
 }
 

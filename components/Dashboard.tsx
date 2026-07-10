@@ -7,16 +7,18 @@ import {
   pickWeekWinnerLoser,
   type SweepResult,
 } from "@/lib/leaderboard";
-import { hasTradedToday } from "@/lib/marketHours";
+import { hasTradedToday, newYorkStatus, stockholmStatus } from "@/lib/marketHours";
+import { resolveScenario } from "@/lib/slogans";
 import { TICKERS } from "@/lib/tickers";
 import type {
+  MoodRecord,
   PublicStoredData,
   StockAnalysis,
   StockPrice,
   WeeklyChampion,
 } from "@/lib/types";
 import { useGridSort } from "@/hooks/useGridSort";
-import { stockholmMondayOfWeek } from "@/lib/dateUtil";
+import { stockholmDate, stockholmMondayOfWeek } from "@/lib/dateUtil";
 import { useNow } from "@/hooks/useNow";
 import { usePollDashboard } from "@/hooks/usePollDashboard";
 import { CelebrationCard } from "./CelebrationCard";
@@ -25,6 +27,7 @@ import { Header } from "./Header";
 import { Leaderboard } from "./Leaderboard";
 import { MarketStatus } from "./MarketStatus";
 import { MoodBanner } from "./MoodBanner";
+import { MoodStrip } from "./MoodStrip";
 import { PullToRefresh } from "./PullToRefresh";
 import { StockCard } from "./StockCard";
 import { TickerTape } from "./TickerTape";
@@ -35,6 +38,10 @@ type DashboardProps = {
   data: PublicStoredData;
   weeklyChampion?: WeeklyChampion;
   weekStartPrices?: Record<string, number>;
+  /** Rolling per-day sentiment (oldest→newest) backing the historical
+   * mood strip near the footer. Absent until the first day is recorded;
+   * the strip renders an all-placeholder "building history" window then. */
+  moodHistory?: MoodRecord[];
   /** Server-computed initial value for the recap window (Fri 22:00 STO →
    * Mon 09:00 STO). Dashboard re-checks every minute on the client so
    * the UI flips automatically when the window opens / closes — but
@@ -147,6 +154,7 @@ export function Dashboard({
   data: initialData,
   weeklyChampion: initialWeeklyChampion,
   weekStartPrices: initialWeekStart,
+  moodHistory,
   initialInRecap,
   initialNowMs,
 }: DashboardProps) {
@@ -240,6 +248,24 @@ export function Dashboard({
   // always agree — partial-red days stay neutral.
   const dayMood = sweep.type ?? undefined;
 
+  // Ticker-tape scenario: bias the interleaved slogans toward the day's
+  // mood (bloodbath > clean-sweep > recap > market-closed > default).
+  // "Market closed" = no tracked market currently open, outside the
+  // weekend recap window. All inputs derive from the SSR-seeded `now`
+  // (like sweep / inRecap), so the tape is SSR-safe. The slogan mix is
+  // seeded on the Stockholm calendar day so it's stable within a day and
+  // refreshes daily — deterministic, never per-render random.
+  const marketClosed =
+    stockholmStatus(now) === "CLOSED" && newYorkStatus(now) === "CLOSED";
+  const tapeScenario = resolveScenario({
+    sweep: dayMood,
+    inRecap,
+    marketClosed,
+  });
+  // Stockholm calendar day — seeds the tape slogan mix and every card /
+  // tape per-ticker line, so all copy is SSR-safe and stable per day.
+  const today = stockholmDate(now);
+
   const featuredTickers = new Set<string>();
   if (winner) featuredTickers.add(winner.ticker);
   if (loser) featuredTickers.add(loser.ticker);
@@ -279,7 +305,11 @@ export function Dashboard({
   return (
     <main {...(dayMood ? { "data-daymood": dayMood } : {})}>
       <PullToRefresh />
-      <TickerTape stocks={snapshot.stocks} sweep={dayMood} />
+      <TickerTape
+        stocks={snapshot.stocks}
+        scenario={tapeScenario}
+        date={today}
+      />
       <Header />
 
       {/* Daily brief leads the descent — the one human-readable AI
@@ -357,6 +387,7 @@ export function Dashboard({
                     : {})}
                   index={0}
                   flashing={flashedTickers.has(winner.ticker)}
+                  date={today}
                 />
               )
             )}
@@ -381,6 +412,7 @@ export function Dashboard({
                     : {})}
                   index={1}
                   flashing={flashedTickers.has(loser.ticker)}
+                  date={today}
                 />
               )
             )}
@@ -427,12 +459,25 @@ export function Dashboard({
                 index={i + 2}
                 flashing={flashedTickers.has(stock.ticker)}
                 marketStale={stale}
+                date={today}
                 {...(wk !== undefined ? { weekChangePct: wk } : {})}
               />
             );
           })}
         </div>
       </section>
+
+      {/* The site's memory: a 30-day ribbon of the group's daily mood.
+          Deliberately low on the page — it's context, not headline — so
+          it doesn't re-crowd the above-the-fold hierarchy. Renders even
+          with no history (all-placeholder "building" state). */}
+      <MoodStrip
+        label="30-Day Mood"
+        history={(moodHistory ?? []).map((r) => ({
+          date: r.date,
+          sentiment: r.overall,
+        }))}
+      />
 
       <UpdatedFooter updatedAt={snapshot.updatedAt} />
     </main>

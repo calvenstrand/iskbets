@@ -23,6 +23,7 @@ import {
   getWeeklyResult,
   getWeekStartSnapshot,
   markAttempt,
+  recordDailyMood,
   saveDailySnapshot,
   saveStockData,
   setDailyResult,
@@ -276,6 +277,26 @@ async function maybeSaveDailySnapshot(
 }
 
 /**
+ * Record today's group + per-ticker sentiment into the rolling mood
+ * history (recordDailyMood upserts per Stockholm day). Idempotent per
+ * day: every run refines the same day's record, last-write-wins.
+ * Isolated in its own try/catch so a mood-write failure logs and is
+ * swallowed — it must never fail the trigger.
+ */
+async function maybeRecordDailyMood(snapshot: StoredData): Promise<void> {
+  try {
+    const record = await recordDailyMood(snapshot);
+    console.log(
+      `[trigger] mood recorded for ${record.date} ` +
+        `(overall ${record.overall}, avg ${record.avgPct.toFixed(2)}%)`,
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[trigger] mood history record failed: ${msg}`);
+  }
+}
+
+/**
  * Archive the snapshot as this week's baseline if we don't already have
  * one for the current Stockholm-week's Monday. Used by the leaderboard's
  * WTD column and the Weekend Wire's week-over-week recap.
@@ -403,6 +424,11 @@ export async function GET(request: Request): Promise<NextResponse> {
     // Persist the slim dated history snapshot (every run; last write of
     // the day wins). Isolated — a failure here won't break the run.
     await maybeSaveDailySnapshot(saved, triggerNow);
+
+    // Capture today's sentiment into the rolling mood history that backs
+    // the historical mood strip. UPSERT per Stockholm day (last write of
+    // the day wins). Isolated — a failure here won't break the run.
+    await maybeRecordDailyMood(saved);
 
     // Archive the Monday baseline once per week (no-op other days, or
     // on subsequent Monday triggers after the first one this week).
