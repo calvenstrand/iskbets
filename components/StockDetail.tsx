@@ -14,6 +14,7 @@ import {
   rangePosition,
   SPARKLINE_UNLOCK_DAYS,
 } from "@/lib/stockDetail";
+import { stockholmDate } from "@/lib/dateUtil";
 import { displayTicker, PEOPLE, type Person, TICKERS } from "@/lib/tickers";
 import { getDashboardData, getRecentDailySnapshots } from "@/lib/storage";
 import type { StockPrice } from "@/lib/types";
@@ -137,9 +138,9 @@ export async function StockDetail({ symbol }: { symbol: string }) {
   const history = extractTickerHistory(snapshots, symbol);
   const moodCells = buildMoodStrip(history);
   const log = buildAnalystLog(history, {
-    fallbackMonthYear: monthYearOf(
-      `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`,
-    ),
+    // Stockholm month, matching every other "what day is it" decision
+    // (UTC would drift the coverage marker at month boundaries).
+    fallbackMonthYear: monthYearOf(stockholmDate(now)),
   });
 
   const price = stock?.regularMarketPrice ?? NaN;
