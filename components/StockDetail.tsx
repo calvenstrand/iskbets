@@ -18,7 +18,7 @@ import { displayTicker, PEOPLE, type Person, TICKERS } from "@/lib/tickers";
 import { getDashboardData, getRecentDailySnapshots } from "@/lib/storage";
 import type { StockPrice } from "@/lib/types";
 import { AnalystLog } from "./AnalystLog";
-import { MoodStrip } from "./MoodStrip";
+import { StockMoodStrip } from "./StockMoodStrip";
 
 /** How deep to read history for the log / strip / sparkline. Matches the
  * snapshot retention cap so a mature ticker gets its whole run. */
@@ -284,7 +284,7 @@ export async function StockDetail({ symbol }: { symbol: string }) {
       <section className="sd-section">
         <h2 className="sd-label">MOOD STRIP</h2>
         {moodCells.length > 0 ? (
-          <MoodStrip cells={moodCells} />
+          <StockMoodStrip cells={moodCells} />
         ) : (
           <p className="sd-thin">
             {`// no snapshot days yet — the strip fills in as the cron logs closes`}

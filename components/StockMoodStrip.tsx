@@ -45,7 +45,7 @@ function cellLabel(cell: MoodCell): string {
  * without reflowing the page. No animation → nothing to gate on
  * reduced-motion.
  */
-export function MoodStrip({ cells }: { cells: MoodCell[] }) {
+export function StockMoodStrip({ cells }: { cells: MoodCell[] }) {
   // Default the caption to the most recent present cell so the strip
   // reads without a tap.
   const lastPresent = [...cells].reverse().find((c) => c.present);
