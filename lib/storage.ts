@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { Redis } from "@upstash/redis";
 import { stockholmDate, stockholmMondayOfWeek } from "./dateUtil";
 import { computeMoodRecord, selectRecentMood, upsertMoodRecords } from "./mood";
@@ -445,33 +446,39 @@ export async function getRecentDailySnapshots(
 /**
  * One-shot fetch for the dashboard: snapshot + weekly champion + the
  * compact week-start price map (just ticker → price, not the full
- * snapshot — keeps the polled payload small). All in parallel. Returns
- * null only if the live snapshot is missing — everything else is
- * best-effort.
+ * snapshot — keeps the polled payload small). One MGET — all four are
+ * plain string keys, so this is a single Redis command / round-trip.
+ * Returns null only if the live snapshot is missing — everything else
+ * is best-effort.
+ *
+ * Wrapped in React cache() (keyed on the mode STRING, not the options
+ * object) so multiple calls in one render pass — e.g. the stock page's
+ * generateMetadata + <StockDetail> — share a single Redis read. In
+ * route handlers cache() is a per-request no-op, which is fine.
  *
  * Briefs (morning / evening / weekend wire) were removed for cost;
  * the only AI-generated narrative still surfaced is the Weekly Champion.
  */
-export async function getDashboardData(opts?: {
-  /** Dev-only preview mode; only honored when the storage layer is in
-   * mock mode (no Redis creds in non-prod, or USE_MOCK_DATA=true).
-   * Production calls ignore this param. */
-  mode?: MockMode;
-}): Promise<DashboardData | null> {
+const getDashboardDataByMode = cache(async (
+  mode: MockMode,
+): Promise<DashboardData | null> => {
   // Mock branch: route the whole assembly through the aggregator so
   // the mode-driven preview is consistent across all pieces.
   if (shouldUseMock().use) {
     const { getMockDashboardData } = await import("./mockData");
-    return getMockDashboardData(opts?.mode ?? "default");
+    return getMockDashboardData(mode);
   }
 
-  const [snapshot, weekStart, weeklyChampion, moodHistory] = await Promise.all([
-    getStockData(),
-    getWeekStartSnapshot(),
-    getWeeklyChampion(),
-    // Parallel with the others — adds no wall-clock latency to the read.
-    getMoodHistory(30),
-  ]);
+  const [snapshot, weekStart, weeklyChampion, moodHistoryRaw] =
+    await getRedis().mget<
+      [
+        StoredData | null,
+        WeekStartSnapshot | null,
+        WeeklyChampion | null,
+        MoodRecord[] | null,
+      ]
+    >(KV_KEY, WEEK_START_KEY, WEEKLY_CHAMPION_KEY, MOOD_HISTORY_KEY);
+  const moodHistory = selectRecentMood(moodHistoryRaw ?? [], 30);
   if (!snapshot) return null;
   // Project weekStart down to a small ticker→price map. Saves ~80% of
   // the snapshot payload on every poll. Only include it if the stored
@@ -493,6 +500,15 @@ export async function getDashboardData(opts?: {
     ...(weekStartPrices ? { weekStartPrices } : {}),
     ...(moodHistory.length > 0 ? { moodHistory } : {}),
   };
+});
+
+export async function getDashboardData(opts?: {
+  /** Dev-only preview mode; only honored when the storage layer is in
+   * mock mode (no Redis creds in non-prod, or USE_MOCK_DATA=true).
+   * Production calls ignore this param. */
+  mode?: MockMode;
+}): Promise<DashboardData | null> {
+  return getDashboardDataByMode(opts?.mode ?? "default");
 }
 
 /** Drop trigger-route bookkeeping fields before exposing the snapshot
