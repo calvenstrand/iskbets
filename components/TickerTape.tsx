@@ -119,10 +119,14 @@ export function TickerTape({
         }
       }}
     >
-      {/* Duplicate the items so the marquee loop is seamless */}
+      {/* Duplicate the items so the marquee loop is seamless. The copy is
+          purely visual — aria-hidden so screen readers hear the tape once,
+          not twice; display:contents keeps the flex track layout intact. */}
       <div className="tape-track">
         {items.map((it, i) => renderItem(it, `a-${i}`))}
-        {items.map((it, i) => renderItem(it, `b-${i}`))}
+        <span aria-hidden="true" style={{ display: "contents" }}>
+          {items.map((it, i) => renderItem(it, `b-${i}`))}
+        </span>
       </div>
     </div>
   );
