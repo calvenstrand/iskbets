@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { deriveSentiment, SENTIMENT_HEX } from "@/lib/derive";
 import { detectTodaySweep, pickTodayWinnerLoser } from "@/lib/leaderboard";
 import { getDashboardData } from "@/lib/storage";
 import { displayTicker } from "@/lib/tickers";
@@ -17,18 +18,19 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 // ── Palette ────────────────────────────────────────────────────────────
-// Satori has no oklch, so the --mood-* family is hardcoded to the hex
-// equivalents documented in globals.css. Everything else mirrors the
-// site tokens.
+// Satori has no oklch, so mood colors come from the shared SENTIMENT_HEX
+// table (lib/derive.ts — same 5-tier mapping as the site's moodVar).
+// Everything else mirrors the site tokens.
 const TEXT = "#d7e6dd"; // --text-0
 const TEXT_DIM = "#7c8a83"; // --text-2
 const GOLD = "#f5c842"; // --gold
 const BORDER = "#252e2a"; // --border
 const CHIP_BG = "#0d1110"; // --surface-1
-const MOOD_MOON = "#33f5a0"; // > +5%
-const MOOD_UP = "#53c48e"; // +.5–5%
-const MOOD_REKT = "#e9483d"; // mild-to-mid down
-const MOOD_LIQUIDATED = "#b7162d"; // ≤ -5%
+// Sweep accents: readable red (--mood-rekt, not the deep liquidated
+// fill) and moon green — text colors, so they follow the site's
+// "rekt-for-text" convention (see globals.css .mood-text-rekt).
+const ACCENT_RED = "#e9483d"; // --mood-rekt
+const ACCENT_GREEN = SENTIMENT_HEX.moon;
 
 // Per-sweep skin: a flat linear-gradient wash (no blur/shadow — Satori
 // can't do them) plus an accent + gallows/tendies copy.
@@ -39,13 +41,13 @@ const SKIN: Record<
   bloodbath: {
     // Deep red wash fading to the surface — reads as "the bleeding".
     bg: "linear-gradient(150deg, #2a0810 0%, #12060a 45%, #080b0a 100%)",
-    accent: MOOD_REKT, // readable red, not the deep liquidated
+    accent: ACCENT_RED,
     label: "🩸 BLOODBATH",
     copy: "everything is fine 🔥🦍🔥",
   },
   "clean-sweep": {
     bg: "linear-gradient(150deg, #06251a 0%, #08140f 45%, #080b0a 100%)",
-    accent: MOOD_MOON,
+    accent: ACCENT_GREEN,
     label: "💎 CLEAN SWEEP",
     copy: "green across the board — tendies for all 🍗",
   },
@@ -61,13 +63,12 @@ function fmtPct(pct: number): string {
   return `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
 }
 
-// Winner escalates to moon green past +5%; loser deepens to liquidated
-// red past -5% — same magnitude encoding as the site's featured cards.
-function winnerColor(pct: number): string {
-  return pct > 5 ? MOOD_MOON : MOOD_UP;
-}
-function loserColor(pct: number): string {
-  return pct <= -5 ? MOOD_LIQUIDATED : MOOD_REKT;
+// Chip color follows the site's full 5-tier sentiment scale (moodVar /
+// SENTIMENT_HEX), so a -1% "biggest loser" is the same caution orange on
+// the unfurl as on the grid, and a +0.2% "winner" stays neutral gold —
+// the previous 2-tier table painted those red/green.
+function chipColor(pct: number): string {
+  return SENTIMENT_HEX[deriveSentiment(pct)];
 }
 
 // ▲ / ▼ as an inline SVG polygon — the geometric arrow glyphs aren't in
@@ -92,7 +93,7 @@ function statChip(opts: {
   pct: number;
   up: boolean;
 }) {
-  const color = opts.up ? winnerColor(opts.pct) : loserColor(opts.pct);
+  const color = chipColor(opts.pct);
   return (
     <div
       style={{
