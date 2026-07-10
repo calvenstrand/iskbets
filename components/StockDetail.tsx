@@ -20,9 +20,16 @@ import type { StockPrice } from "@/lib/types";
 import { AnalystLog } from "./AnalystLog";
 import { StockMoodStrip } from "./StockMoodStrip";
 
-/** How deep to read history for the log / strip / sparkline. Matches the
- * snapshot retention cap so a mature ticker gets its whole run. */
-const HISTORY_DAYS = 400;
+/** How deep to read history for the log / strip / sparkline. Each dated
+ * snapshot is ~5 KB and holds ALL tickers, and getRecentDailySnapshots
+ * fetches them in one MGET — at the 400-day retention cap that's a ~2 MB
+ * response to plot ONE ticker, which will eventually trip Upstash REST
+ * response limits and silently blank these sections (the reads are
+ * .catch(() => [])). 90 days covers the mood strip, the analyst log's
+ * useful depth, and the 30-receipt sparkline gate with headroom. If a
+ * full-depth chart is ever wanted, store a compact per-ticker series
+ * key instead of raising this. */
+const HISTORY_DAYS = 90;
 
 function fmtPrice(value: number): string {
   if (!Number.isFinite(value)) return "N/A";

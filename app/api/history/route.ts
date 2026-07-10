@@ -15,6 +15,11 @@ const CACHE_HEADER = "public, s-maxage=20";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const DEFAULT_DAYS = 30;
+// Payload warning: each dated snapshot is ~5 KB and contains every
+// ticker, and the ticker/range modes fetch them in one MGET — a
+// days=400 request reads ~2 MB from Redis to serve one ticker's series.
+// Fine for occasional API use, but don't point UI polling at high
+// values; the dashboard/stock views deliberately read ≤ 90 days.
 const MAX_DAYS = 400;
 
 function bad(message: string): NextResponse {
