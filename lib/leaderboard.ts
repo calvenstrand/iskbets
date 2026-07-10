@@ -1,6 +1,22 @@
+import { inRecapWindow } from "./dateUtil";
 import { hasTradedToday } from "./marketHours";
 import { buildOwnersByPerson, PEOPLE, type Person, TICKERS } from "./tickers";
 import type { StockPrice } from "./types";
+
+/**
+ * Which framing the standings should use right now. Week scope ONLY
+ * during the recap window (Fri 22:30 → Mon 09:00 STO) AND when a Monday
+ * baseline exists — mid-week, day scope rules even though the baseline
+ * is already there. Defined once so the dashboard leaderboard and the
+ * stock detail's "#N THIS WEEK/TODAY" owner-rank link can't disagree
+ * about which race a friend is ranked in.
+ */
+export function resolveLeaderboardScope(
+  now: Date,
+  weekStartPrices: Record<string, number> | undefined,
+): "day" | "week" {
+  return inRecapWindow(now) && !!weekStartPrices ? "week" : "day";
+}
 
 // Symbol → market, so the day-scope stale filter can ask hasTradedToday
 // without threading the whole TICKERS list through every call.
@@ -237,6 +253,28 @@ export function detectSweep(
     return { type: "bloodbath", count: finite.length, avgPct };
   }
   return { type: null };
+}
+
+/**
+ * Day-framing sweep: detectSweep over the stocks whose market has
+ * actually traded in this Stockholm calendar day (the hasTradedToday
+ * eligibility every day-scoped surface shares). Defined ONCE here so the
+ * dashboard skin, the OG image, and the stock page can't drift on what
+ * counts as a bloodbath / clean sweep. Week-framing sweeps (recap
+ * window) stay caller-side — they need the weekStartPrices baseline.
+ */
+export function detectTodaySweep(
+  stocks: StockPrice[],
+  now: Date,
+): SweepResult {
+  return detectSweep(
+    stocks
+      .filter((s) => {
+        const market = MARKET_BY_TICKER.get(s.ticker);
+        return market ? hasTradedToday(s.lastTradeAt, market, now) : false;
+      })
+      .map((s) => ({ pct: s.regularMarketChangePercent })),
+  );
 }
 
 /**

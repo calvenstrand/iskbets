@@ -31,8 +31,16 @@ export default async function Home({
 }: {
   searchParams: SearchParams;
 }) {
-  const params = await searchParams;
-  const mode = parseMockMode(params.mode);
+  // Dev-only `?mode=` preview. Reading searchParams is a Dynamic API in
+  // Next 15 — awaiting it opts the page into request-time rendering and
+  // silently disables the `revalidate = 60` ISR above, turning every
+  // page view into a live Redis read. Only pay that cost outside
+  // production; the deployed page never reads the param (the storage
+  // layer ignores it there anyway) and stays statically regenerated.
+  const mode: MockMode =
+    process.env.NODE_ENV !== "production"
+      ? parseMockMode((await searchParams).mode)
+      : "default";
   const data = await safeGetDashboardData(mode);
 
   if (!data) {

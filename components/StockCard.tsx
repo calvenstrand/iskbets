@@ -27,7 +27,7 @@ type StockCardProps = {
   featuredWeekChangePct?: number;
   /** When provided, the change row swaps from today's intraday move to
    * this week's % (Monday baseline → now). Used on regular grid cards
-   * during the recap window (Fri 22:00 → Mon 09:00 STO) so the visible
+   * during the recap window (Fri 22:30 → Mon 09:00 STO) so the visible
    * number matches the week-recap framing instead of stranding viewers
    * on Friday's intraday print. Sentiment glow + arrow follow the week
    * sign; today-based rating badge is hidden since its thresholds are

@@ -1,3 +1,4 @@
+import { pickSeeded } from "@/lib/seed";
 import type { DayMood } from "@/lib/types";
 
 type MoodBannerProps = {
@@ -35,14 +36,6 @@ const SWEEP_LINES: Record<DayMood, readonly string[]> = {
   ],
 };
 
-function pickLine(lines: readonly string[], seed: string): string {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) {
-    h = (h * 31 + seed.charCodeAt(i)) | 0;
-  }
-  return lines[Math.abs(h) % lines.length] ?? lines[0]!;
-}
-
 /**
  * The daily AI read — the one human-readable AI sentence, promoted out
  * of the old glowing mood banner into its own hero block directly under
@@ -70,7 +63,7 @@ export function MoodBanner({
     .filter(Boolean)
     .join(" ");
 
-  const sweepLine = sweep ? pickLine(SWEEP_LINES[sweep], seed ?? "") : null;
+  const sweepLine = sweep ? pickSeeded(SWEEP_LINES[sweep], seed ?? "") : null;
 
   return (
     <section className={className} role="status" aria-label="Today's read">

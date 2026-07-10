@@ -32,7 +32,7 @@ function getMetadataBase(): URL {
 
 const TITLE = "ISKBets — Stockholm meets WallStreetBets. Diamond hands.";
 const DESCRIPTION =
-  "Live stock dashboard for Stockholmsbörsen and US tickers with AI-rated WSB-style commentary, a friend-group leaderboard, and daily morning/evening market briefs. Diamond hands. Not financial advice.";
+  "Live stock dashboard for Stockholmsbörsen and US tickers with WSB-style commentary, a friend-group leaderboard, per-stock analyst logs, and a weekly champion recap. Diamond hands. Not financial advice.";
 
 // JSON-LD structured data — gives Google a machine-readable description of
 // what ISKBets is, who built it, and what it does. Helps with rich-result
@@ -118,13 +118,13 @@ export const metadata: Metadata = {
     description: DESCRIPTION,
     locale: "en_US",
     url: "/",
-    // app/opengraph-image.jpg is picked up automatically — no need to declare images here
+    // app/opengraph-image.tsx (dynamic Satori card) is picked up automatically — no need to declare images here
   },
   twitter: {
     card: "summary_large_image",
     title: TITLE,
     description: DESCRIPTION,
-    // app/twitter-image.jpg is picked up automatically
+    // app/twitter-image.tsx (same dynamic card) is picked up automatically
   },
   robots: {
     index: true,

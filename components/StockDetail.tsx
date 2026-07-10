@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import { deriveRating, deriveSentiment, moodVar } from "@/lib/derive";
-import { computeLeaderboard } from "@/lib/leaderboard";
+import { computeLeaderboard, resolveLeaderboardScope } from "@/lib/leaderboard";
 import { newYorkStatus, stockholmStatus, type Status } from "@/lib/marketHours";
 import {
   buildAnalystLog,
@@ -14,15 +14,23 @@ import {
   rangePosition,
   SPARKLINE_UNLOCK_DAYS,
 } from "@/lib/stockDetail";
+import { stockholmDate } from "@/lib/dateUtil";
 import { displayTicker, PEOPLE, type Person, TICKERS } from "@/lib/tickers";
 import { getDashboardData, getRecentDailySnapshots } from "@/lib/storage";
 import type { StockPrice } from "@/lib/types";
 import { AnalystLog } from "./AnalystLog";
 import { StockMoodStrip } from "./StockMoodStrip";
 
-/** How deep to read history for the log / strip / sparkline. Matches the
- * snapshot retention cap so a mature ticker gets its whole run. */
-const HISTORY_DAYS = 400;
+/** How deep to read history for the log / strip / sparkline. Each dated
+ * snapshot is ~5 KB and holds ALL tickers, and getRecentDailySnapshots
+ * fetches them in one MGET — at the 400-day retention cap that's a ~2 MB
+ * response to plot ONE ticker, which will eventually trip Upstash REST
+ * response limits and silently blank these sections (the reads are
+ * .catch(() => [])). 90 days covers the mood strip, the analyst log's
+ * useful depth, and the 30-receipt sparkline gate with headroom. If a
+ * full-depth chart is ever wanted, store a compact per-ticker series
+ * key instead of raising this. */
+const HISTORY_DAYS = 90;
 
 function fmtPrice(value: number): string {
   if (!Number.isFinite(value)) return "N/A";
@@ -75,14 +83,18 @@ function statusPip(s: Status): string {
 }
 
 /** Best (lowest) leaderboard rank across a ticker's owners, plus the
- * scope label. Week scope when a Monday baseline exists, else today. */
+ * scope label. Scope follows the shared resolveLeaderboardScope rule
+ * (week only inside the recap window, matching the dashboard) — this
+ * used to switch to week whenever a Monday baseline existed, which made
+ * the "#N THIS WEEK" link disagree mid-week with the day-ranked
+ * leaderboard it points at. */
 function ownerRank(
   owners: Person[],
   stocks: StockPrice[],
   weekStartPrices: Record<string, number> | undefined,
   now: Date,
 ): { rank: number; scope: "WEEK" | "TODAY" } | null {
-  const useWeek = !!weekStartPrices;
+  const useWeek = resolveLeaderboardScope(now, weekStartPrices) === "week";
   const entries = computeLeaderboard(
     stocks,
     weekStartPrices,
@@ -126,9 +138,9 @@ export async function StockDetail({ symbol }: { symbol: string }) {
   const history = extractTickerHistory(snapshots, symbol);
   const moodCells = buildMoodStrip(history);
   const log = buildAnalystLog(history, {
-    fallbackMonthYear: monthYearOf(
-      `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`,
-    ),
+    // Stockholm month, matching every other "what day is it" decision
+    // (UTC would drift the coverage marker at month boundaries).
+    fallbackMonthYear: monthYearOf(stockholmDate(now)),
   });
 
   const price = stock?.regularMarketPrice ?? NaN;

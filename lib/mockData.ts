@@ -1,6 +1,7 @@
 import { deriveRating, deriveSentiment } from "./derive";
 import { stockholmDate, stockholmMondayOfWeek } from "./dateUtil";
 import { upsertMoodRecords } from "./mood";
+import { hashString } from "./seed";
 import type {
   DailyResult,
   DailySnapshot,
@@ -656,7 +657,7 @@ export function getMockWeekStartSnapshot(): WeekStartSnapshot {
  *
  * To preview the recap-mode layout (Champion + WEEK STANDINGS
  * side-by-side), run the dashboard during the actual recap window
- * (Fri 22:00 → Mon 09:00 STO) — inRecapWindow keys off real time.
+ * (Fri 22:30 → Mon 09:00 STO) — inRecapWindow keys off real time.
  */
 /**
  * Fake mood history for dev mode — a partially-filled 30-day window so
@@ -953,15 +954,10 @@ export function getMockWeeklyResults(): WeeklyResult[] {
 const MOCK_HISTORY_DAYS = 18;
 
 /** Deterministic 0..1 hash of a string — used to vary the fake per-day
- * moves without Math.random (stable across renders / SSR). */
+ * moves without Math.random (stable across renders / SSR). Scales the
+ * shared lib/seed hash to 0..1. */
 function hash01(s: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  // >>> 0 → unsigned; scale to 0..1.
-  return ((h >>> 0) % 100000) / 100000;
+  return (hashString(s) % 100000) / 100000;
 }
 
 /** YYYY-MM-DD for a UTC day offset back from today. */

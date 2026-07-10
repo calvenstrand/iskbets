@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { StockDetail } from "@/components/StockDetail";
+import { detectTodaySweep } from "@/lib/leaderboard";
 import { getDashboardData } from "@/lib/storage";
 import { displayTicker, TICKERS } from "@/lib/tickers";
 
@@ -53,8 +54,17 @@ export async function generateMetadata({
 
 export default async function StockPage({ params }: { params: Params }) {
   const { symbol } = await params;
+  // Carry the day-mood skin (bloodbath / clean-sweep) onto the full page
+  // so a hard refresh of /stock/X doesn't silently drop the event framing
+  // the dashboard (and the modal over it) shows. Same shared
+  // detectTodaySweep as the dashboard + OG image; getDashboardData is
+  // React-cache()d, so <StockDetail> below reuses this read for free.
+  // Best-effort: at build time (no Redis creds) this just renders unskinned.
+  const dayMood = await getDashboardData()
+    .then((d) => (d ? detectTodaySweep(d.snapshot.stocks, new Date()).type : null))
+    .catch(() => null);
   return (
-    <main className="sd-page">
+    <main className="sd-page" {...(dayMood ? { "data-daymood": dayMood } : {})}>
       <div className="sd-page-inner">
         <Link href="/" className="sd-back">
           ← BACK TO THE TERMINAL

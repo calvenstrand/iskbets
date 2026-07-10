@@ -60,7 +60,13 @@ export function AnalystLog({ entries }: { entries: AnalystLogEntry[] }) {
                 {fmtDate(entry.date)}
               </time>
               <span
-                className={`sd-log-move ${entry.changePct >= 0 ? "sd-up" : "sd-down"}`}
+                className={`sd-log-move ${
+                  entry.changePct > 0
+                    ? "sd-up"
+                    : entry.changePct < 0
+                      ? "sd-down"
+                      : "sd-flat"
+                }`}
               >
                 {fmtPct(entry.changePct)}
               </span>

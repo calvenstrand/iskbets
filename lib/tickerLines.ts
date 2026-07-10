@@ -1,3 +1,5 @@
+import { hashString } from "./seed";
+
 // Per-ticker one-liners keyed to the stock's own situation. These are the
 // FALLBACK for the card empty state (no AI comment) and occasional tape
 // garnish — they never replace real AI commentary.
@@ -102,24 +104,11 @@ export function deriveTickerTier(pct: number, traded: boolean): TickerTier {
   return "liquidated";
 }
 
-// FNV-1a over `symbol:date` (the varying symbol first) followed by a
-// murmur3 finalizer — a stable per-ticker-per-day seed so the same stock
-// shows the same line all day and SSR/CSR agree (no random). The
-// avalanche matters: the inputs share a long common `date` tail, and
-// without it the low bits cluster and many cards land on the same line.
+// Stable per-ticker-per-day seed (`symbol:date`, the varying symbol
+// first) so the same stock shows the same line all day and SSR/CSR
+// agree — hashed through the shared lib/seed utility.
 function seedFor(symbol: string, date: string): number {
-  let h = 0x811c9dc5;
-  const str = `${symbol}:${date}`;
-  for (let i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  h ^= h >>> 16;
-  h = Math.imul(h, 0x85ebca6b);
-  h ^= h >>> 13;
-  h = Math.imul(h, 0xc2b2ae35);
-  h ^= h >>> 16;
-  return h >>> 0;
+  return hashString(`${symbol}:${date}`);
 }
 
 function applyOwner(line: string, owner?: string): string {

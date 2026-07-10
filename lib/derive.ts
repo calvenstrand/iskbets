@@ -38,6 +38,12 @@ export function deriveRating(pct: number): Rating | null {
 /**
  * Sentiment scale — drives the colored card glow. Decoupled from rating so
  * a TURBULENCE card can still glow "down" if the move is mildly negative.
+ *
+ * Naming landmine: Sentiment "rekt" means ≤ -5% here (the 💀 LIQUIDATED
+ * band — it fills with --mood-liquidated via moodVar). TickerTier in
+ * lib/tickerLines.ts has its own, FINER "rekt" meaning -2..-5% (the
+ * 📉 GET REKT rating band). Same word, different cutoffs — check which
+ * scale you're on before reusing either.
  */
 export function deriveSentiment(pct: number): Sentiment {
   if (!Number.isFinite(pct)) return "neutral";
@@ -69,6 +75,21 @@ export function moodVar(sentiment: Sentiment): string {
       return "var(--mood-liquidated)";
   }
 }
+
+/**
+ * Hex equivalents of the --mood-* tokens for surfaces that can't read
+ * CSS variables — i.e. the Satori-rendered OG/Twitter image. Exactly the
+ * moodVar mapping (sentiment "rekt" ≤ -5% gets the deep liquidated red),
+ * so one move gets one color on the site AND the unfurl. MUST stay in
+ * sync with the token definitions in app/globals.css :root.
+ */
+export const SENTIMENT_HEX: Record<Sentiment, string> = {
+  moon: "#33f5a0", // --mood-moon
+  up: "#53c48e", // --mood-up
+  neutral: "#e2c157", // --mood-neutral
+  down: "#eb883b", // --mood-down
+  rekt: "#b7162d", // --mood-liquidated (see moodVar)
+};
 
 /**
  * Dedicated badges for the WEEK'S BIGGEST WINNER / LOSER featured

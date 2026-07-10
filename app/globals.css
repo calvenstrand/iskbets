@@ -1,8 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #080b0a;
-  --bg-elev: #0d1110;
+  /* LEGACY ALIASES — pre-migration names still used across older rules.
+     The exact-duplicate ones now point at the ramp below (one value, two
+     names) so the two families can't drift; prefer --surface-* /
+     --text-N in new code and delete these once call sites migrate.
+     --text-dim (#6b7d72), --text-faint (#3a4a40) and --border-bright
+     (#2a3a32) have NO exact ramp twin (nearest: --text-2 #7c8a83,
+     --text-3 #43514a, --border-strong #37433d) — they keep their own
+     values pending a visual contrast pass; don't alias them blindly. */
+  --bg: var(--surface-0);
+  --bg-elev: var(--surface-1);
   --border-bright: #2a3a32;
   --green: #00e676;
   --green-dim: #00b32d;
@@ -14,7 +22,8 @@
   --gold-dim: #b08e1f;
   --red: #ff2244;
   --red-dim: #b3161e;
-  --text: #d8e6dc;
+  /* Was #d8e6dc — one imperceptible digit off --text-0; unified. */
+  --text: var(--text-0);
   --text-dim: #6b7d72;
   --text-faint: #3a4a40;
 
@@ -580,7 +589,9 @@ html.booting .boot-overlay,
 
 .market-bar {
   border-bottom: 1px solid var(--border);
-  background: #06090807;
+  /* No own background — the previous value was #06090807, an 8-digit hex
+     with alpha 0x07 (~3% opaque, i.e. invisible), so the page bg was
+     what actually showed. Dropping it keeps the exact same look. */
   font-family: var(--font-mono);
   color: var(--text-dim);
   font-size: 0.85rem;
@@ -749,7 +760,13 @@ html.booting .boot-overlay,
       main's stacking context (main is z-index:1), so it sits BELOW the
       body-level scanline (z-9999) and vignette (z-9998) overlays. */
 
-main[data-daymood="bloodbath"] {
+/* The .sd-modal selectors extend the skin into the stock-detail modal:
+   the @modal slot renders OUTSIDE <main> (app/layout.tsx), so the modal
+   would otherwise resolve the un-skinned :root tokens while the skinned
+   dashboard shows through the backdrop behind it. Scoped to .sd-modal
+   (not the whole body) so the drawer footer stays neutral. */
+main[data-daymood="bloodbath"],
+body:has(main[data-daymood="bloodbath"]) .sd-modal {
   /* Pull the greens toward the red end; the reds stay as-is. */
   --mood-moon: var(--mood-rekt);
   --mood-up: var(--mood-down);
@@ -760,7 +777,8 @@ main[data-daymood="bloodbath"] {
   --border-strong: color-mix(in oklch, #37433d 78%, var(--mood-liquidated));
 }
 
-main[data-daymood="clean-sweep"] {
+main[data-daymood="clean-sweep"],
+body:has(main[data-daymood="clean-sweep"]) .sd-modal {
   /* Mirror: pull the reds toward the green end; the greens stay as-is. */
   --mood-liquidated: var(--mood-up);
   --mood-rekt: var(--mood-up);
@@ -829,7 +847,7 @@ main[data-daymood="clean-sweep"]::before {
 }
 
 /* ============= Recap row (Champion + Standings side-by-side) ============= */
-/* Active only during the recap window (Fri 22:00 → Mon 09:00 STO) when
+/* Active only during the recap window (Fri 22:30 → Mon 09:00 STO) when
  * both Champion of the Week and Week Standings are present. Lays them
  * out 50/50 on desktop, stacked on narrow viewports. The children's own
  * outer margin/width rules are overridden here so they sit inside the

@@ -9,6 +9,9 @@ import type {
 
 const POLL_MS = 2 * 60 * 1000;
 const FLASH_MS = 1800;
+// Minimum gap between /api/data fetches — dedupes the visibilitychange +
+// focus pair that both fire on tab return, and any tick racing them.
+const MIN_REFRESH_GAP_MS = 10_000;
 
 /** Tickers whose AI comment changed between two snapshots. */
 function findCommentChanges(
@@ -38,10 +41,11 @@ type PollState = {
 };
 
 /** Polls /api/data every 2 minutes while the tab is visible, pausing
- * when hidden to avoid needless background requests. On tab return and
- * window focus, fires an immediate catch-up request. Flashes tickers
- * whose AI comment just changed, and the mood banner when overallMood
- * changes. */
+ * when hidden to avoid needless background requests. No fetch on mount
+ * (the server render is fresh); on tab return, fires one catch-up
+ * request (visibility + focus are deduped by MIN_REFRESH_GAP_MS).
+ * Flashes tickers whose AI comment just changed, and the mood banner
+ * when overallMood changes. */
 export function usePollDashboard(initial: {
   snapshot: PublicStoredData;
   weeklyChampion: WeeklyChampion | undefined;
@@ -58,14 +62,21 @@ export function usePollDashboard(initial: {
 
   const tickerFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const moodFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastRefreshAtRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
     let interval: ReturnType<typeof setInterval> | null = null;
 
     async function refresh() {
+      // Collapse rapid re-triggers: switching back to the tab fires BOTH
+      // visibilitychange and focus, and either may land seconds after a
+      // scheduled tick. One catch-up fetch is plenty.
+      const nowMs = Date.now();
+      if (nowMs - lastRefreshAtRef.current < MIN_REFRESH_GAP_MS) return;
+      lastRefreshAtRef.current = nowMs;
       try {
-        // Forward the page's search params (e.g. `?mode=weekend`) so the
+        // Forward the page's search params (e.g. `?mode=fresh`) so the
         // polled data stays consistent with the initial server render.
         const url = new URL("/api/data", window.location.origin);
         const liveParams = new URL(window.location.href).searchParams;
@@ -132,8 +143,11 @@ export function usePollDashboard(initial: {
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("focus", onFocus);
 
+    // No immediate refresh on mount: the server just rendered this data
+    // (at most ~80s stale behind ISR + CDN), so an on-load fetch is pure
+    // duplication. The first poll lands after one interval.
     if (document.visibilityState === "visible") {
-      refresh();
+      lastRefreshAtRef.current = Date.now();
       startPolling();
     }
 

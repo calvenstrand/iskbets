@@ -45,7 +45,7 @@ function formatAvg(value: number): string {
  *   bloodbath:   every opened-today stock is negative → swap the
  *                WINNER slot for this card.
  *
- * During the recap window (Fri 22:00 → Mon 09:00 STO), the
+ * During the recap window (Fri 22:30 → Mon 09:00 STO), the
  * Dashboard passes scope="week" and uses week-over-week % for the
  * sweep detection — "0 RED CARDS THIS WEEK".
  */
