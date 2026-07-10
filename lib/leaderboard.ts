@@ -1,6 +1,22 @@
+import { inRecapWindow } from "./dateUtil";
 import { hasTradedToday } from "./marketHours";
 import { buildOwnersByPerson, PEOPLE, type Person, TICKERS } from "./tickers";
 import type { StockPrice } from "./types";
+
+/**
+ * Which framing the standings should use right now. Week scope ONLY
+ * during the recap window (Fri 22:30 → Mon 09:00 STO) AND when a Monday
+ * baseline exists — mid-week, day scope rules even though the baseline
+ * is already there. Defined once so the dashboard leaderboard and the
+ * stock detail's "#N THIS WEEK/TODAY" owner-rank link can't disagree
+ * about which race a friend is ranked in.
+ */
+export function resolveLeaderboardScope(
+  now: Date,
+  weekStartPrices: Record<string, number> | undefined,
+): "day" | "week" {
+  return inRecapWindow(now) && !!weekStartPrices ? "week" : "day";
+}
 
 // Symbol → market, so the day-scope stale filter can ask hasTradedToday
 // without threading the whole TICKERS list through every call.

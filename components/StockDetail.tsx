@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import { deriveRating, deriveSentiment, moodVar } from "@/lib/derive";
-import { computeLeaderboard } from "@/lib/leaderboard";
+import { computeLeaderboard, resolveLeaderboardScope } from "@/lib/leaderboard";
 import { newYorkStatus, stockholmStatus, type Status } from "@/lib/marketHours";
 import {
   buildAnalystLog,
@@ -82,14 +82,18 @@ function statusPip(s: Status): string {
 }
 
 /** Best (lowest) leaderboard rank across a ticker's owners, plus the
- * scope label. Week scope when a Monday baseline exists, else today. */
+ * scope label. Scope follows the shared resolveLeaderboardScope rule
+ * (week only inside the recap window, matching the dashboard) — this
+ * used to switch to week whenever a Monday baseline existed, which made
+ * the "#N THIS WEEK" link disagree mid-week with the day-ranked
+ * leaderboard it points at. */
 function ownerRank(
   owners: Person[],
   stocks: StockPrice[],
   weekStartPrices: Record<string, number> | undefined,
   now: Date,
 ): { rank: number; scope: "WEEK" | "TODAY" } | null {
-  const useWeek = !!weekStartPrices;
+  const useWeek = resolveLeaderboardScope(now, weekStartPrices) === "week";
   const entries = computeLeaderboard(
     stocks,
     weekStartPrices,
