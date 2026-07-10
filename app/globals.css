@@ -2313,3 +2313,595 @@ main {
     transition: none;
   }
 }
+
+/* ============================================================= */
+/* Per-stock detail view (modal + full page) — /stock/[symbol]   */
+/* ============================================================= */
+
+/* Whole card is the tap target. display:contents would drop the anchor's
+   own focus ring, so we make the anchor a block that fully wraps the card
+   and carries the focus-visible ring; the card keeps its own hover/glow. */
+.stock-card-link {
+  display: block;
+  height: 100%;
+  color: inherit;
+  text-decoration: none;
+}
+
+.stock-card-link:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+
+/* The card lifts on hover whether the pointer is over the card or the
+   wrapping anchor. */
+.stock-card-link:hover .stock-card {
+  border-color: var(--border-bright);
+  transform: translateY(-1px);
+}
+
+/* ---- Full-page shell ---- */
+.sd-page {
+  padding: 1.5rem clamp(1rem, 4vw, 3rem) 3rem;
+}
+
+.sd-page-inner {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.sd-back,
+.sd-modal-close {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--green);
+  text-decoration: none;
+  padding: 0.5rem 0;
+}
+
+.sd-back:hover,
+.sd-back:focus-visible {
+  text-shadow: 0 0 10px color-mix(in oklch, var(--green) 45%, transparent);
+  outline: none;
+}
+
+.sd-back-404 {
+  margin-top: 1.6rem;
+  border: 1px solid var(--border-strong);
+  padding: 0.6rem 1rem;
+}
+
+/* ---- Shared content container ---- */
+.sd {
+  font-family: var(--font-mono);
+  margin-top: 1rem;
+}
+
+.sd-section {
+  margin-top: 1.75rem;
+  padding-top: 1.4rem;
+  border-top: 1px solid var(--border);
+}
+
+.sd-label {
+  margin: 0 0 0.85rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+/* Honest thin-data line — where a section has no data yet, own it. */
+.sd-thin {
+  margin: 0;
+  color: var(--text-3);
+  font-size: 0.86rem;
+  letter-spacing: 0.02em;
+}
+
+.sd-muted {
+  color: var(--text-3);
+}
+
+/* Shared move colors — same language as the cards. */
+.sd-up {
+  color: var(--green);
+}
+.sd-down {
+  color: var(--red);
+}
+.sd-flat {
+  color: var(--text-2);
+}
+
+/* ---- 1. Quote header ---- */
+.sd-quote {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.sd-quote-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.sd-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2.2rem, 6vw, 3.2rem);
+  line-height: 0.95;
+  letter-spacing: 0.04em;
+  color: var(--text-0);
+}
+
+.sd-symbol {
+  margin-top: 0.3rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.sd-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* Market badge — pip + label, mirrors the MarketStatus bar language. */
+.sd-market {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.28rem 0.5rem;
+  border: 1px solid var(--border-strong);
+  color: var(--text-2);
+}
+
+.sd-pip {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-3);
+  display: inline-block;
+}
+
+.sd-pip-open .sd-pip {
+  background: var(--green);
+  box-shadow: 0 0 6px color-mix(in oklch, var(--green) 70%, transparent);
+}
+.sd-pip-open {
+  color: var(--text-1);
+  border-color: color-mix(in oklch, var(--green) 40%, var(--border-strong));
+}
+.sd-pip-pre .sd-pip {
+  background: var(--gold);
+  box-shadow: 0 0 6px color-mix(in oklch, var(--gold) 60%, transparent);
+}
+.sd-pip-pre {
+  color: var(--text-1);
+}
+
+/* Mood chip — same recipe as the card rating chip. */
+.sd-chip {
+  display: inline-block;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  padding: 0.24rem 0.5rem;
+  white-space: nowrap;
+  border: 1px solid color-mix(in oklch, var(--mood, var(--border-bright)) 50%, transparent);
+  background: color-mix(in oklch, var(--mood, transparent) 12%, transparent);
+  color: var(--mood, var(--text-0));
+}
+
+.sd-chip-solid {
+  border-color: var(--mood);
+  background: var(--mood);
+  color: var(--mood-ink, var(--surface-0));
+}
+
+.sd-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem 0.8rem;
+  flex-wrap: wrap;
+}
+
+.sd-price {
+  font-family: var(--font-mono);
+  font-size: clamp(1.8rem, 5vw, 2.6rem);
+  color: var(--text-0);
+  line-height: 1;
+}
+
+.sd-price.sd-na {
+  color: var(--text-3);
+}
+
+.sd-currency {
+  font-size: 0.85rem;
+  color: var(--text-2);
+  letter-spacing: 0.08em;
+}
+
+.sd-day {
+  margin-left: auto;
+  font-size: clamp(1rem, 2.5vw, 1.3rem);
+}
+
+.sd-subline {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem 1rem;
+  flex-wrap: wrap;
+}
+
+.sd-wtd {
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.sd-live-take {
+  font-style: italic;
+  color: var(--text-1);
+  font-size: 0.9rem;
+  border-left: 2px solid color-mix(in oklch, var(--mood, var(--border-strong)) 45%, var(--border));
+  padding-left: 0.6rem;
+}
+
+/* ---- 2. 52-week range bar ---- */
+.sd-range {
+  position: relative;
+  height: 10px;
+  border: 1px solid var(--border);
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklch, var(--mood-liquidated) 22%, var(--surface-1)) 0%,
+    var(--surface-2) 50%,
+    color-mix(in oklch, var(--mood-moon) 22%, var(--surface-1)) 100%
+  );
+}
+
+.sd-range-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: color-mix(in oklch, var(--mood, var(--border-strong)) 18%, transparent);
+}
+
+.sd-range-marker {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 3px;
+  transform: translateX(-1.5px);
+  background: var(--mood, var(--gold));
+  box-shadow: 0 0 8px color-mix(in oklch, var(--mood, var(--gold)) 60%, transparent);
+}
+
+.sd-range-ends {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: var(--text-2);
+}
+
+.sd-from-top {
+  color: var(--text-1);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+  text-align: center;
+}
+
+/* ---- 3. Ownership ---- */
+.sd-own-line {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.2rem, 3vw, 1.6rem);
+  letter-spacing: 0.06em;
+  color: var(--text-0);
+}
+
+.sd-rank-link {
+  color: var(--gold);
+  text-decoration: none;
+  text-shadow: 0 0 10px color-mix(in oklch, var(--gold) 30%, transparent);
+}
+
+.sd-rank-link:hover,
+.sd-rank-link:focus-visible {
+  text-decoration: underline;
+  outline: none;
+}
+
+/* ---- 4. Mood strip ---- */
+.sd-strip-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sd-strip {
+  display: flex;
+  gap: 3px;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+  scrollbar-width: thin;
+}
+
+.sd-cell {
+  appearance: none;
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  cursor: pointer;
+}
+
+.sd-cell-on {
+  background: var(--mood);
+  border-color: color-mix(in oklch, var(--mood) 60%, var(--border));
+}
+
+.sd-cell-off {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--surface-1),
+    var(--surface-1) 2px,
+    var(--surface-0) 2px,
+    var(--surface-0) 4px
+  );
+}
+
+.sd-cell:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 1px;
+}
+
+.sd-strip-caption {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: var(--text-2);
+  min-height: 1.1em;
+}
+
+/* ---- 5. Analyst log (the spine) ---- */
+.sd-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sd-log-entry {
+  /* Comfortable tap/read row — >= 44px tall. */
+  min-height: 44px;
+  padding: 0.7rem 0 0.7rem 0.85rem;
+  border-left: 2px solid color-mix(in oklch, var(--mood, var(--border-strong)) 55%, var(--border));
+  border-bottom: 1px solid var(--border);
+}
+
+.sd-log-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.3rem;
+}
+
+.sd-log-date {
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.sd-log-move {
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+
+.sd-log-rating {
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  color: var(--text-1);
+}
+
+.sd-log-comment {
+  margin: 0;
+  font-style: italic;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-1);
+}
+
+/* Seeded coverage marker — always the oldest row, honest about when the
+   lights came on. */
+.sd-log-seed {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.9rem 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.sd-log-seed-mark {
+  color: var(--gold);
+  opacity: 0.7;
+}
+
+/* ---- 6. Sparkline slot ---- */
+.sd-sparkline {
+  width: 100%;
+  height: 120px;
+  display: block;
+}
+
+.sd-spark-path {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 6px color-mix(in oklch, var(--green) 40%, transparent));
+}
+
+.sd-locked {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 1.4rem;
+  border: 1px dashed var(--border-strong);
+  background: var(--surface-1);
+  text-align: center;
+}
+
+.sd-locked-line {
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.sd-locked-bar {
+  height: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.sd-locked-fill {
+  height: 100%;
+  background: color-mix(in oklch, var(--gold) 60%, transparent);
+}
+
+.sd-locked-count {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  letter-spacing: 0.08em;
+  color: var(--gold);
+}
+
+/* ============================================================= */
+/* Modal shell                                                   */
+/* ============================================================= */
+
+.sd-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: color-mix(in oklch, var(--surface-0) 82%, transparent);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(1rem, 4vw, 3rem);
+  animation: sd-fade-in 160ms ease-out;
+}
+
+.sd-modal {
+  position: relative;
+  width: min(760px, 100%);
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, var(--surface-1) 0%, var(--surface-0) 100%);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.65);
+  animation: sd-modal-in 180ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+.sd-modal-close {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.9rem;
+  z-index: 1;
+  appearance: none;
+  background: none;
+  border: 1px solid var(--border-strong);
+  cursor: pointer;
+  padding: 0.4rem 0.6rem;
+}
+
+.sd-modal-close:hover,
+.sd-modal-close:focus-visible {
+  color: var(--text-0);
+  border-color: var(--green-dim);
+  outline: none;
+}
+
+.sd-modal-body {
+  overflow-y: auto;
+  padding: 1.5rem clamp(1rem, 3vw, 2rem) 2rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+@keyframes sd-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes sd-modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Phones: the modal is a full-screen sheet — a centered dialog is
+   unusable at 320px. Header pins; the body scrolls. */
+@media (max-width: 640px) {
+  .sd-modal-backdrop {
+    padding: 0;
+    align-items: stretch;
+  }
+  .sd-modal {
+    width: 100%;
+    max-height: 100%;
+    height: 100%;
+    border: none;
+  }
+  .sd-modal-body {
+    padding-top: 3rem; /* clear the pinned close button */
+    padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sd-modal-backdrop,
+  .sd-modal {
+    animation: none;
+  }
+}
