@@ -974,11 +974,12 @@ function dateBack(daysBack: number): { date: string; weekday: number } {
 
 /**
  * Fabricated dated history so the per-stock detail view renders a real
- * ANALYST LOG + mood strip in dev mode (no Redis). Pure dev affordance —
+ * mood strip + price chart in dev mode (no Redis). Pure dev affordance —
  * only the mock branch in storage.ts ever calls it. Skips weekends (so
  * the mood strip shows honest gaps) and only attaches a commentary line
- * on the bigger-move days, mirroring the production comment rule. Ordered
- * oldest→newest, matching the real storage layer.
+ * on the bigger-move days, mirroring the production comment rule (nothing
+ * renders those lines today, but the stored snapshot shape carries them).
+ * Ordered oldest→newest, matching the real storage layer.
  */
 export function getMockDailySnapshots(): DailySnapshot[] {
   const snapshots: DailySnapshot[] = [];

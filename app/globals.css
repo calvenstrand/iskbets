@@ -2703,77 +2703,7 @@ main {
   min-height: 1.1em;
 }
 
-/* ---- 5. Analyst log (the spine) ---- */
-.sd-log {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.sd-log-entry {
-  /* Comfortable tap/read row — >= 44px tall. */
-  min-height: 44px;
-  padding: 0.7rem 0 0.7rem 0.85rem;
-  border-left: 2px solid color-mix(in oklch, var(--mood, var(--border-strong)) 55%, var(--border));
-  border-bottom: 1px solid var(--border);
-}
-
-.sd-log-meta {
-  display: flex;
-  align-items: baseline;
-  gap: 0.7rem;
-  flex-wrap: wrap;
-  margin-bottom: 0.3rem;
-}
-
-.sd-log-date {
-  font-size: 0.68rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text-2);
-}
-
-.sd-log-move {
-  font-size: 0.78rem;
-  letter-spacing: 0.04em;
-}
-
-.sd-log-rating {
-  font-size: 0.66rem;
-  letter-spacing: 0.04em;
-  color: var(--text-1);
-}
-
-.sd-log-comment {
-  margin: 0;
-  font-style: italic;
-  font-size: 0.95rem;
-  line-height: 1.5;
-  color: var(--text-1);
-}
-
-/* Seeded coverage marker — always the oldest row, honest about when the
-   lights came on. */
-.sd-log-seed {
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.9rem 0;
-  font-size: 0.72rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--text-3);
-}
-
-.sd-log-seed-mark {
-  color: var(--gold);
-  opacity: 0.7;
-}
-
-/* ---- 6. Sparkline slot ---- */
+/* ---- 5. Sparkline slot ---- */
 .sd-sparkline {
   width: 100%;
   height: 120px;

@@ -32,7 +32,7 @@ function getMetadataBase(): URL {
 
 const TITLE = "ISKBets — Stockholm meets WallStreetBets. Diamond hands.";
 const DESCRIPTION =
-  "Live stock dashboard for Stockholmsbörsen and US tickers with WSB-style commentary, a friend-group leaderboard, per-stock analyst logs, and a weekly champion recap. Diamond hands. Not financial advice.";
+  "Live stock dashboard for Stockholmsbörsen and US tickers with WSB-style commentary, a friend-group leaderboard, per-stock mood history, and a weekly champion recap. Diamond hands. Not financial advice.";
 
 // JSON-LD structured data — gives Google a machine-readable description of
 // what ISKBets is, who built it, and what it does. Helps with rich-result
