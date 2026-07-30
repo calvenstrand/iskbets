@@ -1,35 +1,30 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { CSSProperties } from "react";
+import { extractTickerSeries } from "@/lib/dailySnapshot";
 import { deriveRating, deriveSentiment, moodVar } from "@/lib/derive";
 import { computeLeaderboard, resolveLeaderboardScope } from "@/lib/leaderboard";
 import { newYorkStatus, stockholmStatus, type Status } from "@/lib/marketHours";
 import {
-  buildAnalystLog,
   buildMoodStrip,
   buildSparklinePath,
-  extractTickerHistory,
   fromTheTop,
-  monthYearOf,
   rangePosition,
   SPARKLINE_UNLOCK_DAYS,
 } from "@/lib/stockDetail";
-import { stockholmDate } from "@/lib/dateUtil";
 import { displayTicker, PEOPLE, type Person, TICKERS } from "@/lib/tickers";
 import { getDashboardData, getRecentDailySnapshots } from "@/lib/storage";
 import type { StockPrice } from "@/lib/types";
-import { AnalystLog } from "./AnalystLog";
 import { StockMoodStrip } from "./StockMoodStrip";
 
-/** How deep to read history for the log / strip / sparkline. Each dated
+/** How deep to read history for the strip / sparkline. Each dated
  * snapshot is ~5 KB and holds ALL tickers, and getRecentDailySnapshots
  * fetches them in one MGET — at the 400-day retention cap that's a ~2 MB
  * response to plot ONE ticker, which will eventually trip Upstash REST
  * response limits and silently blank these sections (the reads are
- * .catch(() => [])). 90 days covers the mood strip, the analyst log's
- * useful depth, and the 30-receipt sparkline gate with headroom. If a
- * full-depth chart is ever wanted, store a compact per-ticker series
- * key instead of raising this. */
+ * .catch(() => [])). 90 days covers the mood strip and the 30-receipt
+ * sparkline gate with headroom. If a full-depth chart is ever wanted,
+ * store a compact per-ticker series key instead of raising this. */
 const HISTORY_DAYS = 90;
 
 function fmtPrice(value: number): string {
@@ -135,13 +130,8 @@ export async function StockDetail({ symbol }: { symbol: string }) {
   );
   const weekStartPrices = dashboard?.weekStartPrices;
 
-  const history = extractTickerHistory(snapshots, symbol);
+  const history = extractTickerSeries(snapshots, symbol);
   const moodCells = buildMoodStrip(history);
-  const log = buildAnalystLog(history, {
-    // Stockholm month, matching every other "what day is it" decision
-    // (UTC would drift the coverage marker at month boundaries).
-    fallbackMonthYear: monthYearOf(stockholmDate(now)),
-  });
 
   const price = stock?.regularMarketPrice ?? NaN;
   const dayPct = stock?.regularMarketChangePercent ?? NaN;
@@ -304,13 +294,7 @@ export async function StockDetail({ symbol }: { symbol: string }) {
         )}
       </section>
 
-      {/* 5 — Analyst log (the spine) */}
-      <section className="sd-section sd-analyst">
-        <h2 className="sd-label">ANALYST LOG</h2>
-        <AnalystLog entries={log} />
-      </section>
-
-      {/* 6 — Sparkline slot (locked until 30 receipts) */}
+      {/* 5 — Sparkline slot (locked until 30 receipts) */}
       <section className="sd-section">
         <h2 className="sd-label">PRICE CHART</h2>
         {sparkPath ? (

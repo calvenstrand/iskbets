@@ -32,7 +32,7 @@ export async function generateMetadata({
   // Description = this ticker's latest commentary line, falling back to
   // the day's overall mood, then a static line. Best-effort — a Redis
   // hiccup at build/runtime just yields the fallback.
-  let description = `${meta.name} (${display}) on ISKBETS — WSB-rated moves, analyst log, and mood history. Not financial advice 🦍`;
+  let description = `${meta.name} (${display}) on ISKBETS — WSB-rated moves, mood history, and the 52-week damage report. Not financial advice 🦍`;
   try {
     const data = await getDashboardData();
     const comment = data?.snapshot.analysis.stocks.find(

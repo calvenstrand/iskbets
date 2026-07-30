@@ -1,53 +1,23 @@
 // Pure data-shaping for the per-stock detail view. All functions here are
 // deterministic transforms over the dated snapshot history — no I/O, no
-// clock reads (callers pass any "today" reference in). Kept separate from
-// dailySnapshot.ts's extractTickerSeries (which deliberately drops the AI
-// `comment` for the public /api/history contract) because the detail view
-// needs the commentary line to build its ANALYST LOG.
+// clock reads (callers pass any "today" reference in). The per-ticker
+// series itself comes from dailySnapshot.ts's extractTickerSeries; this
+// file only shapes it into the view's panels.
+//
+// History: there used to be a local extractTickerHistory here that kept
+// the snapshot `comment` field, because the ANALYST LOG panel rendered a
+// dated commentary feed. That panel was removed once per-ticker comments
+// stopped being AI-generated (they're the table-driven lines from
+// stockMessages.ts, so a dated feed of them said nothing), which left the
+// local extractor a pure duplicate of extractTickerSeries.
 
-import type { DailySnapshot, Rating, Sentiment } from "./types";
+import type { Sentiment } from "./types";
+import type { TickerSeriesPoint } from "./dailySnapshot";
 
 /** Price chart stays locked until the ticker has this many dated
  * receipts. The gate + the SVG both ship now so it flips on by itself
  * as the cron accumulates snapshots. */
 export const SPARKLINE_UNLOCK_DAYS = 30;
-
-/** One day of a single ticker's history, INCLUDING the optional AI
- * comment (extractTickerSeries drops it; the analyst log needs it). */
-export type TickerHistoryPoint = {
-  date: string;
-  price: number;
-  changePct: number;
-  rating?: Rating;
-  sentiment: Sentiment;
-  comment?: string;
-};
-
-/**
- * Pull one ticker's per-day history out of a list of dated snapshots,
- * keeping the commentary line. Snapshots that predate the ticker (it
- * wasn't in the universe yet) are skipped. Order follows the input
- * (storage returns oldest→newest).
- */
-export function extractTickerHistory(
-  snapshots: DailySnapshot[],
-  ticker: string,
-): TickerHistoryPoint[] {
-  const points: TickerHistoryPoint[] = [];
-  for (const snap of snapshots) {
-    const s = snap.stocks.find((x) => x.ticker === ticker);
-    if (!s) continue;
-    points.push({
-      date: snap.date,
-      price: s.price,
-      changePct: s.changePct,
-      ...(s.rating ? { rating: s.rating } : {}),
-      sentiment: s.sentiment,
-      ...(s.comment ? { comment: s.comment } : {}),
-    });
-  }
-  return points;
-}
 
 /** One square in the contribution-graph mood strip. A `present: false`
  * cell is an honest hole — a calendar day inside the covered span with
@@ -64,7 +34,7 @@ export type MoodCell =
  * empty input (the caller renders the "coverage initiated" empty state).
  * Input need not be pre-sorted — we sort defensively.
  */
-export function buildMoodStrip(points: TickerHistoryPoint[]): MoodCell[] {
+export function buildMoodStrip(points: TickerSeriesPoint[]): MoodCell[] {
   if (points.length === 0) return [];
   const sorted = [...points].sort((a, b) => a.date.localeCompare(b.date));
   const byDate = new Map(sorted.map((p) => [p.date, p]));
@@ -81,76 +51,6 @@ export function buildMoodStrip(points: TickerHistoryPoint[]): MoodCell[] {
     );
   }
   return cells;
-}
-
-/** A rendered analyst-log row. `kind: "entry"` is a real dated
- * commentary line; the terminal `kind: "coverage-initiated"` marker is
- * always appended as the oldest row so the feed is never empty. */
-export type AnalystLogEntry =
-  | {
-      kind: "entry";
-      date: string;
-      changePct: number;
-      sentiment: Sentiment;
-      rating?: Rating;
-      comment: string;
-    }
-  | { kind: "coverage-initiated"; monthYear: string };
-
-/**
- * Reverse-chronological analyst feed: every dated AI commentary line for
- * this ticker, newest first, capped off by the seeded "coverage
- * initiated" marker (the month+year of the earliest snapshot we hold, or
- * `fallbackMonthYear` when there's no history at all). Days without a
- * commentary line don't produce a row — the log is the commentary spine,
- * not a price ledger — but the seed guarantees a non-empty, honest panel
- * for brand-new coverage.
- */
-export function buildAnalystLog(
-  points: TickerHistoryPoint[],
-  opts: { fallbackMonthYear: string },
-): AnalystLogEntry[] {
-  const sorted = [...points].sort((a, b) => a.date.localeCompare(b.date));
-  const monthYear =
-    sorted.length > 0 ? monthYearOf(sorted[0]!.date) : opts.fallbackMonthYear;
-
-  const entries: AnalystLogEntry[] = [];
-  for (const p of sorted) {
-    if (!p.comment) continue;
-    entries.push({
-      kind: "entry",
-      date: p.date,
-      changePct: p.changePct,
-      sentiment: p.sentiment,
-      ...(p.rating ? { rating: p.rating } : {}),
-      comment: p.comment,
-    });
-  }
-  entries.reverse(); // newest first
-  entries.push({ kind: "coverage-initiated", monthYear });
-  return entries;
-}
-
-const MONTHS = [
-  "JAN",
-  "FEB",
-  "MAR",
-  "APR",
-  "MAY",
-  "JUN",
-  "JUL",
-  "AUG",
-  "SEP",
-  "OCT",
-  "NOV",
-  "DEC",
-];
-
-/** "2026-07-09" → "JUL 2026". Robust to a malformed date string. */
-export function monthYearOf(date: string): string {
-  const [y, m] = date.split("-").map(Number);
-  const mm = MONTHS[(m ?? 0) - 1] ?? "———";
-  return `${mm} ${y ?? "————"}`;
 }
 
 /**
